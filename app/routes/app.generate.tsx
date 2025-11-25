@@ -4,13 +4,22 @@ import { useActionData, useLoaderData, useNavigation, useSubmit } from "react-ro
 import { authenticate } from "../shopify.server";
 import { aiAdapter } from "../services/adapters/ai-adapter";
 import { themeAdapter } from "../services/adapters/theme-adapter";
+import { ServiceModeIndicator } from "../components/ServiceModeIndicator";
+import { serviceConfig } from "../services/config.server";
 import type { GenerateActionData, SaveActionData, Theme } from "../types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
   const themes = await themeAdapter.getThemes(request);
   console.log("Loaded themes:", themes);
-  return { themes };
+  return {
+    themes,
+    serviceMode: {
+      themeMode: serviceConfig.themeMode,
+      aiMode: serviceConfig.aiMode,
+      showIndicator: serviceConfig.showModeInUI
+    }
+  };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -48,7 +57,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function GeneratePage() {
-  const { themes } = useLoaderData<typeof loader>();
+  const { themes, serviceMode } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submit = useSubmit();
@@ -87,6 +96,7 @@ export default function GeneratePage() {
     submit(formData, { method: "post" });
   };
 
+  // Event handlers use generic Event type for Polaris web components
   const handlePromptChange = (e: Event) => {
     const target = e.target as HTMLInputElement;
     setPrompt(target.value);
@@ -111,87 +121,95 @@ export default function GeneratePage() {
   console.log("Selected theme:", selectedTheme);
 
   return (
-    <s-page title="Generate Section">
-      <s-layout>
-        <s-layout-section>
-          <s-card>
-            <s-stack gap="400" vertical>
-              <s-text variant="headingMd" as="h2">
-                Describe your section
-              </s-text>
-              <s-text-field
-                label="Prompt"
-                value={prompt}
-                onInput={handlePromptChange}
-                multiline="4"
-                autoComplete="off"
-                placeholder="A hero section with a background image and centered text..."
-              ></s-text-field>
-              <s-button 
-                loading={isGenerating ? "true" : undefined} 
-                onClick={handleGenerate} 
-                variant="primary"
-              >
-                Generate Code
-              </s-button>
-            </s-stack>
-          </s-card>
-        </s-layout-section>
-
-        {generatedCode && (
+    <>
+      <s-page title="Generate Section">
+        <s-layout>
           <s-layout-section>
             <s-card>
               <s-stack gap="400" vertical>
                 <s-text variant="headingMd" as="h2">
-                  Preview & Save
+                  Describe your section
                 </s-text>
-                
-                {actionData?.success && (
-                  <s-banner tone="success" heading="Success" dismissible>
-                    {actionData.message}
-                  </s-banner>
-                )}
-                {actionData?.success === false && (
-                  <s-banner tone="critical" heading="Error">
-                    {actionData.message}
-                  </s-banner>
-                )}
-
-                <s-box padding="400" background="bg-surface-secondary" border-radius="200">
-                  <pre style={{ overflowX: "auto" }}>{generatedCode}</pre>
-                </s-box>
-
-                <s-stack gap="400" vertical>
-                  <s-select
-                    label="Select Theme"
-                    value={selectedTheme}
-                    onChange={handleThemeChange}
-                  >
-                    {themeOptions.map((option) => (
-                      <s-option key={option.value} value={option.value}>
-                        {option.label}
-                      </s-option>
-                    ))}
-                  </s-select>
-                  <s-text-field
-                    label="Section Filename"
-                    value={fileName}
-                    onInput={handleFileNameChange}
-                    suffix=".liquid"
-                    autoComplete="off"
-                  ></s-text-field>
-                  <s-button 
-                    loading={isSaving ? "true" : undefined} 
-                    onClick={handleSave}
-                  >
-                    Save to Theme
-                  </s-button>
-                </s-stack>
+                <s-text-field
+                  label="Prompt"
+                  value={prompt}
+                  onInput={handlePromptChange}
+                  multiline="4"
+                  autoComplete="off"
+                  placeholder="A hero section with a background image and centered text..."
+                ></s-text-field>
+                <s-button
+                  loading={isGenerating ? "true" : undefined}
+                  onClick={handleGenerate}
+                  variant="primary"
+                >
+                  Generate Code
+                </s-button>
               </s-stack>
             </s-card>
           </s-layout-section>
-        )}
-      </s-layout>
-    </s-page>
+
+          {generatedCode && (
+            <s-layout-section>
+              <s-card>
+                <s-stack gap="400" vertical>
+                  <s-text variant="headingMd" as="h2">
+                    Preview & Save
+                  </s-text>
+
+                  {actionData?.success && (
+                    <s-banner tone="success" heading="Success" dismissible>
+                      {actionData.message}
+                    </s-banner>
+                  )}
+                  {actionData?.success === false && (
+                    <s-banner tone="critical" heading="Error">
+                      {actionData.message}
+                    </s-banner>
+                  )}
+
+                  <s-box padding="400" background="bg-surface-secondary" border-radius="200">
+                    <pre style={{ overflowX: "auto" }}>{generatedCode}</pre>
+                  </s-box>
+
+                  <s-stack gap="400" vertical>
+                    <s-select
+                      label="Select Theme"
+                      value={selectedTheme}
+                      onChange={handleThemeChange}
+                    >
+                      {themeOptions.map((option) => (
+                        <s-option key={option.value} value={option.value}>
+                          {option.label}
+                        </s-option>
+                      ))}
+                    </s-select>
+                    <s-text-field
+                      label="Section Filename"
+                      value={fileName}
+                      onInput={handleFileNameChange}
+                      suffix=".liquid"
+                      autoComplete="off"
+                    ></s-text-field>
+                    <s-button
+                      loading={isSaving ? "true" : undefined}
+                      onClick={handleSave}
+                    >
+                      Save to Theme
+                    </s-button>
+                  </s-stack>
+                </s-stack>
+              </s-card>
+            </s-layout-section>
+          )}
+        </s-layout>
+      </s-page>
+
+      <ServiceModeIndicator
+        themeMode={serviceMode.themeMode}
+        aiMode={serviceMode.aiMode}
+        showIndicator={serviceMode.showIndicator}
+      />
+    </>
   );
 }

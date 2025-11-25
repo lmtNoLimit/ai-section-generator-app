@@ -1,5 +1,5 @@
 import type { AIServiceInterface } from '../../types/service.types';
-import { serviceConfig, logServiceMode } from '../config.server';
+import { serviceConfig, logServiceConfig } from '../config.server';
 import { aiService } from '../ai.server';
 import { mockAIService } from '../mocks/mock-ai.server';
 
@@ -11,8 +11,8 @@ class AIAdapter implements AIServiceInterface {
   private service: AIServiceInterface;
 
   constructor() {
-    logServiceMode();
-    this.service = serviceConfig.mode === 'mock'
+    logServiceConfig();
+    this.service = serviceConfig.aiMode === 'mock'
       ? mockAIService
       : aiService;
   }
@@ -23,6 +23,10 @@ class AIAdapter implements AIServiceInterface {
 
   getMockSection(prompt: string): string {
     return this.service.getMockSection(prompt);
+  }
+
+  getCurrentMode(): 'mock' | 'real' {
+    return serviceConfig.aiMode;
   }
 }
 

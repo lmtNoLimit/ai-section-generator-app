@@ -16,6 +16,7 @@ AI Section Generator is a **serverless embedded Shopify app** built on React Rou
 │  │  │  - Generate Section Form                     │     │    │
 │  │  │  - Theme Selector                            │     │    │
 │  │  │  - Code Preview                              │     │    │
+│  │  │  - Service Mode Indicator (dev only)         │     │    │
 │  │  └───────────┬──────────────────────────────────┘     │    │
 │  │              │                                          │    │
 │  └──────────────┼──────────────────────────────────────────┘    │
@@ -29,6 +30,7 @@ AI Section Generator is a **serverless embedded Shopify app** built on React Rou
 │  │  ┌──────────────────────────────────────────────┐     │    │
 │  │  │  Routes (React Router 7)                    │     │    │
 │  │  │  - app.generate.tsx  (loader + action)      │     │    │
+│  │  │      Uses: aiAdapter, themeAdapter          │     │    │
 │  │  │  - app._index.tsx                           │     │    │
 │  │  │  - webhooks.*.tsx                           │     │    │
 │  │  │  - auth.*.tsx                               │     │    │
@@ -36,43 +38,136 @@ AI Section Generator is a **serverless embedded Shopify app** built on React Rou
 │  └──────────────┼──────────────────────────────────────────┘    │
 │                 │                                                │
 │  ┌──────────────▼──────────────────────────────────────────┐    │
-│  │               Business Logic Layer                      │    │
-│  │  ┌──────────────────────┐  ┌──────────────────────┐   │    │
-│  │  │   AIService          │  │   ThemeService       │   │    │
-│  │  │  - generateSection() │  │  - getThemes()       │   │    │
-│  │  │  - getMockSection()  │  │  - createSection()   │   │    │
-│  │  └──────────┬────────────┘  └──────────┬───────────┘   │    │
-│  └──────────────┼──────────────────────────┼───────────────┘    │
-│                 │                          │                    │
-│  ┌──────────────▼──────────────────────────▼───────────────┐    │
-│  │               Data Access Layer                         │    │
-│  │  ┌──────────────────────────────────────────────┐       │    │
-│  │  │   Prisma ORM (db.server.ts)                  │       │    │
-│  │  │  - Session CRUD                              │       │    │
-│  │  │  - GeneratedSection CRUD                     │       │    │
-│  │  └──────────────────────────────────────────────┘       │    │
-│  └──────────────────────────────────────────────────────────┘    │
-└─────────────┬──────────────────────────────┬────────────────────┘
-              │                              │
-              ▼                              ▼
-   ┌──────────────────┐          ┌──────────────────────┐
-   │  SQLite / MySQL  │          │  Shopify Admin API   │
-   │  / PostgreSQL    │          │  (GraphQL)           │
-   │                  │          │  - themes query      │
-   │  - Session       │          │  - themeFilesUpsert  │
-   │  - Generated     │          │                      │
-   │    Section       │          └──────────────────────┘
-   └──────────────────┘                     │
-                                            │
-              ┌─────────────────────────────┘
-              ▼
-   ┌──────────────────────┐
-   │  Google Gemini API   │
-   │  (gemini-2.0-flash)  │
-   │                      │
-   │  - generateContent() │
-   │  - systemInstruction │
-   └──────────────────────┘
+│  │          Business Logic Layer (Adapter Pattern)         │    │
+│  │                                                          │    │
+│  │  ┌───────────────────────────────────────────────────┐ │    │
+│  │  │  Feature Flag System                              │ │    │
+│  │  │  - FLAG_USE_MOCK_THEMES, FLAG_USE_MOCK_AI        │ │    │
+│  │  │  - Environment variable overrides                 │ │    │
+│  │  │  - flagManager.isEnabled(key)                     │ │    │
+│  │  └────────────────┬──────────────────────────────────┘ │    │
+│  │                   │                                     │    │
+│  │                   ▼                                     │    │
+│  │  ┌───────────────────────────────────────────────────┐ │    │
+│  │  │  Service Configuration (config.server.ts)         │ │    │
+│  │  │  - serviceConfig.aiMode: 'mock' | 'real'         │ │    │
+│  │  │  - serviceConfig.themeMode: 'mock' | 'real'      │ │    │
+│  │  └────────────────┬──────────────────────────────────┘ │    │
+│  │                   │                                     │    │
+│  │    ┌──────────────┴───────────────┐                    │    │
+│  │    │                              │                    │    │
+│  │    ▼                              ▼                    │    │
+│  │  ┌─────────────────┐    ┌──────────────────┐          │    │
+│  │  │  AI Adapter     │    │  Theme Adapter   │          │    │
+│  │  │  (routes calls) │    │  (routes calls)  │          │    │
+│  │  └────┬────────────┘    └────┬─────────────┘          │    │
+│  │       │                      │                         │    │
+│  │       │ if mock              │ if mock                 │    │
+│  │       ├─────────┐            ├─────────┐               │    │
+│  │       │         │            │         │               │    │
+│  │       ▼         ▼            ▼         ▼               │    │
+│  │  ┌──────────┐ ┌─────────┐ ┌──────────┐ ┌──────────┐  │    │
+│  │  │AIService │ │MockAI   │ │Theme     │ │MockTheme │  │    │
+│  │  │(real)    │ │Service  │ │Service   │ │Service   │  │    │
+│  │  │          │ │(mock)   │ │(real)    │ │(mock)    │  │    │
+│  │  └────┬─────┘ └────┬────┘ └────┬─────┘ └────┬─────┘  │    │
+│  └───────┼────────────┼───────────┼────────────┼─────────┘    │
+│          │            │           │            │               │
+│          │            │           │            │               │
+└──────────┼────────────┼───────────┼────────────┼───────────────┘
+           │            │           │            │
+           ▼            │           ▼            │
+   ┌─────────────────┐  │  ┌────────────────┐   │
+   │  Google Gemini  │  │  │  Shopify API   │   │
+   │  API            │  │  │  (GraphQL)     │   │
+   │  gemini-2.0     │  │  │  - themes      │   │
+   │  -flash-exp     │  │  │  - files       │   │
+   └─────────────────┘  │  └────────────────┘   │
+                        │                        │
+                        ▼                        ▼
+                   ┌──────────────┐     ┌────────────────┐
+                   │  Mock Data   │     │  Mock Store    │
+                   │  - Sections  │     │  (in-memory)   │
+                   │  - Themes    │     │  - Saved files │
+                   └──────────────┘     └────────────────┘
+```
+
+### Feature Flag Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Environment Variables                                           │
+│  FLAG_USE_MOCK_THEMES=true                                      │
+│  FLAG_USE_MOCK_AI=false                                         │
+│  GEMINI_API_KEY=abc123...                                       │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  FeatureFlagManager (flags/flag-utils.ts)                       │
+│  1. Check runtime overrides                                     │
+│  2. Check FLAG_* environment variables                          │
+│  3. Fall back to default values                                 │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Service Configuration (config.server.ts)                       │
+│                                                                  │
+│  getThemeMode():                                                │
+│    if FLAG_USE_MOCK_THEMES=true → return 'mock'                │
+│    else if SERVICE_MODE='real' → return 'real'                 │
+│    else → return 'mock' (safe default)                         │
+│                                                                  │
+│  getAIMode():                                                   │
+│    if FLAG_USE_MOCK_AI=true → return 'mock'                    │
+│    else if GEMINI_API_KEY exists → return 'real'               │
+│    else → return 'mock'                                         │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  serviceConfig Object (exported)                                │
+│  {                                                              │
+│    themeMode: 'mock',        // from FLAG_USE_MOCK_THEMES      │
+│    aiMode: 'real',           // from GEMINI_API_KEY            │
+│    enableLogging: true,      // from FLAG_VERBOSE_LOGGING      │
+│    simulateLatency: false,   // from FLAG_SIMULATE_API_LATENCY │
+│    showModeInUI: true        // from FLAG_SHOW_SERVICE_MODE    │
+│  }                                                              │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Service Adapters (at module initialization)                    │
+│                                                                  │
+│  AIAdapter:                                                     │
+│    this.service = serviceConfig.aiMode === 'mock'               │
+│      ? mockAIService   ← Selected (aiMode='real' above)        │
+│      : aiService       ← USED                                   │
+│                                                                  │
+│  ThemeAdapter:                                                  │
+│    this.service = serviceConfig.themeMode === 'mock'            │
+│      ? mockThemeService ← USED (themeMode='mock' above)        │
+│      : themeService     ← Not selected                          │
+└────────────────┬────────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Runtime Behavior                                               │
+│                                                                  │
+│  Route calls aiAdapter.generateSection(prompt)                  │
+│    → Routes to AIService (real Gemini)                          │
+│    → Returns actual AI-generated Liquid code                    │
+│                                                                  │
+│  Route calls themeAdapter.getThemes(request)                    │
+│    → Routes to MockThemeService                                 │
+│    → Returns mock themes (Dawn, Refresh, Studio)                │
+│                                                                  │
+│  Route calls themeAdapter.createSection(...)                    │
+│    → Routes to MockThemeService                                 │
+│    → Saves to in-memory mock store (no Shopify API call)        │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Layer Breakdown
@@ -128,51 +223,204 @@ AI Section Generator is a **serverless embedded Shopify app** built on React Rou
 - Integrate with external APIs
 - Handle error recovery and fallbacks
 - Validate and transform data
+- Route requests to appropriate service implementations (mock vs real)
 
-**Key Services**:
+**Architecture Pattern**: Adapter Pattern with Feature Flag Control
 
-#### `ai.server.ts` - AIService
+The business logic layer uses an **adapter pattern** to enable seamless switching between mock and real service implementations. This architecture supports:
+- Development without external API dependencies
+- Testing with consistent mock data
+- Gradual migration from mock to real services
+- Runtime service mode switching via environment variables
+
+**Service Layer Structure**:
+```
+app/services/
+├── adapters/              # Service routing layer
+│   ├── ai-adapter.ts      # Routes AI requests to mock/real service
+│   └── theme-adapter.ts   # Routes theme requests to mock/real service
+├── flags/                 # Feature flag system
+│   ├── feature-flags.ts   # Flag definitions and defaults
+│   └── flag-utils.ts      # Flag manager and utilities
+├── mocks/                 # Mock implementations
+│   ├── mock-ai.server.ts      # Mock AI service
+│   ├── mock-theme.server.ts   # Mock theme service
+│   ├── mock-data.ts           # Predefined mock data
+│   └── mock-store.ts          # In-memory storage for mocks
+├── ai.server.ts           # Real AI service (Google Gemini)
+├── theme.server.ts        # Real theme service (Shopify API)
+└── config.server.ts       # Service configuration manager
+```
+
+#### Feature Flag System
+
+**Purpose**: Control which features and services are enabled at runtime
+
+**Components**:
+
+1. **`flags/feature-flags.ts`** - Flag Definitions
+   - Defines all available feature flags with metadata
+   - Provides default values for each flag
+   - Categorizes flags by purpose (service mode, features, performance, debug)
+
+2. **`flags/flag-utils.ts`** - Flag Manager
+   - Manages flag state and overrides
+   - Reads flag values from environment variables (`FLAG_*` prefix)
+   - Provides convenience functions for checking flag states
+   - Supports runtime overrides for testing
+
+**Available Flags**:
+
+**Service Mode Flags**:
+- `USE_MOCK_THEMES`: Switch between mock and real theme service (default: true)
+- `USE_MOCK_AI`: Switch between mock and real AI service (default: false)
+
+**Performance Flags**:
+- `SIMULATE_API_LATENCY`: Add realistic delays to mock responses (default: false)
+- `CACHE_THEME_LIST`: Cache theme list to reduce API calls (default: false)
+
+**Debug Flags**:
+- `VERBOSE_LOGGING`: Enable detailed service logging (default: dev mode only)
+- `SHOW_SERVICE_MODE`: Display service mode indicator in UI (default: dev mode only)
+
+**Feature Toggle Flags** (future):
+- `ENABLE_SECTION_HISTORY`: Section generation history viewer
+- `ENABLE_TEMPLATE_LIBRARY`: Pre-built section templates
+- `ENABLE_AI_SETTINGS`: AI model configuration UI
+
+**Environment Variable Configuration**:
+```bash
+# Format: FLAG_{FLAG_NAME}={value}
+FLAG_USE_MOCK_THEMES=false    # Use real Shopify API
+FLAG_USE_MOCK_AI=true         # Use mock AI service
+FLAG_VERBOSE_LOGGING=true     # Enable debug logs
+FLAG_SIMULATE_API_LATENCY=true  # Add realistic delays
+```
+
+#### Service Configuration (`config.server.ts`)
+
+**Purpose**: Determine which service implementations to use based on flags
+
+**Configuration Logic**:
+
+1. **Theme Mode Determination**:
+   - Check `FLAG_USE_MOCK_THEMES` environment variable
+   - Fall back to legacy `SERVICE_MODE` environment variable
+   - Default to 'mock' if nothing specified (safe for development)
+
+2. **AI Mode Determination**:
+   - Check `FLAG_USE_MOCK_AI` environment variable
+   - Check if `GEMINI_API_KEY` exists (auto-enables real mode)
+   - Default to 'mock' if no API key
+
+**Service Config Object**:
+```typescript
+export const serviceConfig: ServiceConfig = {
+  themeMode: getThemeMode(),      // 'mock' | 'real'
+  aiMode: getAIMode(),            // 'mock' | 'real'
+  enableLogging: boolean,         // Verbose logging enabled?
+  simulateLatency: boolean,       // Add delays to mocks?
+  showModeInUI: boolean          // Show mode indicator?
+};
+```
+
+#### Service Adapters
+
+**Purpose**: Route service calls to appropriate implementation based on configuration
+
+**Pattern**:
+```typescript
+class AIAdapter implements AIServiceInterface {
+  private service: AIServiceInterface;
+
+  constructor() {
+    logServiceConfig();
+    this.service = serviceConfig.aiMode === 'mock'
+      ? mockAIService   // Use mock implementation
+      : aiService;      // Use real implementation
+  }
+
+  async generateSection(prompt: string): Promise<string> {
+    return this.service.generateSection(prompt);
+  }
+}
+
+export const aiAdapter = new AIAdapter();
+```
+
+**Benefits**:
+- Single import point for routes (`aiAdapter`, `themeAdapter`)
+- Transparent switching between implementations
+- No conditional logic in route handlers
+- Configuration logged once at startup
+
+**Usage in Routes**:
+```typescript
+import { aiAdapter } from "../services/adapters/ai-adapter";
+import { themeAdapter } from "../services/adapters/theme-adapter";
+
+// Generate section (routes to mock or real AI service)
+const code = await aiAdapter.generateSection(prompt);
+
+// Fetch themes (routes to mock or real theme service)
+const themes = await themeAdapter.getThemes(request);
+```
+
+#### Real Service Implementations
+
+**`ai.server.ts` - AIService**
 **Purpose**: Generate Liquid sections using Google Gemini AI
 
-**Methods**:
-- `generateSection(prompt: string): Promise<string>`
-  - Validates GEMINI_API_KEY exists
-  - Sends prompt to Gemini with system instruction
-  - Returns generated Liquid code
-  - Falls back to mock on error
-
-**Implementation Details**:
+**Implementation**:
 - Uses `@google/generative-ai` SDK
 - Model: `gemini-2.0-flash-exp`
-- System prompt enforces Liquid structure (schema + style + markup)
-- Graceful degradation with mock response
+- System prompt enforces Liquid structure
+- Falls back to mock section on API errors
 
-**Error Handling**:
-- Logs warnings if API key missing
-- Catches API errors and returns fallback
-- Always returns valid Liquid code structure
-
-#### `theme.server.ts` - ThemeService
+**`theme.server.ts` - ThemeService**
 **Purpose**: Interact with Shopify themes via GraphQL
 
-**Methods**:
-- `getThemes(request: Request): Promise<Theme[]>`
-  - Authenticates request
-  - Queries Shopify for merchant themes
-  - Returns array of { id, name, role }
-
-- `createSection(request, themeId, fileName, content): Promise<FileMetadata>`
-  - Authenticates request
-  - Validates and normalizes filename
-  - Calls `themeFilesUpsert` mutation
-  - Checks for GraphQL userErrors
-  - Returns file metadata or throws error
-
-**Implementation Details**:
-- Uses Shopify Admin GraphQL API
+**Implementation**:
+- Uses Shopify Admin GraphQL API (October 2025)
 - Authenticates via `authenticate.admin(request)`
-- Handles GraphQL response structure
-- Filename normalization (adds `sections/`, `.liquid`)
+- Queries themes and creates/updates theme files
+- Handles GraphQL errors and userErrors
+
+#### Mock Service Implementations
+
+**`mocks/mock-ai.server.ts` - MockAIService**
+**Purpose**: Simulate AI generation without external API calls
+
+**Features**:
+- Returns predefined sections for common prompts (hero, product grid)
+- Generates dynamic mock sections for custom prompts
+- Simulates API latency (configurable)
+- Tracks generation count for debugging
+- Console logging with `[MOCK]` prefix
+
+**`mocks/mock-theme.server.ts` - MockThemeService**
+**Purpose**: Simulate Shopify theme operations without API calls
+
+**Features**:
+- Returns predefined themes (Dawn, Refresh, Studio)
+- Validates theme IDs before operations
+- Saves sections to in-memory mock store
+- Simulates API latency (configurable)
+- Filename normalization (matches real service)
+
+**`mocks/mock-store.ts` - MockStore**
+**Purpose**: In-memory storage for mock service data
+
+**Capabilities**:
+- Store saved sections by theme ID and filename
+- Track generation count
+- Retrieve saved sections for inspection
+- Clear all data (useful for testing)
+
+**`mocks/mock-data.ts` - Mock Data Definitions**
+- Predefined themes with realistic data
+- Predefined section templates (hero, product grid, etc.)
+- Dynamic section generator function
 
 ---
 
@@ -720,6 +968,11 @@ const text = result.response.text();
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-11-24
-**Architecture Status**: Current Implementation
+**Document Version**: 1.1
+**Last Updated**: 2025-11-25
+**Architecture Status**: Current Implementation (Phase 03 Complete)
+**Recent Changes**:
+- Added feature flag system architecture
+- Added adapter pattern documentation with flow diagrams
+- Documented mock service implementations
+- Added service configuration and routing details

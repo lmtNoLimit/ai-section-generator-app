@@ -1,5 +1,5 @@
 import type { ThemeServiceInterface } from '../../types/service.types';
-import { serviceConfig, logServiceMode } from '../config.server';
+import { serviceConfig, logServiceConfig } from '../config.server';
 import { themeService } from '../theme.server';
 import { mockThemeService } from '../mocks/mock-theme.server';
 
@@ -11,8 +11,8 @@ class ThemeAdapter implements ThemeServiceInterface {
   private service: ThemeServiceInterface;
 
   constructor() {
-    logServiceMode();
-    this.service = serviceConfig.mode === 'mock'
+    logServiceConfig();
+    this.service = serviceConfig.themeMode === 'mock'
       ? mockThemeService
       : themeService;
   }
@@ -28,6 +28,11 @@ class ThemeAdapter implements ThemeServiceInterface {
     content: string
   ): Promise<import('../../types/shopify-api.types').ThemeFileMetadata> {
     return this.service.createSection(request, themeId, fileName, content);
+  }
+
+  // Utility method to check current mode
+  getCurrentMode(): 'mock' | 'real' {
+    return serviceConfig.themeMode;
   }
 }
 

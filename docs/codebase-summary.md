@@ -110,11 +110,52 @@ ai-section-generator/
 
 ### Business Logic Services
 
-#### `/app/services/ai.server.ts` (801 tokens, 128 lines)
-**Purpose**: Google Gemini AI integration for Liquid section generation
-**Key Components**:
+#### Service Architecture (Adapter Pattern)
 
-1. **SYSTEM_PROMPT** (lines 3-43):
+The application uses an **adapter pattern** to switch between mock and real service implementations based on feature flags. This enables development and testing without external API dependencies.
+
+**Service Layer Components**:
+- **Real Services**: `ai.server.ts`, `theme.server.ts` (production implementations)
+- **Mock Services**: `mocks/mock-ai.server.ts`, `mocks/mock-theme.server.ts` (test/dev implementations)
+- **Adapters**: `adapters/ai-adapter.ts`, `adapters/theme-adapter.ts` (routing layer)
+- **Configuration**: `config.server.ts` (determines which implementation to use)
+- **Feature Flags**: `flags/feature-flags.ts`, `flags/flag-utils.ts` (flag definitions and management)
+
+#### `/app/services/adapters/ai-adapter.ts` & `/app/services/adapters/theme-adapter.ts`
+**Purpose**: Route service calls to mock or real implementations
+
+**Pattern**:
+```typescript
+class AIAdapter implements AIServiceInterface {
+  private service: AIServiceInterface;
+
+  constructor() {
+    this.service = serviceConfig.aiMode === 'mock'
+      ? mockAIService
+      : aiService;
+  }
+
+  async generateSection(prompt: string): Promise<string> {
+    return this.service.generateSection(prompt);
+  }
+}
+```
+
+Routes use adapters instead of services directly:
+```typescript
+import { aiAdapter } from "../services/adapters/ai-adapter";
+import { themeAdapter } from "../services/adapters/theme-adapter";
+
+// In action:
+const code = await aiAdapter.generateSection(prompt);
+const themes = await themeAdapter.getThemes(request);
+```
+
+#### `/app/services/ai.server.ts` (128 lines)
+**Purpose**: Google Gemini AI integration for Liquid section generation (Real Implementation)
+
+**Key Components**:
+1. **SYSTEM_PROMPT** (lines 4-44):
    - Comprehensive system instruction for Gemini
    - Enforces Liquid section structure (schema + style + markup)
    - CSS scoping rules (#shopify-section-{{ section.id }})
@@ -122,40 +163,136 @@ ai-section-generator/
    - Output format requirements (no markdown blocks)
 
 2. **AIService Class**:
+   - Implements `AIServiceInterface`
    - **Constructor**: Initializes GoogleGenerativeAI if GEMINI_API_KEY set
-   - **generateSection(prompt)**:
-     - Uses gemini-2.0-flash-exp model
-     - Sends prompt with system instruction
-     - Returns trimmed response text
-     - Falls back to getMockSection() on error
-   - **getMockSection(prompt)**: Returns basic demo Liquid section
+   - **generateSection(prompt)**: Uses gemini-2.0-flash-exp model
+   - **getMockSection(prompt)**: Returns basic fallback Liquid section
 
 **Error Handling**:
+- Falls back to getMockSection() on API errors
 - Logs warnings if API key missing
-- Catches Gemini API errors and falls back gracefully
-- Always returns valid Liquid code structure
+- Always returns valid Liquid code
 
-#### `/app/services/theme.server.ts` (74 lines)
-**Purpose**: Shopify theme operations via GraphQL
+#### `/app/services/mocks/mock-ai.server.ts` (41 lines)
+**Purpose**: Mock AI service for development/testing without Gemini API
+
+**Features**:
+- Returns predefined sections for common prompts (hero, product grid)
+- Generates dynamic mock sections for custom prompts
+- Simulates API latency (configurable via feature flags)
+- Tracks generation count via mock store
+- Console logging for debugging
+
+#### `/app/services/theme.server.ts` (91 lines)
+**Purpose**: Shopify theme operations via GraphQL (Real Implementation)
+
+**Key Components**:
+1. **ThemeService Class**:
+   - Implements `ThemeServiceInterface`
+   - **getThemes(request)**: Queries themes (first 10) from Shopify
+   - **createSection(request, themeId, fileName, content)**: Creates/updates theme files via themeFilesUpsert mutation
+
+**Implementation Details**:
+- Filename normalization (adds sections/ prefix, .liquid suffix)
+- GraphQL error handling (checks userErrors)
+- Returns metadata or throws Error with details
+
+#### `/app/services/mocks/mock-theme.server.ts` (55 lines)
+**Purpose**: Mock theme service for development without Shopify write_themes scope
+
+**Features**:
+- Returns predefined mock themes (Dawn, Refresh, Studio)
+- Validates theme IDs before saving
+- Saves sections to mock store (in-memory)
+- Simulates API latency
+- Filename normalization (matches real service)
+
+#### `/app/services/config.server.ts` (76 lines)
+**Purpose**: Service configuration and mode determination
+
+**Key Functions**:
+- **getThemeMode()**: Determines theme service mode (mock/real)
+  - Checks `FLAG_USE_MOCK_THEMES` env var first
+  - Falls back to `SERVICE_MODE` env var
+  - Defaults to 'mock' (safe for development)
+
+- **getAIMode()**: Determines AI service mode (mock/real)
+  - Checks `FLAG_USE_MOCK_AI` env var first
+  - Checks if `GEMINI_API_KEY` exists
+  - Defaults to 'mock' if no API key
+
+**Exported Config**:
+```typescript
+export const serviceConfig: ServiceConfig = {
+  themeMode: getThemeMode(),
+  aiMode: getAIMode(),
+  enableLogging: flagManager.isEnabled(FeatureFlagKey.VERBOSE_LOGGING),
+  simulateLatency: flagManager.isEnabled(FeatureFlagKey.SIMULATE_API_LATENCY),
+  showModeInUI: flagManager.isEnabled(FeatureFlagKey.SHOW_SERVICE_MODE)
+};
+```
+
+#### `/app/services/flags/feature-flags.ts` (81 lines)
+**Purpose**: Feature flag definitions and default values
+
+**Flag Categories**:
+
+1. **Service Mode Flags**:
+   - `USE_MOCK_THEMES`: Use mock theme service (default: true)
+   - `USE_MOCK_AI`: Use mock AI service (default: false)
+
+2. **Feature Flags** (future):
+   - `ENABLE_SECTION_HISTORY`: Section generation history
+   - `ENABLE_TEMPLATE_LIBRARY`: Section template library
+   - `ENABLE_AI_SETTINGS`: AI model configuration UI
+
+3. **Performance Flags**:
+   - `SIMULATE_API_LATENCY`: Add delay to mock services (default: false)
+   - `CACHE_THEME_LIST`: Cache theme list to reduce API calls (default: false)
+
+4. **Debug Flags**:
+   - `VERBOSE_LOGGING`: Detailed service logging (default: dev mode only)
+   - `SHOW_SERVICE_MODE`: Show mode indicator in UI (default: dev mode only)
+
+**Flag Structure**:
+```typescript
+export const featureFlags: Record<FeatureFlagKey, FeatureFlag> = {
+  [FeatureFlagKey.USE_MOCK_THEMES]: {
+    key: 'use_mock_themes',
+    description: 'Use mock theme service instead of Shopify API',
+    defaultValue: true
+  },
+  // ...
+};
+```
+
+#### `/app/services/flags/flag-utils.ts` (108 lines)
+**Purpose**: Feature flag management and utilities
+
 **Key Components**:
 
-1. **ThemeService Class**:
-   - **getThemes(request)**:
-     - Queries themes (first 10)
-     - Returns array of { id, name, role }
+1. **FeatureFlagManager Class**:
+   - **getFlag(key)**: Get flag value with env override
+     - Checks runtime overrides first
+     - Checks `FLAG_{KEY}` environment variable
+     - Falls back to default value
 
-   - **createSection(request, themeId, fileName, content)**:
-     - Validates filename (adds sections/ prefix, .liquid suffix)
-     - Uses themeFilesUpsert mutation
-     - Passes TEXT body type with content
-     - Checks for userErrors in response
-     - Throws Error with error messages if save fails
-     - Returns upserted file metadata on success
+   - **isEnabled(key)**: Check if boolean flag is enabled
+   - **setOverride(key, value)**: Override flag at runtime (testing)
+   - **getAllFlags()**: Get all flags with current values
+   - **logFlags()**: Log all flags to console (debug mode)
 
-**GraphQL Usage**:
-- Uses Admin API via authenticated admin client
-- Handles GraphQL response structure with data/errors
-- Properly formats variables for mutations
+2. **Environment Variable Override**:
+   - Flags can be overridden via `FLAG_{KEY}` env vars
+   - Example: `FLAG_USE_MOCK_THEMES=false` enables real theme service
+   - Supports boolean, number, and string values
+
+**Convenience Exports**:
+```typescript
+export const flagManager = new FeatureFlagManager();
+export const isEnabled = (key: FeatureFlagKey) => flagManager.isEnabled(key);
+export const getFlag = (key: FeatureFlagKey) => flagManager.getFlag(key);
+```
 
 ### Core Configuration
 
@@ -389,16 +526,53 @@ Redirect to /app (embedded in Shopify admin)
 
 ## Environment Variables
 
-Required:
+### Required
 - `SHOPIFY_API_KEY`: Shopify app API key
 - `SHOPIFY_API_SECRET`: Shopify app secret
 - `SHOPIFY_APP_URL`: App URL (auto-set by CLI)
 - `SCOPES`: Comma-separated scopes (auto-set by CLI)
 
-Optional:
-- `GEMINI_API_KEY`: Google AI Studio API key (falls back to mock if missing)
+### Optional
+- `GEMINI_API_KEY`: Google AI Studio API key (if missing, uses mock AI service)
 - `SHOP_CUSTOM_DOMAIN`: Custom shop domain for development
 - `NODE_ENV`: production/development
+
+### Feature Flag Environment Variables
+
+Feature flags can be controlled via environment variables with the `FLAG_` prefix:
+
+**Service Mode Flags**:
+- `FLAG_USE_MOCK_THEMES`: Set to `false` to use real Shopify theme API (default: `true`)
+- `FLAG_USE_MOCK_AI`: Set to `true` to force mock AI service even if GEMINI_API_KEY exists (default: `false`)
+
+**Performance Flags**:
+- `FLAG_SIMULATE_API_LATENCY`: Set to `true` to add realistic delays to mock services (default: `false`)
+- `FLAG_CACHE_THEME_LIST`: Set to `true` to cache theme list (future feature, default: `false`)
+
+**Debug Flags**:
+- `FLAG_VERBOSE_LOGGING`: Set to `true` for detailed service logging (default: `true` in dev, `false` in production)
+- `FLAG_SHOW_SERVICE_MODE`: Set to `true` to show service mode indicator in UI (default: `true` in dev, `false` in production)
+
+**Feature Toggle Flags** (future features):
+- `FLAG_ENABLE_SECTION_HISTORY`: Enable section generation history (default: `false`)
+- `FLAG_ENABLE_TEMPLATE_LIBRARY`: Enable section template library (default: `false`)
+- `FLAG_ENABLE_AI_SETTINGS`: Enable AI configuration UI (default: `false`)
+
+**Example Configuration**:
+```bash
+# Use real services in development
+FLAG_USE_MOCK_THEMES=false
+FLAG_USE_MOCK_AI=false
+GEMINI_API_KEY=your_key_here
+
+# Enable debug features
+FLAG_VERBOSE_LOGGING=true
+FLAG_SHOW_SERVICE_MODE=true
+FLAG_SIMULATE_API_LATENCY=true
+```
+
+**Legacy Environment Variable**:
+- `SERVICE_MODE`: Set to `real` or `mock` (deprecated, use `FLAG_USE_MOCK_THEMES` instead)
 
 ## API Integrations
 
@@ -477,7 +651,12 @@ Optional:
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-11-24
-**Codebase Size**: 15,944 tokens across 34 files
+**Document Version**: 1.1
+**Last Updated**: 2025-11-25
+**Codebase Size**: 15,944 tokens across 34 files (Phase 02), expanded with Phase 03 feature flag system
 **Primary Language**: TypeScript (TSX)
+**Recent Changes**:
+- Added feature flag system documentation (Phase 03)
+- Documented adapter pattern for service routing
+- Added mock service implementations
+- Expanded environment variable configuration section
