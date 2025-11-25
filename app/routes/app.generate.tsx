@@ -2,13 +2,13 @@ import { useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useActionData, useLoaderData, useNavigation, useSubmit } from "react-router";
 import { authenticate } from "../shopify.server";
-import { aiService } from "../services/ai.server";
-import { themeService } from "../services/theme.server";
+import { aiAdapter } from "../services/adapters/ai-adapter";
+import { themeAdapter } from "../services/adapters/theme-adapter";
 import type { GenerateActionData, SaveActionData, Theme } from "../types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
-  const themes = await themeService.getThemes(request);
+  const themes = await themeAdapter.getThemes(request);
   console.log("Loaded themes:", themes);
   return { themes };
 }
@@ -20,7 +20,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (actionType === "generate") {
     const prompt = formData.get("prompt") as string;
-    const code = await aiService.generateSection(prompt);
+    const code = await aiAdapter.generateSection(prompt);
     return { code, prompt } satisfies GenerateActionData;
   }
 
@@ -30,7 +30,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const content = formData.get("content") as string;
 
     try {
-      const result = await themeService.createSection(request, themeId, fileName, content);
+      const result = await themeAdapter.createSection(request, themeId, fileName, content);
       return {
         success: true,
         message: `Section saved successfully to ${result?.filename || fileName}!`
