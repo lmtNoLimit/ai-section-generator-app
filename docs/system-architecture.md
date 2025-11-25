@@ -31,10 +31,26 @@ AI Section Generator is a **serverless embedded Shopify app** built on React Rou
 │  │  │  Routes (React Router 7)                    │     │    │
 │  │  │  - app.generate.tsx  (loader + action)      │     │    │
 │  │  │      Uses: aiAdapter, themeAdapter          │     │    │
+│  │  │      Imports: components from app/components│     │    │
 │  │  │  - app._index.tsx                           │     │    │
 │  │  │  - webhooks.*.tsx                           │     │    │
 │  │  │  - auth.*.tsx                               │     │    │
 │  │  └───────────┬──────────────────────────────────┘     │    │
+│  │              │                                          │    │
+│  │  ┌───────────▼──────────────────────────────────────┐ │    │
+│  │  │  Component Layer (Phase 04)                     │ │    │
+│  │  │  ┌──────────────────────────────────────────┐   │ │    │
+│  │  │  │  Shared Components                       │   │ │    │
+│  │  │  │  - Button, Card, Banner (Success/Error)  │   │ │    │
+│  │  │  └──────────────────────────────────────────┘   │ │    │
+│  │  │  ┌──────────────────────────────────────────┐   │ │    │
+│  │  │  │  Generate Feature Components             │   │ │    │
+│  │  │  │  - PromptInput, ThemeSelector            │   │ │    │
+│  │  │  │  - CodePreview, SectionNameInput         │   │ │    │
+│  │  │  │  - GenerateActions                       │   │ │    │
+│  │  │  └──────────────────────────────────────────┘   │ │    │
+│  │  │  - Barrel export (index.ts)                     │ │    │
+│  │  └─────────────────────────────────────────────────┘ │    │
 │  └──────────────┼──────────────────────────────────────────┘    │
 │                 │                                                │
 │  ┌──────────────▼──────────────────────────────────────────┐    │
@@ -174,7 +190,7 @@ AI Section Generator is a **serverless embedded Shopify app** built on React Rou
 
 ### 1. Presentation Layer
 
-**Location**: `app/routes/`
+**Location**: `app/routes/` and `app/components/`
 
 **Responsibilities**:
 - Handle HTTP requests (GET, POST)
@@ -183,14 +199,25 @@ AI Section Generator is a **serverless embedded Shopify app** built on React Rou
 - Display UI with Polaris web components
 - Handle authentication redirects
 
+**Architecture**: The presentation layer is divided into two sub-layers:
+
+1. **Route Layer** (`app/routes/`): Handles data fetching, actions, and orchestrates component composition
+2. **Component Layer** (`app/components/`): Pure UI components for rendering (introduced Phase 04)
+
 **Key Components**:
 
-#### `app.generate.tsx` (Core Feature Route)
+#### Route Layer
+
+**`app.generate.tsx` (Core Feature Route)**
 - **Loader**: Fetches merchant themes on page load
 - **Action**: Handles two actions:
   - `generate`: Sends prompt to AI service, returns generated code
   - `save`: Saves generated code to selected theme
-- **Component**: Renders form with prompt input, theme selector, code preview, save button
+- **Component**: Orchestrates UI using components from `app/components/`:
+  - PromptInput, ThemeSelector, CodePreview
+  - SectionNameInput, GenerateActions
+  - SuccessBanner, ErrorBanner
+- **Phase 04 Refactoring**: Extracted all inline UI into reusable components
 
 #### `app.tsx` (Layout Route)
 - Wraps all `/app/*` routes
@@ -206,11 +233,47 @@ AI Section Generator is a **serverless embedded Shopify app** built on React Rou
 - `auth.login/route.tsx`: Login page with shop input
 - `auth.$.tsx`: OAuth callback handler
 
+#### Component Layer (Phase 04)
+
+**Location**: `app/components/`
+
+**Organization**:
+- **`shared/`**: Reusable components across features
+  - `Button.tsx`: Polaris button wrapper with TypeScript props
+  - `Card.tsx`: Polaris card wrapper
+  - `Banner.tsx`: Banner components (Base, Success, Error)
+
+- **`generate/`**: Feature-specific components for generate route
+  - `PromptInput.tsx`: Multiline prompt input field
+  - `ThemeSelector.tsx`: Theme dropdown selector
+  - `CodePreview.tsx`: Code display with syntax formatting
+  - `SectionNameInput.tsx`: Filename input with .liquid suffix
+  - `GenerateActions.tsx`: Generate and Save action buttons
+
+- **`ServiceModeIndicator.tsx`**: Debug mode indicator (dev only)
+- **`index.ts`**: Barrel export for centralized imports
+
+**Design Principles**:
+- **Pure Presentation**: No business logic, only UI rendering
+- **Fully Typed**: All props defined with TypeScript interfaces
+- **Small & Focused**: Each component under 200 lines
+- **Composable**: Components combine to build complex UIs
+- **Testable**: Pure functions enable isolated testing
+- **Reusable**: Components can be used across multiple routes
+
+**Benefits**:
+- Improved code reusability and maintainability
+- Clear separation between UI and business logic
+- Easier testing (components testable in isolation)
+- Reduced route file complexity
+- Scalable architecture for future features
+
 **Technology**:
 - React Router 7 (file-based routing)
 - Server-side rendering (SSR)
 - Polaris Web Components (UI)
 - React 18 hooks (useState, useEffect, etc.)
+- Component-based architecture (Phase 04)
 
 ---
 
@@ -968,11 +1031,12 @@ const text = result.response.text();
 
 ---
 
-**Document Version**: 1.1
+**Document Version**: 1.2
 **Last Updated**: 2025-11-25
-**Architecture Status**: Current Implementation (Phase 03 Complete)
+**Architecture Status**: Current Implementation (Phase 04 Complete)
 **Recent Changes**:
-- Added feature flag system architecture
-- Added adapter pattern documentation with flow diagrams
-- Documented mock service implementations
-- Added service configuration and routing details
+- **Phase 04**: Added component layer to presentation architecture
+- Documented component-based architecture with shared and feature-specific components
+- Updated architecture diagram to include component layer
+- Added component organization patterns and design principles
+- Phase 03: Feature flag system, adapter pattern, mock services

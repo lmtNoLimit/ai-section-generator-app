@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useActionData, useLoaderData, useNavigation, useSubmit } from "react-router";
 import { authenticate } from "../shopify.server";
@@ -8,10 +8,19 @@ import { ServiceModeIndicator } from "../components/ServiceModeIndicator";
 import { serviceConfig } from "../services/config.server";
 import type { GenerateActionData, SaveActionData, Theme } from "../types";
 
+import {
+  PromptInput,
+  ThemeSelector,
+  CodePreview,
+  SectionNameInput,
+  GenerateActions,
+  SuccessBanner,
+  ErrorBanner
+} from "../components";
+
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
   const themes = await themeAdapter.getThemes(request);
-  console.log("Loaded themes:", themes);
   return {
     themes,
     serviceMode: {
@@ -76,11 +85,15 @@ export default function GeneratePage() {
   const isSaving = isLoading && navigation.formData?.get("action") === "save";
 
   // Update state when action data changes
-  if (actionData?.code && actionData.code !== generatedCode) {
-    setGeneratedCode(actionData.code);
-  }
+  useEffect(() => {
+    if (actionData?.code && actionData.code !== generatedCode) {
+      setGeneratedCode(actionData.code);
+    }
+  }, [actionData?.code, generatedCode]);
 
+  // Handlers
   const handleGenerate = () => {
+    if (!prompt.trim()) return;
     const formData = new FormData();
     formData.append("action", "generate");
     formData.append("prompt", prompt);
@@ -96,112 +109,72 @@ export default function GeneratePage() {
     submit(formData, { method: "post" });
   };
 
-  // Event handlers use generic Event type for Polaris web components
-  const handlePromptChange = (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    setPrompt(target.value);
-  };
-
-  const handleThemeChange = (e: Event) => {
-    const target = e.target as HTMLSelectElement;
-    setSelectedTheme(target.value);
-  };
-
-  const handleFileNameChange = (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    setFileName(target.value);
-  };
-
-  const themeOptions = themes.map((theme: Theme) => ({
-    label: `${theme.name} (${theme.role})`,
-    value: theme.id,
-  }));
-
-  console.log("Theme options for select:", themeOptions);
-  console.log("Selected theme:", selectedTheme);
+  const canSave = Boolean(generatedCode && fileName && selectedTheme);
 
   return (
     <>
       <s-page title="Generate Section">
         <s-layout>
           <s-layout-section>
-            <s-card>
-              <s-stack gap="400" vertical>
-                <s-text variant="headingMd" as="h2">
-                  Describe your section
-                </s-text>
-                <s-text-field
-                  label="Prompt"
-                  value={prompt}
-                  onInput={handlePromptChange}
-                  multiline="4"
-                  autoComplete="off"
-                  placeholder="A hero section with a background image and centered text..."
-                ></s-text-field>
-                <s-button
-                  loading={isGenerating ? "true" : undefined}
-                  onClick={handleGenerate}
-                  variant="primary"
-                >
-                  Generate Code
-                </s-button>
-              </s-stack>
-            </s-card>
-          </s-layout-section>
+            <s-stack gap="400" vertical>
+              {/* Feedback banners */}
+              {actionData?.success && (
+                <SuccessBanner message={actionData.message} />
+              )}
+              {actionData?.success === false && (
+                <ErrorBanner message={actionData.message} />
+              )}
 
-          {generatedCode && (
-            <s-layout-section>
+              {/* Input form */}
               <s-card>
                 <s-stack gap="400" vertical>
                   <s-text variant="headingMd" as="h2">
-                    Preview & Save
+                    Describe your section
                   </s-text>
 
-                  {actionData?.success && (
-                    <s-banner tone="success" heading="Success" dismissible>
-                      {actionData.message}
-                    </s-banner>
-                  )}
-                  {actionData?.success === false && (
-                    <s-banner tone="critical" heading="Error">
-                      {actionData.message}
-                    </s-banner>
-                  )}
+                  <PromptInput
+                    value={prompt}
+                    onChange={setPrompt}
+                    disabled={isGenerating || isSaving}
+                  />
 
-                  <s-box padding="400" background="bg-surface-secondary" border-radius="200">
-                    <pre style={{ overflowX: "auto" }}>{generatedCode}</pre>
-                  </s-box>
-
-                  <s-stack gap="400" vertical>
-                    <s-select
-                      label="Select Theme"
-                      value={selectedTheme}
-                      onChange={handleThemeChange}
-                    >
-                      {themeOptions.map((option) => (
-                        <s-option key={option.value} value={option.value}>
-                          {option.label}
-                        </s-option>
-                      ))}
-                    </s-select>
-                    <s-text-field
-                      label="Section Filename"
-                      value={fileName}
-                      onInput={handleFileNameChange}
-                      suffix=".liquid"
-                      autoComplete="off"
-                    ></s-text-field>
-                    <s-button
-                      loading={isSaving ? "true" : undefined}
-                      onClick={handleSave}
-                    >
-                      Save to Theme
-                    </s-button>
-                  </s-stack>
+                  <GenerateActions
+                    onGenerate={handleGenerate}
+                    onSave={handleSave}
+                    isGenerating={isGenerating}
+                    isSaving={isSaving}
+                    canSave={canSave}
+                  />
                 </s-stack>
               </s-card>
-            </s-layout-section>
-          )}
+
+              {/* Code preview and save section */}
+              {generatedCode && (
+                <s-card>
+                  <s-stack gap="400" vertical>
+                    <s-text variant="headingMd" as="h2">
+                      Preview & Save
+                    </s-text>
+
+                    <CodePreview code={generatedCode} />
+
+                    <ThemeSelector
+                      themes={themes}
+                      selectedThemeId={selectedTheme}
+                      onChange={setSelectedTheme}
+                      disabled={isGenerating || isSaving}
+                    />
+
+                    <SectionNameInput
+                      value={fileName}
+                      onChange={setFileName}
+                      disabled={isGenerating || isSaving}
+                    />
+                  </s-stack>
+                </s-card>
+              )}
+            </s-stack>
+          </s-layout-section>
         </s-layout>
       </s-page>
 

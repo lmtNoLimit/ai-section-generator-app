@@ -4,9 +4,9 @@
 
 AI Section Generator is a Shopify embedded app built with React Router 7, Prisma, and Google Gemini AI. The app enables merchants to generate custom Liquid theme sections via natural language prompts and save them directly to their Shopify themes.
 
-**Total Files**: 34 files
-**Total Tokens**: 15,944 tokens
-**Lines of Code**: ~2,015 lines (excluding migrations, config)
+**Total Files**: 43 files (9 new component files added in Phase 04)
+**Total Tokens**: ~17,500 tokens (estimated)
+**Lines of Code**: ~2,200 lines (excluding migrations, config)
 
 ## Directory Structure
 
@@ -22,6 +22,19 @@ ai-section-generator/
 │   │   ├── app.tsx               # App layout with navigation
 │   │   ├── auth.$.tsx            # Catch-all auth route
 │   │   └── webhooks.*.tsx        # Webhook handlers
+│   ├── components/               # UI component library (NEW in Phase 04)
+│   │   ├── shared/               # Reusable shared components
+│   │   │   ├── Button.tsx        # Button wrapper
+│   │   │   ├── Card.tsx          # Card container wrapper
+│   │   │   └── Banner.tsx        # Banners (Base, Success, Error)
+│   │   ├── generate/             # Feature-specific components
+│   │   │   ├── PromptInput.tsx   # Prompt input field
+│   │   │   ├── ThemeSelector.tsx # Theme dropdown selector
+│   │   │   ├── CodePreview.tsx   # Generated code display
+│   │   │   ├── SectionNameInput.tsx # Filename input
+│   │   │   └── GenerateActions.tsx  # Generate/Save buttons
+│   │   ├── ServiceModeIndicator.tsx # Debug mode indicator
+│   │   └── index.ts              # Barrel export file
 │   ├── services/                 # Business logic layer
 │   │   ├── ai.server.ts          # Google Gemini integration
 │   │   └── theme.server.ts       # Shopify theme operations
@@ -47,9 +60,127 @@ ai-section-generator/
 
 ## Key Files Analysis
 
+### UI Component Library (Phase 04)
+
+The application follows a component-based architecture introduced in Phase 04, extracting reusable UI elements from route files into dedicated components.
+
+#### Component Organization
+
+**Structure**:
+```
+app/components/
+├── shared/          # Reusable components across features
+│   ├── Button.tsx   # Button wrapper with loading states
+│   ├── Card.tsx     # Card container wrapper
+│   └── Banner.tsx   # Banner variants (Success, Error)
+├── generate/        # Feature-specific components
+│   ├── PromptInput.tsx      # Multiline prompt input
+│   ├── ThemeSelector.tsx    # Theme dropdown
+│   ├── CodePreview.tsx      # Code display with syntax
+│   ├── SectionNameInput.tsx # Filename input with .liquid suffix
+│   └── GenerateActions.tsx  # Generate/Save buttons
+├── ServiceModeIndicator.tsx # Debug mode indicator
+└── index.ts                 # Barrel export (9 components + types)
+```
+
+#### Shared Components
+
+**`shared/Button.tsx`** (42 lines)
+- Wrapper for Polaris `<s-button>` web component
+- Props: variant, size, loading, disabled, onClick, submit, fullWidth
+- Type-safe interface with TypeScript
+- Supports all Polaris button variants (primary, secondary, plain, destructive)
+
+**`shared/Card.tsx`** (20 lines)
+- Wrapper for Polaris `<s-card>` web component
+- Props: title, children, sectioned
+- Provides consistent card layout
+
+**`shared/Banner.tsx`** (57 lines)
+- Base `Banner` component with tone variants (info, success, warning, critical)
+- Pre-configured `SuccessBanner` for success messages
+- Pre-configured `ErrorBanner` for error messages
+- Props: tone, heading, dismissible, onDismiss, children
+
+#### Generate Feature Components
+
+**`generate/PromptInput.tsx`** (40 lines)
+- Multiline text input for section descriptions
+- Props: value, onChange, placeholder, helpText, error, disabled
+- Default placeholder with example prompt
+- Validation error display support
+
+**`generate/ThemeSelector.tsx`** (39 lines)
+- Dropdown selector for merchant themes
+- Props: themes, selectedThemeId, onChange, disabled
+- Displays theme name and role (MAIN, UNPUBLISHED, etc.)
+- Type-safe with Theme interface
+
+**`generate/CodePreview.tsx`** (35 lines)
+- Displays generated Liquid code in formatted pre block
+- Props: code, maxHeight
+- Scrollable container with syntax styling
+- Uses Polaris `<s-box>` for consistent styling
+- Monospace font (Monaco, Courier) for code readability
+
+**`generate/SectionNameInput.tsx`** (34 lines)
+- Text input for section filename
+- Props: value, onChange, error, disabled
+- Automatically shows `.liquid` suffix
+- Validation error display support
+
+**`generate/GenerateActions.tsx`** (49 lines)
+- Action buttons for generate and save operations
+- Props: onGenerate, onSave, isGenerating, isSaving, canSave, generateButtonText, saveButtonText
+- Conditional rendering (Save button only shows when code is generated)
+- Loading states for both buttons
+- Mutual exclusion (can't generate while saving, vice versa)
+
+#### Barrel Export (`index.ts`)
+
+Provides centralized imports for all components and their TypeScript types:
+
+```typescript
+// Usage in routes
+import {
+  PromptInput,
+  ThemeSelector,
+  CodePreview,
+  SectionNameInput,
+  GenerateActions,
+  SuccessBanner,
+  ErrorBanner
+} from "../components";
+```
+
+**Benefits**:
+- Single import source for all components
+- Clean import statements in route files
+- Automatic type exports
+- Easier refactoring and reorganization
+
+#### Component Design Principles
+
+1. **Pure Presentation**: Components handle only UI rendering, no business logic
+2. **Fully Typed**: All props defined with TypeScript interfaces
+3. **Small & Focused**: Each component under 200 lines
+4. **Composable**: Components can be combined to build complex UIs
+5. **Testable**: Pure functions make testing straightforward
+6. **Consistent**: All components follow same patterns and conventions
+
+#### Benefits Achieved in Phase 04
+
+- **Code Reusability**: Components can be used across multiple routes
+- **Separation of Concerns**: Clear boundary between UI and business logic
+- **Easier Testing**: Components can be tested in isolation
+- **Reduced Complexity**: Route files focus on data flow, not UI details
+- **Scalability**: New features can reuse existing components
+- **Maintainability**: Changes to UI components don't affect route logic
+- **Type Safety**: TypeScript interfaces prevent prop errors
+
 ### Core Application Routes
 
-#### `/app/routes/app.generate.tsx` (1,349 tokens, 182 lines)
+#### `/app/routes/app.generate.tsx` (189 lines, refactored in Phase 04)
 **Purpose**: Main AI section generator interface
 **Key Features**:
 - Prompt input form with multiline text field
@@ -62,17 +193,18 @@ ai-section-generator/
 - Loading states for async operations
 
 **Data Flow**:
-1. **Loader**: Fetches merchant themes via `themeService.getThemes()`
-2. **Action (generate)**: Sends prompt to `aiService.generateSection()`
-3. **Action (save)**: Calls `themeService.createSection()` with themeId, filename, content
-4. **UI**: React component with Polaris web components
+1. **Loader**: Fetches merchant themes via `themeAdapter.getThemes()`
+2. **Action (generate)**: Sends prompt to `aiAdapter.generateSection()`
+3. **Action (save)**: Calls `themeAdapter.createSection()` with themeId, filename, content
+4. **UI**: React component using extracted components from `app/components/`
 
-**Notable Implementation Details**:
-- Uses `@ts-nocheck` (needs type definitions for Polaris web components)
-- Defaults to active (MAIN) theme
-- Validates filename (adds sections/ prefix, .liquid suffix)
-- Handles action data for success/error feedback
-- Navigation state for loading indicators
+**Phase 04 Refactoring**:
+- Extracted all UI elements into reusable components
+- Reduced route file complexity from 182 to 189 lines (cleaner structure)
+- Improved separation of concerns (presentation vs logic)
+- Centralized imports via barrel export (`app/components/index.ts`)
+- All components fully typed with TypeScript interfaces
+- Components are now testable in isolation
 
 #### `/app/routes/app._index.tsx` (1,637 tokens, 255 lines)
 **Purpose**: Template demo page (Shopify app starter)
@@ -651,12 +783,14 @@ FLAG_SIMULATE_API_LATENCY=true
 
 ---
 
-**Document Version**: 1.1
+**Document Version**: 1.2
 **Last Updated**: 2025-11-25
-**Codebase Size**: 15,944 tokens across 34 files (Phase 02), expanded with Phase 03 feature flag system
+**Codebase Size**: ~17,500 tokens across 43 files
 **Primary Language**: TypeScript (TSX)
 **Recent Changes**:
-- Added feature flag system documentation (Phase 03)
-- Documented adapter pattern for service routing
-- Added mock service implementations
-- Expanded environment variable configuration section
+- **Phase 04**: Added component-based architecture
+- Documented 9 new UI components (shared + feature-specific)
+- Updated app.generate.tsx to use extracted components
+- Added barrel export system for centralized imports
+- Improved code organization and maintainability
+- Phase 03: Feature flag system, adapter pattern, mock services
