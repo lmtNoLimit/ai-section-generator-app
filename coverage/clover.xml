@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1764375511238" clover="3.2.0">
+  <project timestamp="1764375511238" name="All files">
+    <metrics statements="363" coveredstatements="126" conditionals="156" coveredconditionals="36" methods="97" coveredmethods="40" elements="616" coveredelements="202" complexity="0" loc="363" ncloc="363" packages="10" files="31" classes="31"/>
+    <package name="app">
+      <metrics statements="21" coveredstatements="0" conditionals="12" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      <file name="db.server.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/db.server.ts">
+        <metrics statements="6" coveredstatements="0" conditionals="6" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="1" count="0" type="stmt"/>
+        <line num="8" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="9" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="10" count="0" type="stmt"/>
+        <line num="14" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="16" count="0" type="stmt"/>
+      </file>
+      <file name="routes.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/routes.ts">
+        <metrics statements="2" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="1" count="0" type="stmt"/>
+        <line num="3" count="0" type="stmt"/>
+      </file>
+      <file name="shopify.server.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/shopify.server.ts">
+        <metrics statements="13" coveredstatements="0" conditionals="6" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="1" count="0" type="stmt"/>
+        <line num="2" count="0" type="stmt"/>
+        <line num="7" count="0" type="stmt"/>
+        <line num="8" count="0" type="stmt"/>
+        <line num="10" count="0" type="stmt"/>
+        <line num="24" count="0" type="stmt"/>
+        <line num="25" count="0" type="stmt"/>
+        <line num="26" count="0" type="stmt"/>
+        <line num="27" count="0" type="stmt"/>
+        <line num="28" count="0" type="stmt"/>
+        <line num="29" count="0" type="stmt"/>
+        <line num="30" count="0" type="stmt"/>
+        <line num="31" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="app.components">
+      <metrics statements="12" coveredstatements="0" conditionals="9" coveredconditionals="0" methods="11" coveredmethods="0"/>
+      <file name="ServiceModeIndicator.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/components/ServiceModeIndicator.tsx">
+        <metrics statements="4" coveredstatements="0" conditionals="9" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="7" count="0" type="stmt"/>
+        <line num="9" count="0" type="cond" truecount="0" falsecount="5"/>
+        <line num="10" count="0" type="stmt"/>
+        <line num="13" count="0" type="stmt"/>
+      </file>
+      <file name="index.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/components/index.ts">
+        <metrics statements="8" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="10" coveredmethods="0"/>
+        <line num="7" count="0" type="stmt"/>
+        <line num="8" count="0" type="stmt"/>
+        <line num="9" count="0" type="stmt"/>
+        <line num="12" count="0" type="stmt"/>
+        <line num="13" count="0" type="stmt"/>
+        <line num="14" count="0" type="stmt"/>
+        <line num="15" count="0" type="stmt"/>
+        <line num="16" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="app.components.generate">
+      <metrics statements="23" coveredstatements="0" conditionals="18" coveredconditionals="0" methods="9" coveredmethods="0"/>
+      <file name="CodePreview.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/components/generate/CodePreview.tsx">
+        <metrics statements="4" coveredstatements="0" conditionals="3" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="10" count="0" type="stmt"/>
+        <line num="14" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="15" count="0" type="stmt"/>
+        <line num="18" count="0" type="stmt"/>
+      </file>
+      <file name="GenerateActions.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/components/generate/GenerateActions.tsx">
+        <metrics statements="3" coveredstatements="0" conditionals="8" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="1" count="0" type="stmt"/>
+        <line num="17" count="0" type="stmt"/>
+        <line num="26" count="0" type="stmt"/>
+      </file>
+      <file name="PromptInput.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/components/generate/PromptInput.tsx">
+        <metrics statements="5" coveredstatements="0" conditionals="5" coveredconditionals="0" methods="2" coveredmethods="0"/>
+        <line num="14" count="0" type="stmt"/>
+        <line num="22" count="0" type="stmt"/>
+        <line num="23" count="0" type="stmt"/>
+        <line num="24" count="0" type="stmt"/>
+        <line num="27" count="0" type="stmt"/>
+      </file>
+      <file name="SectionNameInput.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/components/generate/SectionNameInput.tsx">
+        <metrics statements="5" coveredstatements="0" conditionals="1" coveredconditionals="0" methods="2" coveredmethods="0"/>
+        <line num="12" count="0" type="stmt"/>
+        <line num="18" count="0" type="stmt"/>
+        <line num="19" count="0" type="stmt"/>
+        <line num="20" count="0" type="stmt"/>
+        <line num="23" count="0" type="stmt"/>
+      </file>
+      <file name="ThemeSelector.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/components/generate/ThemeSelector.tsx">
+        <metrics statements="6" coveredstatements="0" conditionals="1" coveredconditionals="0" methods="3" coveredmethods="0"/>
+        <line num="14" count="0" type="stmt"/>
+        <line num="20" count="0" type="stmt"/>
+        <line num="21" count="0" type="stmt"/>
+        <line num="22" count="0" type="stmt"/>
+        <line num="25" count="0" type="stmt"/>
+        <line num="32" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="app.components.shared">
+      <metrics statements="10" coveredstatements="0" conditionals="11" coveredconditionals="0" methods="5" coveredmethods="0"/>
+      <file name="Banner.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/components/shared/Banner.tsx">
+        <metrics statements="6" coveredstatements="0" conditionals="2" coveredconditionals="0" methods="3" coveredmethods="0"/>
+        <line num="15" count="0" type="stmt"/>
+        <line num="22" count="0" type="stmt"/>
+        <line num="38" count="0" type="stmt"/>
+        <line num="39" count="0" type="stmt"/>
+        <line num="50" count="0" type="stmt"/>
+        <line num="51" count="0" type="stmt"/>
+      </file>
+      <file name="Button.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/components/shared/Button.tsx">
+        <metrics statements="2" coveredstatements="0" conditionals="8" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="18" count="0" type="stmt"/>
+        <line num="29" count="0" type="stmt"/>
+      </file>
+      <file name="Card.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/components/shared/Card.tsx">
+        <metrics statements="2" coveredstatements="0" conditionals="1" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="13" count="0" type="cond" truecount="0" falsecount="1"/>
+        <line num="14" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="app.routes">
+      <metrics statements="131" coveredstatements="0" conditionals="56" coveredconditionals="0" methods="23" coveredmethods="0"/>
+      <file name="app._index.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/routes/app._index.tsx">
+        <metrics statements="30" coveredstatements="0" conditionals="10" coveredconditionals="0" methods="7" coveredmethods="0"/>
+        <line num="1" count="0" type="stmt"/>
+        <line num="7" count="0" type="stmt"/>
+        <line num="8" count="0" type="stmt"/>
+        <line num="9" count="0" type="stmt"/>
+        <line num="10" count="0" type="stmt"/>
+        <line num="12" count="0" type="stmt"/>
+        <line num="13" count="0" type="stmt"/>
+        <line num="15" count="0" type="stmt"/>
+        <line num="18" count="0" type="stmt"/>
+        <line num="19" count="0" type="stmt"/>
+        <line num="20" count="0" type="stmt"/>
+        <line num="23" count="0" type="stmt"/>
+        <line num="53" count="0" type="stmt"/>
+        <line num="55" count="0" type="stmt"/>
+        <line num="56" count="0" type="stmt"/>
+        <line num="58" count="0" type="stmt"/>
+        <line num="78" count="0" type="stmt"/>
+        <line num="80" count="0" type="stmt"/>
+        <line num="87" count="0" type="stmt"/>
+        <line num="88" count="0" type="stmt"/>
+        <line num="90" count="0" type="stmt"/>
+        <line num="92" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="95" count="0" type="stmt"/>
+        <line num="96" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="97" count="0" type="stmt"/>
+        <line num="101" count="0" type="stmt"/>
+        <line num="103" count="0" type="stmt"/>
+        <line num="152" count="0" type="stmt"/>
+        <line num="252" count="0" type="stmt"/>
+        <line num="253" count="0" type="stmt"/>
+      </file>
+      <file name="app.additional.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/routes/app.additional.tsx">
+        <metrics statements="2" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="1" count="0" type="stmt"/>
+        <line num="2" count="0" type="stmt"/>
+      </file>
+      <file name="app.generate.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/routes/app.generate.tsx">
+        <metrics statements="61" coveredstatements="0" conditionals="40" coveredconditionals="0" methods="7" coveredmethods="0"/>
+        <line num="1" count="0" type="stmt"/>
+        <line num="3" count="0" type="stmt"/>
+        <line num="4" count="0" type="stmt"/>
+        <line num="5" count="0" type="stmt"/>
+        <line num="6" count="0" type="stmt"/>
+        <line num="7" count="0" type="stmt"/>
+        <line num="8" count="0" type="stmt"/>
+        <line num="11" count="0" type="stmt"/>
+        <line num="21" count="0" type="stmt"/>
+        <line num="22" count="0" type="stmt"/>
+        <line num="23" count="0" type="stmt"/>
+        <line num="24" count="0" type="stmt"/>
+        <line num="34" count="0" type="stmt"/>
+        <line num="35" count="0" type="stmt"/>
+        <line num="36" count="0" type="stmt"/>
+        <line num="37" count="0" type="stmt"/>
+        <line num="39" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="40" count="0" type="stmt"/>
+        <line num="41" count="0" type="stmt"/>
+        <line num="42" count="0" type="stmt"/>
+        <line num="45" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="46" count="0" type="stmt"/>
+        <line num="47" count="0" type="stmt"/>
+        <line num="48" count="0" type="stmt"/>
+        <line num="50" count="0" type="stmt"/>
+        <line num="51" count="0" type="stmt"/>
+        <line num="52" count="0" type="stmt"/>
+        <line num="57" count="0" type="stmt"/>
+        <line num="58" count="0" type="stmt"/>
+        <line num="65" count="0" type="stmt"/>
+        <line num="68" count="0" type="stmt"/>
+        <line num="69" count="0" type="stmt"/>
+        <line num="70" count="0" type="stmt"/>
+        <line num="71" count="0" type="stmt"/>
+        <line num="72" count="0" type="stmt"/>
+        <line num="74" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="75" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="78" count="0" type="stmt"/>
+        <line num="79" count="0" type="cond" truecount="0" falsecount="3"/>
+        <line num="81" count="0" type="stmt"/>
+        <line num="83" count="0" type="stmt"/>
+        <line num="84" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="85" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="88" count="0" type="stmt"/>
+        <line num="89" count="0" type="cond" truecount="0" falsecount="4"/>
+        <line num="90" count="0" type="stmt"/>
+        <line num="95" count="0" type="stmt"/>
+        <line num="96" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="97" count="0" type="stmt"/>
+        <line num="98" count="0" type="stmt"/>
+        <line num="99" count="0" type="stmt"/>
+        <line num="100" count="0" type="stmt"/>
+        <line num="103" count="0" type="stmt"/>
+        <line num="104" count="0" type="stmt"/>
+        <line num="105" count="0" type="stmt"/>
+        <line num="106" count="0" type="stmt"/>
+        <line num="107" count="0" type="stmt"/>
+        <line num="108" count="0" type="stmt"/>
+        <line num="109" count="0" type="stmt"/>
+        <line num="112" count="0" type="cond" truecount="0" falsecount="3"/>
+        <line num="114" count="0" type="stmt"/>
+      </file>
+      <file name="app.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/routes/app.tsx">
+        <metrics statements="14" coveredstatements="0" conditionals="2" coveredconditionals="0" methods="4" coveredmethods="0"/>
+        <line num="2" count="0" type="stmt"/>
+        <line num="3" count="0" type="stmt"/>
+        <line num="4" count="0" type="stmt"/>
+        <line num="6" count="0" type="stmt"/>
+        <line num="8" count="0" type="stmt"/>
+        <line num="9" count="0" type="stmt"/>
+        <line num="12" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="15" count="0" type="stmt"/>
+        <line num="16" count="0" type="stmt"/>
+        <line num="18" count="0" type="stmt"/>
+        <line num="33" count="0" type="stmt"/>
+        <line num="34" count="0" type="stmt"/>
+        <line num="37" count="0" type="stmt"/>
+        <line num="38" count="0" type="stmt"/>
+      </file>
+      <file name="auth.$.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/routes/auth.$.tsx">
+        <metrics statements="7" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="0"/>
+        <line num="3" count="0" type="stmt"/>
+        <line num="4" count="0" type="stmt"/>
+        <line num="6" count="0" type="stmt"/>
+        <line num="7" count="0" type="stmt"/>
+        <line num="9" count="0" type="stmt"/>
+        <line num="12" count="0" type="stmt"/>
+        <line num="13" count="0" type="stmt"/>
+      </file>
+      <file name="webhooks.app.scopes_update.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/routes/webhooks.app.scopes_update.tsx">
+        <metrics statements="9" coveredstatements="0" conditionals="2" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="2" count="0" type="stmt"/>
+        <line num="3" count="0" type="stmt"/>
+        <line num="5" count="0" type="stmt"/>
+        <line num="6" count="0" type="stmt"/>
+        <line num="7" count="0" type="stmt"/>
+        <line num="9" count="0" type="stmt"/>
+        <line num="10" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="11" count="0" type="stmt"/>
+        <line num="20" count="0" type="stmt"/>
+      </file>
+      <file name="webhooks.app.uninstalled.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/routes/webhooks.app.uninstalled.tsx">
+        <metrics statements="8" coveredstatements="0" conditionals="2" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="2" count="0" type="stmt"/>
+        <line num="3" count="0" type="stmt"/>
+        <line num="5" count="0" type="stmt"/>
+        <line num="6" count="0" type="stmt"/>
+        <line num="8" count="0" type="stmt"/>
+        <line num="12" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="13" count="0" type="stmt"/>
+        <line num="16" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="app.routes._index">
+      <metrics statements="11" coveredstatements="0" conditionals="4" coveredconditionals="0" methods="2" coveredmethods="0"/>
+      <file name="route.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/routes/_index/route.tsx">
+        <metrics statements="11" coveredstatements="0" conditionals="4" coveredconditionals="0" methods="2" coveredmethods="0"/>
+        <line num="2" count="0" type="stmt"/>
+        <line num="4" count="0" type="stmt"/>
+        <line num="6" count="0" type="stmt"/>
+        <line num="8" count="0" type="stmt"/>
+        <line num="9" count="0" type="stmt"/>
+        <line num="11" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="12" count="0" type="stmt"/>
+        <line num="15" count="0" type="stmt"/>
+        <line num="18" count="0" type="stmt"/>
+        <line num="19" count="0" type="stmt"/>
+        <line num="21" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="app.routes.auth.login">
+      <metrics statements="27" coveredstatements="0" conditionals="6" coveredconditionals="0" methods="5" coveredmethods="0"/>
+      <file name="error.server.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/routes/auth.login/error.server.tsx">
+        <metrics statements="7" coveredstatements="0" conditionals="4" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="2" count="0" type="stmt"/>
+        <line num="8" count="0" type="stmt"/>
+        <line num="9" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="10" count="0" type="stmt"/>
+        <line num="11" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="12" count="0" type="stmt"/>
+        <line num="15" count="0" type="stmt"/>
+      </file>
+      <file name="route.tsx" path="/Users/lmtnolimit/working/ai-section-generator/app/routes/auth.login/route.tsx">
+        <metrics statements="20" coveredstatements="0" conditionals="2" coveredconditionals="0" methods="4" coveredmethods="0"/>
+        <line num="1" count="0" type="stmt"/>
+        <line num="2" count="0" type="stmt"/>
+        <line num="4" count="0" type="stmt"/>
+        <line num="6" count="0" type="stmt"/>
+        <line num="7" count="0" type="stmt"/>
+        <line num="9" count="0" type="stmt"/>
+        <line num="10" count="0" type="stmt"/>
+        <line num="12" count="0" type="stmt"/>
+        <line num="15" count="0" type="stmt"/>
+        <line num="16" count="0" type="stmt"/>
+        <line num="18" count="0" type="stmt"/>
+        <line num="23" count="0" type="stmt"/>
+        <line num="24" count="0" type="stmt"/>
+        <line num="25" count="0" type="stmt"/>
+        <line num="26" count="0" type="stmt"/>
+        <line num="27" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="29" count="0" type="stmt"/>
+        <line num="30" count="0" type="stmt"/>
+        <line num="31" count="0" type="stmt"/>
+        <line num="34" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="app.services.adapters">
+      <metrics statements="18" coveredstatements="18" conditionals="4" coveredconditionals="2" methods="8" coveredmethods="8"/>
+      <file name="ai-adapter.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/services/adapters/ai-adapter.ts">
+        <metrics statements="9" coveredstatements="9" conditionals="2" coveredconditionals="1" methods="4" coveredmethods="4"/>
+        <line num="2" count="1" type="stmt"/>
+        <line num="3" count="1" type="stmt"/>
+        <line num="4" count="1" type="stmt"/>
+        <line num="14" count="1" type="stmt"/>
+        <line num="15" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="21" count="2" type="stmt"/>
+        <line num="25" count="1" type="stmt"/>
+        <line num="29" count="1" type="stmt"/>
+        <line num="33" count="1" type="stmt"/>
+      </file>
+      <file name="theme-adapter.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/services/adapters/theme-adapter.ts">
+        <metrics statements="9" coveredstatements="9" conditionals="2" coveredconditionals="1" methods="4" coveredmethods="4"/>
+        <line num="2" count="1" type="stmt"/>
+        <line num="3" count="1" type="stmt"/>
+        <line num="4" count="1" type="stmt"/>
+        <line num="14" count="1" type="stmt"/>
+        <line num="15" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="21" count="2" type="stmt"/>
+        <line num="30" count="2" type="stmt"/>
+        <line num="35" count="1" type="stmt"/>
+        <line num="39" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="app.services.flags">
+      <metrics statements="45" coveredstatements="45" conditionals="18" coveredconditionals="18" methods="13" coveredmethods="13"/>
+      <file name="feature-flags.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/services/flags/feature-flags.ts">
+        <metrics statements="11" coveredstatements="11" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
+        <line num="15" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="17" count="2" type="stmt"/>
+        <line num="18" count="2" type="stmt"/>
+        <line num="21" count="2" type="stmt"/>
+        <line num="22" count="2" type="stmt"/>
+        <line num="23" count="2" type="stmt"/>
+        <line num="26" count="2" type="stmt"/>
+        <line num="27" count="2" type="stmt"/>
+        <line num="30" count="2" type="stmt"/>
+        <line num="31" count="2" type="stmt"/>
+        <line num="34" count="2" type="stmt"/>
+      </file>
+      <file name="flag-utils.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/services/flags/flag-utils.ts">
+        <metrics statements="34" coveredstatements="34" conditionals="16" coveredconditionals="16" methods="12" coveredmethods="12"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="4" count="34" type="stmt"/>
+        <line num="7" count="1" type="stmt"/>
+        <line num="14" count="45" type="cond" truecount="2" falsecount="0"/>
+        <line num="15" count="12" type="stmt"/>
+        <line num="19" count="33" type="stmt"/>
+        <line num="20" count="33" type="stmt"/>
+        <line num="21" count="33" type="cond" truecount="2" falsecount="0"/>
+        <line num="22" count="8" type="stmt"/>
+        <line num="26" count="25" type="stmt"/>
+        <line num="33" count="7" type="stmt"/>
+        <line num="34" count="7" type="cond" truecount="2" falsecount="0"/>
+        <line num="41" count="13" type="stmt"/>
+        <line num="48" count="19" type="stmt"/>
+        <line num="55" count="2" type="stmt"/>
+        <line num="56" count="2" type="stmt"/>
+        <line num="57" count="18" type="stmt"/>
+        <line num="59" count="2" type="stmt"/>
+        <line num="66" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="67" count="1" type="stmt"/>
+        <line num="70" count="1" type="stmt"/>
+        <line num="71" count="1" type="stmt"/>
+        <line num="72" count="9" type="stmt"/>
+        <line num="73" count="9" type="stmt"/>
+        <line num="74" count="9" type="cond" truecount="2" falsecount="0"/>
+        <line num="76" count="1" type="stmt"/>
+        <line num="81" count="8" type="cond" truecount="2" falsecount="0"/>
+        <line num="82" count="7" type="cond" truecount="2" falsecount="0"/>
+        <line num="85" count="5" type="stmt"/>
+        <line num="86" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="89" count="1" type="stmt"/>
+        <line num="93" count="1" type="stmt"/>
+        <line num="100" count="1" type="stmt"/>
+        <line num="107" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="app.services.mocks">
+      <metrics statements="65" coveredstatements="63" conditionals="18" coveredconditionals="16" methods="21" coveredmethods="19"/>
+      <file name="mock-ai.server.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/services/mocks/mock-ai.server.ts">
+        <metrics statements="18" coveredstatements="17" conditionals="8" coveredconditionals="7" methods="6" coveredmethods="5"/>
+        <line num="2" count="3" type="stmt"/>
+        <line num="3" count="3" type="stmt"/>
+        <line num="5" count="3" type="stmt"/>
+        <line num="8" count="20" type="stmt"/>
+        <line num="10" count="20" type="stmt"/>
+        <line num="11" count="20" type="stmt"/>
+        <line num="13" count="20" type="stmt"/>
+        <line num="16" count="20" type="stmt"/>
+        <line num="17" count="20" type="cond" truecount="2" falsecount="0"/>
+        <line num="18" count="2" type="stmt"/>
+        <line num="20" count="18" type="cond" truecount="4" falsecount="0"/>
+        <line num="21" count="1" type="stmt"/>
+        <line num="25" count="17" type="stmt"/>
+        <line num="29" count="20" type="stmt"/>
+        <line num="33" count="20" type="stmt"/>
+        <line num="34" count="20" type="cond" truecount="1" falsecount="1"/>
+        <line num="35" count="0" type="stmt"/>
+        <line num="40" count="3" type="stmt"/>
+      </file>
+      <file name="mock-data.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/services/mocks/mock-data.ts">
+        <metrics statements="4" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="3" count="5" type="stmt"/>
+        <line num="27" count="5" type="stmt"/>
+        <line num="86" count="5" type="stmt"/>
+        <line num="87" count="20" type="stmt"/>
+      </file>
+      <file name="mock-store.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/services/mocks/mock-store.ts">
+        <metrics statements="21" coveredstatements="21" conditionals="2" coveredconditionals="2" methods="7" coveredmethods="7"/>
+        <line num="9" count="6" type="stmt"/>
+        <line num="15" count="1169" type="stmt"/>
+        <line num="16" count="1169" type="stmt"/>
+        <line num="23" count="1169" type="stmt"/>
+        <line num="24" count="1169" type="stmt"/>
+        <line num="28" count="4" type="stmt"/>
+        <line num="29" count="4" type="stmt"/>
+        <line num="30" count="103" type="cond" truecount="2" falsecount="0"/>
+        <line num="31" count="102" type="stmt"/>
+        <line num="34" count="4" type="stmt"/>
+        <line num="38" count="25" type="stmt"/>
+        <line num="42" count="24" type="stmt"/>
+        <line num="46" count="33" type="stmt"/>
+        <line num="47" count="33" type="stmt"/>
+        <line num="51" count="1169" type="stmt"/>
+        <line num="52" count="1169" type="stmt"/>
+        <line num="53" count="11464" type="stmt"/>
+        <line num="54" count="11464" type="stmt"/>
+        <line num="55" count="11464" type="stmt"/>
+        <line num="57" count="1169" type="stmt"/>
+        <line num="61" count="6" type="stmt"/>
+      </file>
+      <file name="mock-theme.server.ts" path="/Users/lmtnolimit/working/ai-section-generator/app/services/mocks/mock-theme.server.ts">
+        <metrics statements="22" coveredstatements="21" conditionals="8" coveredconditionals="7" methods="7" coveredmethods="6"/>
+        <line num="3" count="3" type="stmt"/>
+        <line num="4" count="3" type="stmt"/>
+        <line num="6" count="3" type="stmt"/>
+        <line num="9" count="7" type="stmt"/>
+        <line num="11" count="7" type="stmt"/>
+        <line num="12" count="7" type="stmt"/>
+        <line num="21" count="61" type="stmt"/>
+        <line num="24" count="63" type="stmt"/>
+        <line num="25" count="61" type="cond" truecount="2" falsecount="0"/>
+        <line num="26" count="1" type="stmt"/>
+        <line num="30" count="60" type="stmt"/>
+        <line num="31" count="60" type="cond" truecount="2" falsecount="0"/>
+        <line num="32" count="59" type="stmt"/>
+        <line num="34" count="60" type="cond" truecount="2" falsecount="0"/>
+        <line num="35" count="59" type="stmt"/>
+        <line num="39" count="60" type="stmt"/>
+        <line num="41" count="60" type="stmt"/>
+        <line num="43" count="60" type="stmt"/>
+        <line num="47" count="68" type="stmt"/>
+        <line num="48" count="68" type="cond" truecount="1" falsecount="1"/>
+        <line num="49" count="0" type="stmt"/>
+        <line num="54" count="3" type="stmt"/>
+      </file>
+    </package>
+  </project>
+</coverage>
