@@ -23,6 +23,7 @@ export function Button({
   disabled = false,
   onClick,
   submit = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   fullWidth = false
 }: ButtonProps) {
   // Note: fullWidth not directly supported by s-button, use wrapper if needed

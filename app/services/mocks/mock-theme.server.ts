@@ -4,6 +4,7 @@ import { mockThemes } from './mock-data';
 import { mockStore } from './mock-store';
 
 export class MockThemeService implements ThemeServiceInterface {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getThemes(_request: Request): Promise<Theme[]> {
     // Simulate API latency (optional)
     await this.simulateLatency(100);

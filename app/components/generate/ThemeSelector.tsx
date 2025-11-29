@@ -27,6 +27,7 @@ export function ThemeSelector({
       label="Select Theme"
       value={selectedThemeId}
       onChange={handleChange}
+      disabled={disabled}
     >
       {themes.map((theme) => (
         <s-option key={theme.id} value={theme.id}>

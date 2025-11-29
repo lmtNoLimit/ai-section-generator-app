@@ -8,15 +8,10 @@ import { ServiceModeIndicator } from "../components/ServiceModeIndicator";
 import { serviceConfig } from "../services/config.server";
 import type { GenerateActionData, SaveActionData, Theme } from "../types";
 
-import {
-  PromptInput,
-  ThemeSelector,
-  CodePreview,
-  SectionNameInput,
-  GenerateActions,
-  SuccessBanner,
-  ErrorBanner
-} from "../components";
+import { GenerateLayout } from "../components/generate/GenerateLayout";
+import { GenerateInputColumn } from "../components/generate/GenerateInputColumn";
+import { GeneratePreviewColumn } from "../components/generate/GeneratePreviewColumn";
+import type { AdvancedOptionsState } from "../components/generate/AdvancedOptions";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
@@ -74,6 +69,13 @@ export default function GeneratePage() {
   const [prompt, setPrompt] = useState(actionData?.prompt || "");
   const [generatedCode, setGeneratedCode] = useState(actionData?.code || "");
 
+  // Advanced options state (for future AI integration)
+  const [advancedOptions, setAdvancedOptions] = useState<AdvancedOptionsState>({
+    tone: 'professional',
+    style: 'minimal',
+    includeSchema: true
+  });
+
   // Find the active (main) theme to set as default
   const activeTheme = themes.find((theme: Theme) => theme.role === "MAIN");
   const [selectedTheme, setSelectedTheme] = useState(activeTheme?.id || themes[0]?.id || "");
@@ -97,6 +99,7 @@ export default function GeneratePage() {
     const formData = new FormData();
     formData.append("action", "generate");
     formData.append("prompt", prompt);
+    // Future: pass advancedOptions to AI service
     submit(formData, { method: "post" });
   };
 
@@ -111,71 +114,64 @@ export default function GeneratePage() {
 
   const canSave = Boolean(generatedCode && fileName && selectedTheme);
 
+  // Get theme name for success message
+  const selectedThemeName = themes.find((t: Theme) => t.id === selectedTheme)?.name || 'theme';
+
   return (
     <>
       <s-page title="Generate Section">
-        <s-layout>
-          <s-layout-section>
-            <s-stack gap="400" vertical>
-              {/* Feedback banners */}
-              {actionData?.success && (
-                <SuccessBanner message={actionData.message} />
+        <s-stack gap="400" vertical>
+          {/* Enhanced feedback banners */}
+
+          {/* Success banner after save */}
+          {actionData?.success && (
+            <s-banner tone="success" dismissible>
+              Section saved successfully to {selectedThemeName}! Visit the Theme Editor to customize your new section.
+            </s-banner>
+          )}
+
+          {/* Error banner with recovery guidance */}
+          {actionData?.success === false && (
+            <s-banner tone="critical">
+              {actionData.message}
+              {actionData.message?.toLowerCase().includes('generate') && (
+                <span> Try simplifying your prompt or choose a pre-built template.</span>
               )}
-              {actionData?.success === false && (
-                <ErrorBanner message={actionData.message} />
+              {actionData.message?.toLowerCase().includes('save') && (
+                <span> Verify that the selected theme exists and you have permission to modify it.</span>
               )}
+            </s-banner>
+          )}
 
-              {/* Input form */}
-              <s-card>
-                <s-stack gap="400" vertical>
-                  <s-text variant="headingMd" as="h2">
-                    Describe your section
-                  </s-text>
-
-                  <PromptInput
-                    value={prompt}
-                    onChange={setPrompt}
-                    disabled={isGenerating || isSaving}
-                  />
-
-                  <GenerateActions
-                    onGenerate={handleGenerate}
-                    onSave={handleSave}
-                    isGenerating={isGenerating}
-                    isSaving={isSaving}
-                    canSave={canSave}
-                  />
-                </s-stack>
-              </s-card>
-
-              {/* Code preview and save section */}
-              {generatedCode && (
-                <s-card>
-                  <s-stack gap="400" vertical>
-                    <s-text variant="headingMd" as="h2">
-                      Preview & Save
-                    </s-text>
-
-                    <CodePreview code={generatedCode} />
-
-                    <ThemeSelector
-                      themes={themes}
-                      selectedThemeId={selectedTheme}
-                      onChange={setSelectedTheme}
-                      disabled={isGenerating || isSaving}
-                    />
-
-                    <SectionNameInput
-                      value={fileName}
-                      onChange={setFileName}
-                      disabled={isGenerating || isSaving}
-                    />
-                  </s-stack>
-                </s-card>
-              )}
-            </s-stack>
-          </s-layout-section>
-        </s-layout>
+          {/* Two-column layout */}
+          <GenerateLayout
+            inputColumn={
+              <GenerateInputColumn
+                prompt={prompt}
+                onPromptChange={setPrompt}
+                advancedOptions={advancedOptions}
+                onAdvancedOptionsChange={setAdvancedOptions}
+                disabled={isGenerating || isSaving}
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+              />
+            }
+            previewColumn={
+              <GeneratePreviewColumn
+                generatedCode={generatedCode}
+                themes={themes}
+                selectedTheme={selectedTheme}
+                onThemeChange={setSelectedTheme}
+                fileName={fileName}
+                onFileNameChange={setFileName}
+                onSave={handleSave}
+                isSaving={isSaving}
+                isGenerating={isGenerating}
+                canSave={canSave}
+              />
+            }
+          />
+        </s-stack>
       </s-page>
 
       <ServiceModeIndicator

@@ -20,6 +20,7 @@ declare global {
     };
 
     's-layout-section': {
+      variant?: 'oneThird' | 'twoThirds' | 'oneHalf' | 'fullWidth';
       children?: React.ReactNode;
     };
 
@@ -33,12 +34,16 @@ declare global {
       gap?: string;
       vertical?: boolean;
       direction?: string;
+      align?: 'start' | 'center' | 'end' | 'baseline' | 'stretch';
       children?: React.ReactNode;
     };
 
     's-text': {
       variant?: 'headingSm' | 'headingMd' | 'headingLg' | 'bodyMd' | 'bodySm';
       as?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'span';
+      tone?: 'subdued' | 'success' | 'critical' | 'warning' | 'magic';
+      alignment?: 'start' | 'center' | 'end' | 'justify';
+      fontWeight?: 'regular' | 'medium' | 'semibold' | 'bold';
       children?: React.ReactNode;
     };
 
@@ -56,6 +61,7 @@ declare global {
       error?: string;
       name?: string;
       suffix?: string;
+      disabled?: boolean;
     };
 
     's-button': {
@@ -68,6 +74,8 @@ declare global {
       slot?: string;
       target?: string;
       type?: string;
+      disclosure?: 'up' | 'down';
+      key?: string;
       children?: React.ReactNode;
     };
 
@@ -76,6 +84,15 @@ declare global {
       value?: string;
       onChange?: (e: Event) => void;
       options?: Array<{ label: string; value: string }>;
+      disabled?: boolean;
+      helpText?: string;
+      children?: React.ReactNode;
+    };
+
+    's-checkbox': {
+      checked?: boolean;
+      onChange?: (e: Event) => void;
+      disabled?: boolean;
       children?: React.ReactNode;
     };
 
@@ -139,6 +156,15 @@ declare global {
 
     's-unordered-list': {
       children?: React.ReactNode;
+    };
+
+    's-spinner': {
+      size?: 'small' | 'large';
+    };
+
+    's-divider': {
+      borderWidth?: string;
+      borderColor?: string;
     };
   }
   }
