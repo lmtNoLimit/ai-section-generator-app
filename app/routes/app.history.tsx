@@ -1,10 +1,12 @@
 import { useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useActionData, useLoaderData, useSearchParams, useSubmit } from "react-router";
+import { useActionData, useLoaderData, useSearchParams, useSubmit, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
 import { historyService } from "../services/history.server";
-import { HistoryList } from "../components/history/HistoryList";
-import { HistoryPreview } from "../components/history/HistoryPreview";
+import { HistoryTable } from "../components/history/HistoryTable";
+import { HistoryPreviewModal } from "../components/history/HistoryPreviewModal";
+import { FilterButtonGroup } from "../components/shared/FilterButtonGroup";
+import { EmptyState } from "../components/shared/EmptyState";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
@@ -46,10 +48,18 @@ export async function action({ request }: ActionFunctionArgs) {
   return null;
 }
 
+const FILTER_OPTIONS = [
+  { value: "", label: "All" },
+  { value: "generated", label: "Generated" },
+  { value: "saved", label: "Saved" },
+  { value: "favorites", label: "Favorites" },
+];
+
 export default function HistoryPage() {
   const { history } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [previewItem, setPreviewItem] = useState<typeof history.items[0] | null>(null);
@@ -58,23 +68,22 @@ export default function HistoryPage() {
   const favoritesOnly = searchParams.get("favorites") === "true";
   const currentPage = parseInt(searchParams.get("page") || "1", 10);
 
-  const handleStatusFilter = (status: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (status) {
-      params.set("status", status);
-    } else {
-      params.delete("status");
-    }
-    params.set("page", "1");
-    setSearchParams(params);
-  };
+  // Determine current filter value
+  const currentFilterValue = favoritesOnly ? "favorites" : currentStatus;
 
-  const handleFavoritesFilter = (favorites: boolean) => {
+  const handleFilterChange = (value: string) => {
     const params = new URLSearchParams(searchParams);
-    if (favorites) {
+
+    if (value === "favorites") {
+      params.delete("status");
       params.set("favorites", "true");
     } else {
       params.delete("favorites");
+      if (value) {
+        params.set("status", value);
+      } else {
+        params.delete("status");
+      }
     }
     params.set("page", "1");
     setSearchParams(params);
@@ -104,95 +113,77 @@ export default function HistoryPage() {
 
   return (
     <>
-      <s-page heading="Generation History">
+      <s-page heading="Generation History" inlineSize="large">
         <s-stack gap="large" direction="block">
+          {/* Banners */}
           {actionData?.action === "delete" && (
             <s-banner tone="success" dismissible>
-              History entry deleted successfully.
+              Entry deleted successfully.
             </s-banner>
           )}
 
-          <s-card>
-            <s-stack gap="large" direction="block">
-              {/* Filters */}
-              <s-stack gap="base" direction="inline">
-                <s-button
-                  variant={!currentStatus && !favoritesOnly ? "primary" : "secondary"}
-                  onClick={() => {
-                    handleStatusFilter("");
-                    handleFavoritesFilter(false);
-                  }}
-                >
-                  All
-                </s-button>
-                <s-button
-                  variant={currentStatus === "generated" ? "primary" : "secondary"}
-                  onClick={() => handleStatusFilter("generated")}
-                >
-                  Generated
-                </s-button>
-                <s-button
-                  variant={currentStatus === "saved" ? "primary" : "secondary"}
-                  onClick={() => handleStatusFilter("saved")}
-                >
-                  Saved
-                </s-button>
-                <s-button
-                  variant={favoritesOnly ? "primary" : "secondary"}
-                  onClick={() => handleFavoritesFilter(!favoritesOnly)}
-                >
-                  Favorites
-                </s-button>
-              </s-stack>
+          <s-section padding="none" accessibilityLabel="History table">
+            {/* Filters */}
+            <s-box padding="base">
+              <FilterButtonGroup
+                options={FILTER_OPTIONS}
+                value={currentFilterValue}
+                onChange={handleFilterChange}
+              />
+            </s-box>
 
-              {/* History list */}
-              <HistoryList
+            {/* Table or Empty State */}
+            {history.items.length > 0 ? (
+              <HistoryTable
                 items={history.items}
                 onPreview={setPreviewItem}
                 onToggleFavorite={handleToggleFavorite}
                 onDelete={handleDelete}
               />
+            ) : (
+              <s-box padding="large">
+                <EmptyState
+                  heading="No history entries"
+                  description="Generate some sections to see them here."
+                  primaryAction={{
+                    label: "Generate Section",
+                    onClick: () => navigate("/app/generate")
+                  }}
+                />
+              </s-box>
+            )}
 
-              {/* Pagination */}
-              {history.totalPages > 1 && (
+            {/* Pagination */}
+            {history.totalPages > 1 && (
+              <s-box padding="base">
                 <s-stack gap="small" direction="inline" justifyContent="center" alignItems="center">
-                  <s-button
-                    disabled={currentPage <= 1}
-                    onClick={() => handlePageChange(currentPage - 1)}
-                  >
-                    Previous
-                  </s-button>
-                  <s-text variant="bodySm" color="subdued">
+                  <s-button-group>
+                    <s-button
+                      disabled={currentPage <= 1}
+                      onClick={() => handlePageChange(currentPage - 1)}
+                    >
+                      Previous
+                    </s-button>
+                    <s-button
+                      disabled={currentPage >= history.totalPages}
+                      onClick={() => handlePageChange(currentPage + 1)}
+                    >
+                      Next
+                    </s-button>
+                  </s-button-group>
+                  <s-text color="subdued">
                     Page {history.page} of {history.totalPages}
                   </s-text>
-                  <s-button
-                    disabled={currentPage >= history.totalPages}
-                    onClick={() => handlePageChange(currentPage + 1)}
-                  >
-                    Next
-                  </s-button>
                 </s-stack>
-              )}
-
-              {/* Empty state */}
-              {history.items.length === 0 && (
-                <s-stack gap="large" direction="block" alignItems="center">
-                  <s-text variant="headingMd" color="subdued">
-                    No history entries found
-                  </s-text>
-                  <s-text color="subdued">
-                    Generate some sections to see them here.
-                  </s-text>
-                </s-stack>
-              )}
-            </s-stack>
-          </s-card>
+              </s-box>
+            )}
+          </s-section>
         </s-stack>
       </s-page>
 
-      {/* Preview modal */}
+      {/* Preview Modal */}
       {previewItem && (
-        <HistoryPreview
+        <HistoryPreviewModal
           item={previewItem}
           onClose={() => setPreviewItem(null)}
         />

@@ -11,7 +11,7 @@ export interface TemplateGridProps {
 }
 
 /**
- * Grid of template cards
+ * Grid of template cards using Polaris s-grid
  */
 export function TemplateGrid({
   templates,
@@ -22,12 +22,9 @@ export function TemplateGrid({
   onDelete
 }: TemplateGridProps) {
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-        gap: '16px'
-      }}
+    <s-grid
+      gap="base"
+      gridTemplateColumns="repeat(auto-fill, minmax(280px, 1fr))"
     >
       {templates.map((template) => (
         <TemplateCard
@@ -40,6 +37,6 @@ export function TemplateGrid({
           onDelete={() => onDelete(template.id)}
         />
       ))}
-    </div>
+    </s-grid>
   );
 }

@@ -4,7 +4,9 @@ import { useActionData, useLoaderData, useSearchParams, useSubmit, useNavigate }
 import { authenticate } from "../shopify.server";
 import { templateService } from "../services/template.server";
 import { TemplateGrid } from "../components/templates/TemplateGrid";
-import { TemplateEditor } from "../components/templates/TemplateEditor";
+import { TemplateEditorModal } from "../components/templates/TemplateEditorModal";
+import { FilterButtonGroup } from "../components/shared/FilterButtonGroup";
+import { EmptyState } from "../components/shared/EmptyState";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
@@ -97,6 +99,11 @@ const CATEGORIES = [
   { value: "layout", label: "Layout" },
 ];
 
+const FILTER_OPTIONS = [
+  ...CATEGORIES,
+  { value: "favorites", label: "Favorites" },
+];
+
 export default function TemplatesPage() {
   const { templates } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
@@ -110,28 +117,27 @@ export default function TemplatesPage() {
   const currentCategory = searchParams.get("category") || "";
   const favoritesOnly = searchParams.get("favorites") === "true";
 
-  const handleCategoryFilter = (category: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (category) {
-      params.set("category", category);
-    } else {
-      params.delete("category");
-    }
-    setSearchParams(params);
-  };
+  // Determine current filter value
+  const currentFilterValue = favoritesOnly ? "favorites" : currentCategory;
 
-  const handleFavoritesFilter = () => {
+  const handleFilterChange = (value: string) => {
     const params = new URLSearchParams(searchParams);
-    if (favoritesOnly) {
-      params.delete("favorites");
-    } else {
+
+    if (value === "favorites") {
+      params.delete("category");
       params.set("favorites", "true");
+    } else {
+      params.delete("favorites");
+      if (value) {
+        params.set("category", value);
+      } else {
+        params.delete("category");
+      }
     }
     setSearchParams(params);
   };
 
   const handleUseTemplate = (template: typeof templates[0]) => {
-    // Navigate to generate page with prompt pre-filled
     navigate(`/app/generate?prompt=${encodeURIComponent(template.prompt)}`);
   };
 
@@ -187,8 +193,16 @@ export default function TemplatesPage() {
 
   return (
     <>
-      <s-page heading="Section Templates">
+      <s-page heading="Section Templates" inlineSize="large">
+        <s-button slot="primary-action" variant="primary" onClick={() => {
+          setEditingTemplate(null);
+          setShowEditor(true);
+        }}>
+          Create Template
+        </s-button>
+
         <s-stack gap="large" direction="block">
+          {/* Success banners */}
           {actionData?.action === "delete" && (
             <s-banner tone="success" dismissible>
               Template deleted successfully.
@@ -199,45 +213,27 @@ export default function TemplatesPage() {
               Template created successfully.
             </s-banner>
           )}
+          {actionData?.action === "update" && (
+            <s-banner tone="success" dismissible>
+              Template updated successfully.
+            </s-banner>
+          )}
           {actionData?.action === "duplicate" && (
             <s-banner tone="success" dismissible>
               Template duplicated successfully.
             </s-banner>
           )}
 
-          <s-card>
-            <s-stack gap="large" direction="block">
-              {/* Header with create button */}
-              <s-stack gap="small" justifyContent="space-between" alignItems="center">
-                <s-heading>Your Templates</s-heading>
-                <s-button variant="primary" onClick={() => {
-                  setEditingTemplate(null);
-                  setShowEditor(true);
-                }}>
-                  Create Template
-                </s-button>
-              </s-stack>
-
+          <s-section padding={templates.length > 0 ? "base" : "none"}>
+            <s-stack gap="base" direction="block">
               {/* Filters */}
-              <s-stack gap="small" direction="inline">
-                {CATEGORIES.map((cat) => (
-                  <s-button
-                    key={cat.value}
-                    variant={currentCategory === cat.value && !favoritesOnly ? "primary" : "secondary"}
-                    onClick={() => handleCategoryFilter(cat.value)}
-                  >
-                    {cat.label}
-                  </s-button>
-                ))}
-                <s-button
-                  variant={favoritesOnly ? "primary" : "secondary"}
-                  onClick={handleFavoritesFilter}
-                >
-                  Favorites
-                </s-button>
-              </s-stack>
+              <FilterButtonGroup
+                options={FILTER_OPTIONS}
+                value={currentFilterValue}
+                onChange={handleFilterChange}
+              />
 
-              {/* Templates grid */}
+              {/* Grid or Empty State */}
               {templates.length > 0 ? (
                 <TemplateGrid
                   templates={templates}
@@ -248,27 +244,27 @@ export default function TemplatesPage() {
                   onDelete={handleDelete}
                 />
               ) : (
-                <s-stack gap="large" direction="block" alignItems="center">
-                  <div style={{ fontSize: '48px', opacity: 0.5 }}>📋</div>
-                  <s-text variant="headingMd" color="subdued">
-                    No templates yet
-                  </s-text>
-                  <s-text color="subdued">
-                    Create your first template or save one from the Generate page.
-                  </s-text>
-                  <s-button onClick={() => setShowEditor(true)}>
-                    Create Template
-                  </s-button>
-                </s-stack>
+                <EmptyState
+                  heading="No templates yet"
+                  description="Create your first template or save one from the Generate page."
+                  image="https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
+                  primaryAction={{
+                    label: "Create Template",
+                    onClick: () => {
+                      setEditingTemplate(null);
+                      setShowEditor(true);
+                    }
+                  }}
+                />
               )}
             </s-stack>
-          </s-card>
+          </s-section>
         </s-stack>
       </s-page>
 
-      {/* Editor modal */}
+      {/* Modal using s-modal */}
       {showEditor && (
-        <TemplateEditor
+        <TemplateEditorModal
           template={editingTemplate}
           onSave={handleSaveTemplate}
           onClose={() => {

@@ -1,19 +1,18 @@
 import type { GenerationHistory } from "@prisma/client";
 import { useState } from "react";
 
-export interface HistoryPreviewProps {
+export interface HistoryPreviewModalProps {
   item: GenerationHistory;
   onClose: () => void;
 }
 
 /**
- * Modal-like preview for history item code
- * Shows full code with copy/download options
+ * Modal preview for history item code
  */
-export function HistoryPreview({
+export function HistoryPreviewModal({
   item,
   onClose
-}: HistoryPreviewProps) {
+}: HistoryPreviewModalProps) {
   const [copySuccess, setCopySuccess] = useState(false);
 
   const handleCopy = async () => {
@@ -72,22 +71,29 @@ export function HistoryPreview({
       >
         {/* Header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--p-color-border)' }}>
-          <s-stack gap="200" distribution="equalSpacing">
-            <s-text variant="headingMd">Code Preview</s-text>
-            <s-button variant="plain" onClick={onClose}>
-              Close
-            </s-button>
+          <s-stack gap="base" justifyContent="space-between" alignItems="center" direction="inline">
+            <s-heading>Code Preview</s-heading>
+            <s-button variant="tertiary" onClick={onClose}>Close</s-button>
           </s-stack>
         </div>
 
         {/* Prompt info */}
         <div style={{ padding: '12px 20px', backgroundColor: 'var(--p-color-bg-surface-secondary)' }}>
-          <s-text variant="bodySm" color="subdued">
+          <s-text color="subdued">
             Prompt: {item.prompt.substring(0, 150)}{item.prompt.length > 150 ? '...' : ''}
           </s-text>
         </div>
 
-        {/* Code */}
+        {/* Saved info */}
+        {item.status === 'saved' && item.themeName && (
+          <div style={{ padding: '8px 20px', backgroundColor: 'var(--p-color-bg-surface-secondary)' }}>
+            <s-text color="subdued">
+              Saved to: {item.themeName} / {item.fileName}.liquid
+            </s-text>
+          </div>
+        )}
+
+        {/* Code block */}
         <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
           <pre
             style={{
@@ -105,12 +111,10 @@ export function HistoryPreview({
 
         {/* Actions */}
         <div style={{ padding: '16px 20px', borderTop: '1px solid var(--p-color-border)' }}>
-          <s-stack gap="200">
-            <s-button onClick={handleCopy} variant="secondary">
-              {copySuccess ? '✓ Copied!' : 'Copy Code'}
-            </s-button>
-            <s-button onClick={handleDownload} variant="secondary">
-              Download
+          <s-stack gap="base" direction="inline">
+            <s-button onClick={handleDownload} variant="secondary">Download</s-button>
+            <s-button variant="primary" onClick={handleCopy}>
+              {copySuccess ? 'Copied!' : 'Copy Code'}
             </s-button>
           </s-stack>
         </div>
