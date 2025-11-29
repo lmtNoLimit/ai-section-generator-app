@@ -19,7 +19,6 @@ AI Section Generator is a Shopify embedded app that lets merchants create custom
 - **Theme Integration**: Fetches merchant themes and saves sections via Shopify Admin API
 - **Code Preview**: Review generated code before saving
 - **Polaris UI**: Native Shopify admin experience with Polaris web components
-- **Fallback Support**: Works with mock responses if Gemini API unavailable
 
 ## Documentation
 
@@ -38,16 +37,12 @@ AI Section Generator is a Shopify embedded app that lets merchants create custom
 - ✅ Section saving to themes
 - ✅ Polaris UI implementation
 - ✅ Authentication and session management
-- ✅ Feature flag system for service switching
-- ✅ Mock services for development without API dependencies
-- ✅ Service adapter pattern for transparent mock/real switching
+- ✅ Feature flag system
 - ✅ TypeScript type system for services and APIs
 - ✅ Component-based architecture with reusable UI components
 
 **Pending**:
-- ⏳ Shopify approval for write_themes scope (required for production)
 - ⏳ Production deployment
-- ⏳ Database migration to PostgreSQL/MySQL
 
 **Future Enhancements**:
 - Section editing and versioning
@@ -91,36 +86,21 @@ Local development is powered by [the Shopify CLI](https://shopify.dev/docs/apps/
 
 - `GEMINI_API_KEY`: Your Google AI Studio API key ([Get one here](https://aistudio.google.com/app/apikey))
   - Required for AI-powered section generation
-  - If not set, the app uses a mock AI service
 
 #### Feature Flags (Optional)
 
 Control app behavior with feature flag environment variables (prefix: `FLAG_`):
 
-**Service Mode**:
-- `FLAG_USE_MOCK_THEMES=true` - Use mock theme service instead of Shopify API (default: `true`)
-- `FLAG_USE_MOCK_AI=false` - Use real Gemini API for generation (default: `false` if GEMINI_API_KEY set)
-
-**Debug & Performance**:
 - `FLAG_VERBOSE_LOGGING=true` - Enable detailed service logging (default: enabled in dev)
-- `FLAG_SHOW_SERVICE_MODE=true` - Show service mode indicator in UI (default: enabled in dev)
-- `FLAG_SIMULATE_API_LATENCY=true` - Add realistic delays to mock services (default: `false`)
 
 **Example `.env` for development**:
 ```bash
 # API Keys
 GEMINI_API_KEY=your_gemini_api_key_here
 
-# Service Configuration
-FLAG_USE_MOCK_THEMES=false    # Use real Shopify API
-FLAG_USE_MOCK_AI=false         # Use real Gemini API
-
 # Debug Features
 FLAG_VERBOSE_LOGGING=true
-FLAG_SHOW_SERVICE_MODE=true
 ```
-
-**Note**: The app defaults to mock theme service (`FLAG_USE_MOCK_THEMES=true`) until Shopify approves the `write_themes` scope. This allows development and testing without API access.
 
 ### Authenticating and querying data
 

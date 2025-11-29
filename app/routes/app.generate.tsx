@@ -6,8 +6,6 @@ import { aiAdapter } from "../services/adapters/ai-adapter";
 import { themeAdapter } from "../services/adapters/theme-adapter";
 import { historyService } from "../services/history.server";
 import { templateService } from "../services/template.server";
-import { ServiceModeIndicator } from "../components/ServiceModeIndicator";
-import { serviceConfig } from "../services/config.server";
 import type { GenerateActionData, SaveActionData, Theme } from "../types";
 
 import { GenerateLayout } from "../components/generate/GenerateLayout";
@@ -19,14 +17,7 @@ import type { AdvancedOptionsState } from "../components/generate/AdvancedOption
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
   const themes = await themeAdapter.getThemes(request);
-  return {
-    themes,
-    serviceMode: {
-      themeMode: serviceConfig.themeMode,
-      aiMode: serviceConfig.aiMode,
-      showIndicator: serviceConfig.showModeInUI
-    }
-  };
+  return { themes };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -124,7 +115,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function GeneratePage() {
-  const { themes, serviceMode } = useLoaderData<typeof loader>();
+  const { themes } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submit = useSubmit();
@@ -282,12 +273,6 @@ export default function GeneratePage() {
           />
         </s-stack>
       </s-page>
-
-      <ServiceModeIndicator
-        themeMode={serviceMode.themeMode}
-        aiMode={serviceMode.aiMode}
-        showIndicator={serviceMode.showIndicator}
-      />
 
       {/* Save as Template Modal */}
       {showSaveTemplateModal && (
