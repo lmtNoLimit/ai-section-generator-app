@@ -188,7 +188,7 @@ export default function TemplatesPage() {
   return (
     <>
       <s-page title="Section Templates">
-        <s-stack gap="400" vertical>
+        <s-stack gap="large" direction="block">
           {actionData?.action === "delete" && (
             <s-banner tone="success" dismissible>
               Template deleted successfully.
@@ -206,9 +206,9 @@ export default function TemplatesPage() {
           )}
 
           <s-card>
-            <s-stack gap="400" vertical>
+            <s-stack gap="large" direction="block">
               {/* Header with create button */}
-              <s-stack gap="200" distribution="equalSpacing">
+              <s-stack gap="small" distribution="equalSpacing">
                 <s-text variant="headingMd">Your Templates</s-text>
                 <s-button variant="primary" onClick={() => {
                   setEditingTemplate(null);
@@ -219,7 +219,7 @@ export default function TemplatesPage() {
               </s-stack>
 
               {/* Filters */}
-              <s-stack gap="200">
+              <s-stack gap="small">
                 {CATEGORIES.map((cat) => (
                   <s-button
                     key={cat.value}
@@ -250,7 +250,7 @@ export default function TemplatesPage() {
                   onDelete={handleDelete}
                 />
               ) : (
-                <s-stack gap="400" vertical align="center">
+                <s-stack gap="large" direction="block" align="center">
                   <div style={{ fontSize: '48px', opacity: 0.5 }}>📋</div>
                   <s-text variant="headingMd" tone="subdued">
                     No templates yet

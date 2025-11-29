@@ -20,7 +20,7 @@ export function TemplateSuggestions({
   };
 
   return (
-    <s-stack gap="300" vertical>
+    <s-stack gap="base" direction="block">
       <s-text variant="headingSm" as="h3">
         Quick Start Templates
       </s-text>

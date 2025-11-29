@@ -24,9 +24,8 @@ export function PromptInput({
   minLength = 10,
   maxLength = 2000
 }: PromptInputProps) {
-  const handleInput = (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    onChange(target.value);
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onChange(e.target.value);
   };
 
   // Character counter
@@ -45,16 +44,32 @@ export function PromptInput({
     : charCountText;
 
   return (
-    <s-text-field
-      label="Prompt"
-      value={value}
-      onInput={handleInput}
-      multiline="6"
-      autoComplete="off"
-      placeholder={placeholder}
-      helpText={displayHelpText}
-      error={error || validationError}
-      disabled={disabled}
-    />
+    <s-stack gap="small" direction="block">
+      <s-text variant="bodyMd" fontWeight="semibold">Prompt</s-text>
+      <textarea
+        value={value}
+        onInput={handleInput}
+        autoComplete="off"
+        placeholder={placeholder}
+        disabled={disabled}
+        rows={6}
+        style={{
+          width: '100%',
+          padding: '12px',
+          border: `1px solid var(--p-color-border${error || validationError ? '-critical' : ''})`,
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontFamily: 'inherit',
+          resize: 'vertical',
+          minHeight: '150px',
+          backgroundColor: disabled ? 'var(--p-color-bg-surface-disabled)' : 'var(--p-color-bg-surface)',
+        }}
+      />
+      {(error || validationError) ? (
+        <s-text variant="bodySm" tone="critical">{error || validationError}</s-text>
+      ) : (
+        <s-text variant="bodySm" tone="subdued">{displayHelpText}</s-text>
+      )}
+    </s-stack>
   );
 }

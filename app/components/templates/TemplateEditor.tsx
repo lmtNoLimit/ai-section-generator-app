@@ -78,9 +78,9 @@ export function TemplateEditor({
         onClick={(e) => e.stopPropagation()}
       >
         <s-card>
-          <s-stack gap="400" vertical>
+          <s-stack gap="large" direction="block">
             {/* Header */}
-            <s-stack gap="200" distribution="equalSpacing">
+            <s-stack gap="small" distribution="equalSpacing">
               <s-text variant="headingLg">
                 {template ? "Edit Template" : "Create Template"}
               </s-text>
@@ -90,9 +90,9 @@ export function TemplateEditor({
             </s-stack>
 
             {/* Form fields */}
-            <s-stack gap="400" vertical>
+            <s-stack gap="large" direction="block">
               {/* Title */}
-              <s-stack gap="100" vertical>
+              <s-stack gap="small" direction="block">
                 <s-text variant="bodyMd" fontWeight="semibold">Title</s-text>
                 <input
                   type="text"
@@ -110,7 +110,7 @@ export function TemplateEditor({
               </s-stack>
 
               {/* Description */}
-              <s-stack gap="100" vertical>
+              <s-stack gap="small" direction="block">
                 <s-text variant="bodyMd" fontWeight="semibold">Description</s-text>
                 <input
                   type="text"
@@ -128,7 +128,7 @@ export function TemplateEditor({
               </s-stack>
 
               {/* Category */}
-              <s-stack gap="100" vertical>
+              <s-stack gap="small" direction="block">
                 <s-text variant="bodyMd" fontWeight="semibold">Category</s-text>
                 <select
                   value={category}
@@ -151,9 +151,9 @@ export function TemplateEditor({
               </s-stack>
 
               {/* Icon picker */}
-              <s-stack gap="100" vertical>
+              <s-stack gap="small" direction="block">
                 <s-text variant="bodyMd" fontWeight="semibold">Icon</s-text>
-                <s-stack gap="100" wrap>
+                <s-stack gap="small" wrap>
                   {ICONS.map((emoji) => (
                     <button
                       key={emoji}
@@ -180,7 +180,7 @@ export function TemplateEditor({
               </s-stack>
 
               {/* Prompt */}
-              <s-stack gap="100" vertical>
+              <s-stack gap="small" direction="block">
                 <s-text variant="bodyMd" fontWeight="semibold">Prompt</s-text>
                 <textarea
                   value={prompt}
@@ -201,7 +201,7 @@ export function TemplateEditor({
             </s-stack>
 
             {/* Actions */}
-            <s-stack gap="200" distribution="trailing">
+            <s-stack gap="small" distribution="trailing">
               <s-button variant="secondary" onClick={onClose}>
                 Cancel
               </s-button>

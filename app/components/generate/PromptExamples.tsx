@@ -14,12 +14,12 @@ export function PromptExamples({
   disabled = false
 }: PromptExamplesProps) {
   return (
-    <s-stack gap="300" vertical>
+    <s-stack gap="base" direction="block">
       <s-text variant="headingSm" as="h3">
         Or try an example
       </s-text>
 
-      <s-stack gap="200">
+      <s-stack gap="small">
         {PROMPT_EXAMPLES.map((example) => (
           <s-button
             key={example.id}

@@ -22,10 +22,10 @@ export function TemplateCard({
 }: TemplateCardProps) {
   return (
     <s-card>
-      <s-stack gap="300" vertical>
+      <s-stack gap="base" direction="block">
         {/* Header with icon and favorite */}
-        <s-stack gap="200" distribution="equalSpacing">
-          <s-stack gap="200">
+        <s-stack gap="small" distribution="equalSpacing">
+          <s-stack gap="small">
             <span style={{ fontSize: '24px' }}>{template.icon}</span>
             <s-text variant="headingSm">{template.title}</s-text>
           </s-stack>
@@ -62,7 +62,7 @@ export function TemplateCard({
         </div>
 
         {/* Actions */}
-        <s-stack gap="200">
+        <s-stack gap="small">
           <s-button variant="primary" size="slim" onClick={onUse}>
             Use Template
           </s-button>

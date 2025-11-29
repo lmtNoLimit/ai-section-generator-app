@@ -1,9 +1,16 @@
 /**
  * Polaris Web Component Type Definitions
  * These types enable TypeScript IntelliSense for Shopify Polaris web components
+ * Updated to match actual Polaris schema (s-layout and s-layout-section removed)
  */
 
 import type * as React from 'react';
+
+// Gap values used by Polaris web components
+type GapValue = 'none' | 'extraSmall' | 'small' | 'base' | 'large' | 'extraLarge';
+
+// Direction values for s-stack
+type DirectionValue = 'inline' | 'block';
 
 declare global {
   namespace JSX {
@@ -15,15 +22,6 @@ declare global {
       children?: React.ReactNode;
     };
 
-    's-layout': {
-      children?: React.ReactNode;
-    };
-
-    's-layout-section': {
-      variant?: 'oneThird' | 'twoThirds' | 'oneHalf' | 'fullWidth';
-      children?: React.ReactNode;
-    };
-
     's-card': {
       title?: string;
       sectioned?: boolean;
@@ -31,9 +29,8 @@ declare global {
     };
 
     's-stack': {
-      gap?: string;
-      vertical?: boolean;
-      direction?: string;
+      gap?: GapValue | string;
+      direction?: DirectionValue;
       align?: 'start' | 'center' | 'end' | 'baseline' | 'stretch';
       distribution?: 'leading' | 'trailing' | 'center' | 'equalSpacing' | 'fill';
       wrap?: boolean;
@@ -54,7 +51,6 @@ declare global {
       value?: string;
       onInput?: (e: Event) => void;
       onChange?: (e: Event) => void;
-      multiline?: string | boolean;
       autoComplete?: string;
       autocomplete?: string;
       placeholder?: string;
@@ -64,6 +60,7 @@ declare global {
       name?: string;
       suffix?: string;
       disabled?: boolean;
+      type?: string;
     };
 
     's-button': {
@@ -100,12 +97,6 @@ declare global {
       children?: React.ReactNode;
     };
 
-    's-option': {
-      value: string;
-      key?: string;
-      children?: React.ReactNode;
-    };
-
     's-banner': {
       tone?: 'info' | 'success' | 'warning' | 'critical';
       heading?: string;
@@ -115,10 +106,12 @@ declare global {
     };
 
     's-box': {
-      padding?: string;
-      background?: string;
+      padding?: GapValue | string;
+      paddingBlock?: GapValue | string;
+      paddingInline?: GapValue | string;
+      background?: 'subdued' | 'default' | 'surface' | 'surface-subdued';
       borderWidth?: string;
-      borderRadius?: string;
+      borderRadius?: 'none' | 'small' | 'base' | 'large' | 'full';
       children?: React.ReactNode;
     };
 
@@ -174,6 +167,13 @@ declare global {
     's-badge': {
       tone?: 'info' | 'success' | 'warning' | 'critical' | 'attention' | 'new';
       progress?: 'incomplete' | 'partiallyComplete' | 'complete';
+      children?: React.ReactNode;
+    };
+
+    's-grid': {
+      gridTemplateColumns?: string;
+      gridTemplateRows?: string;
+      gap?: GapValue | string;
       children?: React.ReactNode;
     };
   }

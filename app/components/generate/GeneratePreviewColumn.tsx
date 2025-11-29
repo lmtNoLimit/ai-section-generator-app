@@ -63,9 +63,9 @@ export function GeneratePreviewColumn({
 
   // Show code preview and save controls
   return (
-    <s-stack gap="400" vertical>
+    <s-stack gap="large" direction="block">
       <s-card>
-        <s-stack gap="400" vertical>
+        <s-stack gap="large" direction="block">
           <s-text variant="headingMd" as="h2">
             Preview & Save
           </s-text>
@@ -90,7 +90,7 @@ export function GeneratePreviewColumn({
             disabled={isSaving}
           />
 
-          <s-stack gap="200">
+          <s-stack gap="base">
             <s-button
               variant="primary"
               onClick={onSave}

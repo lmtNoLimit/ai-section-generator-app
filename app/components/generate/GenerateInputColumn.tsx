@@ -30,10 +30,10 @@ export function GenerateInputColumn({
   const isPromptValid = prompt.trim().length >= 10 && prompt.trim().length <= 2000;
 
   return (
-    <s-stack gap="400" vertical>
+    <s-stack gap="large" direction="block">
       {/* Main input card */}
       <s-card>
-        <s-stack gap="400" vertical>
+        <s-stack gap="large" direction="block">
           <s-text variant="headingMd" as="h2">
             Describe your section
           </s-text>

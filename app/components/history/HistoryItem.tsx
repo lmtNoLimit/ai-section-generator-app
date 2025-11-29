@@ -35,11 +35,17 @@ export function HistoryItem({
   const statusTone = item.status === 'saved' ? 'success' : 'subdued';
 
   return (
-    <s-box padding="400" background="bg-surface-secondary" border-radius="200">
-      <s-stack gap="300" vertical>
+    <div
+      style={{
+        padding: '16px',
+        backgroundColor: 'var(--p-color-bg-surface-secondary)',
+        borderRadius: '8px',
+      }}
+    >
+      <s-stack gap="base" direction="block">
         {/* Header row */}
-        <s-stack gap="200" distribution="equalSpacing">
-          <s-stack gap="200">
+        <s-stack gap="small" distribution="equalSpacing">
+          <s-stack gap="small">
             {item.isFavorite && <span>⭐</span>}
             <s-text variant="bodySm" tone="subdued">
               {formattedDate}
@@ -51,7 +57,7 @@ export function HistoryItem({
 
           {/* Metadata badges */}
           {(item.tone || item.style) && (
-            <s-stack gap="100">
+            <s-stack gap="small">
               {item.tone && (
                 <s-text variant="bodySm" tone="subdued">
                   {item.tone}
@@ -79,7 +85,7 @@ export function HistoryItem({
         )}
 
         {/* Actions */}
-        <s-stack gap="200">
+        <s-stack gap="small">
           <s-button size="slim" onClick={onPreview}>
             Preview Code
           </s-button>
@@ -100,6 +106,6 @@ export function HistoryItem({
           </s-button>
         </s-stack>
       </s-stack>
-    </s-box>
+    </div>
   );
 }

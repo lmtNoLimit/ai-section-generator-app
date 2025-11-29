@@ -22,7 +22,7 @@ export function HistoryList({
   }
 
   return (
-    <s-stack gap="300" vertical>
+    <s-stack gap="base" direction="block">
       {items.map((item) => (
         <HistoryItem
           key={item.id}

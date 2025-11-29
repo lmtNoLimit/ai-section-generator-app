@@ -78,7 +78,13 @@ export function CodePreview({
       </div>
 
       {/* Code display */}
-      <s-box padding="400" background="bg-surface-secondary" border-radius="200">
+      <div
+        style={{
+          padding: '16px',
+          backgroundColor: 'var(--p-color-bg-surface-secondary)',
+          borderRadius: '8px',
+        }}
+      >
         <pre
           style={{
             overflowX: 'auto',
@@ -94,7 +100,7 @@ export function CodePreview({
         >
           {code}
         </pre>
-      </s-box>
+      </div>
     </div>
   );
 }

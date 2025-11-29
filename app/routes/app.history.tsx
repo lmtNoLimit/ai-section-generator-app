@@ -105,7 +105,7 @@ export default function HistoryPage() {
   return (
     <>
       <s-page title="Generation History">
-        <s-stack gap="400" vertical>
+        <s-stack gap="large" direction="block">
           {actionData?.action === "delete" && (
             <s-banner tone="success" dismissible>
               History entry deleted successfully.
@@ -113,9 +113,9 @@ export default function HistoryPage() {
           )}
 
           <s-card>
-            <s-stack gap="400" vertical>
+            <s-stack gap="large" direction="block">
               {/* Filters */}
-              <s-stack gap="300">
+              <s-stack gap="base">
                 <s-button
                   variant={!currentStatus && !favoritesOnly ? "primary" : "secondary"}
                   size="slim"
@@ -159,7 +159,7 @@ export default function HistoryPage() {
 
               {/* Pagination */}
               {history.totalPages > 1 && (
-                <s-stack gap="200" distribution="center">
+                <s-stack gap="small" distribution="center">
                   <s-button
                     disabled={currentPage <= 1}
                     onClick={() => handlePageChange(currentPage - 1)}
@@ -182,7 +182,7 @@ export default function HistoryPage() {
 
               {/* Empty state */}
               {history.items.length === 0 && (
-                <s-stack gap="400" vertical align="center">
+                <s-stack gap="large" direction="block" align="center">
                   <s-text variant="headingMd" tone="subdued">
                     No history entries found
                   </s-text>
