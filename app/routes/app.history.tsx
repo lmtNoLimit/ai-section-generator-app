@@ -3,6 +3,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useActionData, useLoaderData, useSearchParams, useSubmit, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
 import { historyService } from "../services/history.server";
+import { settingsService } from "../services/settings.server";
 import { HistoryTable } from "../components/history/HistoryTable";
 import { HistoryPreviewModal } from "../components/history/HistoryPreviewModal";
 import { FilterButtonGroup } from "../components/shared/FilterButtonGroup";
@@ -16,6 +17,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const page = parseInt(url.searchParams.get("page") || "1", 10);
   const status = url.searchParams.get("status") || undefined;
   const favoritesOnly = url.searchParams.get("favorites") === "true";
+
+  // Mark history as viewed for onboarding (fire and forget)
+  settingsService.markHistoryViewed(shop).catch(() => {
+    // Ignore errors - non-critical operation
+  });
 
   const history = await historyService.getByShop(shop, {
     page,

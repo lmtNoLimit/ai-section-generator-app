@@ -1,0 +1,26 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Back Document -->
+  <rect x="35" y="10" width="60" height="75" rx="4" fill="#E0E7FF" stroke="#A5B4FC" stroke-width="2"/>
+  <rect x="43" y="22" width="35" height="4" rx="2" fill="#A5B4FC"/>
+  <rect x="43" y="30" width="44" height="4" rx="2" fill="#C4B5FD"/>
+  <rect x="43" y="38" width="30" height="4" rx="2" fill="#A5B4FC"/>
+
+  <!-- Middle Document -->
+  <rect x="28" y="18" width="60" height="75" rx="4" fill="#F0FDF4" stroke="#86EFAC" stroke-width="2"/>
+  <rect x="36" y="30" width="35" height="4" rx="2" fill="#86EFAC"/>
+  <rect x="36" y="38" width="44" height="4" rx="2" fill="#BBF7D0"/>
+  <rect x="36" y="46" width="30" height="4" rx="2" fill="#86EFAC"/>
+
+  <!-- Front Folder -->
+  <path d="M15 45 L15 100 Q15 105 20 105 L85 105 Q90 105 90 100 L90 55 Q90 50 85 50 L50 50 L45 45 L20 45 Q15 45 15 50 Z" fill="#4ADE80" stroke="#22C55E" stroke-width="2"/>
+
+  <!-- Folder Tab -->
+  <path d="M20 45 L45 45 L50 50 L20 50 Q15 50 15 45 Z" fill="#22C55E"/>
+
+  <!-- Bookmark -->
+  <path d="M75 40 L75 65 L80 60 L85 65 L85 40 Z" fill="#8B5CF6"/>
+
+  <!-- Star Badge -->
+  <circle cx="70" cy="80" r="12" fill="#FEF3C7" stroke="#FCD34D" stroke-width="2"/>
+  <path d="M70 72L72 77H77L73 80L75 85L70 82L65 85L67 80L63 77H68L70 72Z" fill="#FCD34D"/>
+</svg>

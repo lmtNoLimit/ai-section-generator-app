@@ -74,3 +74,13 @@ model SectionTemplate {
   @@index([shop])
   @@index([category])
 }
+
+// Shop-level settings (onboarding, preferences)
+model ShopSettings {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  shop                 String   @unique
+  hasViewedHistory     Boolean  @default(false)
+  onboardingDismissed  Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
