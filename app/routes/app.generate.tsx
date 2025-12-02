@@ -6,6 +6,7 @@ import { aiAdapter } from "../services/adapters/ai-adapter";
 import { themeAdapter } from "../services/adapters/theme-adapter";
 import { historyService } from "../services/history.server";
 import { templateService } from "../services/template.server";
+import { canGenerate, trackGeneration } from "../services/usage-tracking.server";
 import type { GenerateActionData, SaveActionData, Theme } from "../types";
 
 import { GenerateLayout } from "../components/generate/GenerateLayout";
@@ -21,7 +22,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
   const formData = await request.formData();
   const actionType = formData.get("action");
@@ -30,6 +31,16 @@ export async function action({ request }: ActionFunctionArgs) {
     const prompt = formData.get("prompt") as string;
     const tone = formData.get("tone") as string | null;
     const style = formData.get("style") as string | null;
+
+    // Check quota before generation
+    const quotaCheck = await canGenerate(shop);
+
+    if (!quotaCheck.allowed) {
+      return {
+        error: quotaCheck.reason || "Generation limit reached",
+        quota: quotaCheck.quota,
+      };
+    }
 
     const code = await aiAdapter.generateSection(prompt);
 
@@ -42,7 +53,17 @@ export async function action({ request }: ActionFunctionArgs) {
       style: style || undefined,
     });
 
-    return { code, prompt, historyId: historyEntry.id } satisfies GenerateActionData;
+    // Track usage (async, don't block response)
+    trackGeneration(admin, shop, historyEntry.id, prompt).catch((error) => {
+      console.error("Failed to track generation:", error);
+    });
+
+    return {
+      code,
+      prompt,
+      historyId: historyEntry.id,
+      quota: quotaCheck.quota,
+    } satisfies GenerateActionData;
   }
 
   if (actionType === "save") {

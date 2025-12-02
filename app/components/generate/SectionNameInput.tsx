@@ -24,7 +24,7 @@ export function SectionNameInput({
       label="Section Filename"
       value={value}
       onInput={handleInput}
-      autoComplete="off"
+      autocomplete="off"
       suffix=".liquid"
       error={error}
     />

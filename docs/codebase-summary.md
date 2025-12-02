@@ -242,6 +242,46 @@ import {
 
 ### Business Logic Services
 
+#### Billing Service (`app/services/billing.server.ts`)
+
+**Purpose**: Shopify subscription billing management (hybrid: base recurring + usage overages)
+
+**Key Functions**:
+- `createSubscription()`: Creates hybrid subscription (recurring + usage)
+- `changeSubscription()`: Upgrade/downgrade flow (cancel old + create new)
+- `updateSubscriptionStatus()`: Webhook handler updates (status + period end)
+- `fetchCurrentPeriodEnd()`: GraphQL fallback for missing webhook data
+- `recordUsage()`: Track usage charges (overages)
+- `checkQuota()`: Verify quota before generation
+
+**Critical Fixes (251202)**:
+1. **Webhook Type Safety**: Optional `current_period_end` field handling
+2. **GraphQL Fallback**: Query Shopify when webhook data incomplete
+3. **Pending Subscription Upgrade**: Reconcile pending → active on webhook
+4. **Status Normalization**: Case-insensitive status comparison
+5. **Error Context**: Enhanced logging with shop/subscriptionId/status
+
+**Webhook Flow** (`app/routes/webhooks.app.subscriptions_update.tsx`):
+```
+1. Authenticate webhook (HMAC validation)
+2. Extract payload (subscriptionId, status, currentPeriodEnd?)
+3. Handle optional currentPeriodEnd:
+   - IF present: Use webhook value
+   - IF missing + active: Query Shopify GraphQL
+   - Store as Date | undefined (safe)
+4. Database lookup by shopifySubId
+5. Pending subscription handler (upgrade scenario):
+   - Find pending by shop + status=pending
+   - Update with real shopifySubId from Shopify
+   - Activate + reset usage counters
+6. Update status + period end in DB
+```
+
+**Upgrade Flow Fix**:
+- Problem: New subscription ID not in DB when webhook arrives
+- Solution: Find pending subscription by shop, update with real ID
+- Handles two-phase activation (create → approve → activate)
+
 #### Service Architecture (Adapter Pattern)
 
 The application uses an **adapter pattern** to switch between mock and real service implementations based on feature flags. This enables development and testing without external API dependencies.
@@ -783,14 +823,13 @@ FLAG_SIMULATE_API_LATENCY=true
 
 ---
 
-**Document Version**: 1.2
-**Last Updated**: 2025-11-25
-**Codebase Size**: ~17,500 tokens across 43 files
+**Document Version**: 1.3
+**Last Updated**: 2025-12-02
+**Codebase Size**: ~18,500 tokens across 49 files
 **Primary Language**: TypeScript (TSX)
 **Recent Changes**:
-- **Phase 04**: Added component-based architecture
-- Documented 9 new UI components (shared + feature-specific)
-- Updated app.generate.tsx to use extracted components
-- Added barrel export system for centralized imports
-- Improved code organization and maintainability
+- **251202**: Billing system fixes - webhook type safety, GraphQL fallback, upgrade flow
+- Added billing service documentation with critical fixes
+- Documented webhook processing flow and pending subscription handling
+- **Phase 04**: Component-based architecture (9 UI components)
 - Phase 03: Feature flag system, adapter pattern, mock services

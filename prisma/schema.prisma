@@ -84,3 +84,103 @@ model ShopSettings {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
+
+// Subscription tracking for Shopify App Billing
+model Subscription {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  shop              String   // Multiple subscriptions per shop allowed (pending, active, cancelled)
+  shopifySubId      String   @unique // Shopify GraphQL subscription ID (e.g., gid://shopify/AppSubscription/123)
+  planName          String   // starter, growth, professional
+  status            String   // active, cancelled, expired, pending
+  currentPeriodEnd  DateTime
+  trialEndsAt       DateTime? // Free trial end date (null if no trial)
+
+  // Pricing
+  basePrice         Float    // Monthly base charge (USD)
+  includedQuota     Int      // Included generations per billing cycle
+  overagePrice      Float    // Price per additional generation (USD)
+  cappedAmount      Float    // Max overage charge (USD)
+
+  // Usage tracking (current billing cycle)
+  usageThisCycle    Int      @default(0)
+  overagesThisCycle Int      @default(0)
+
+  // Cache Shopify usage line item ID for faster charge recording
+  usageLineItemId   String?  // Shopify usage line item GID
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([shop, status, createdAt])
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+// Usage records sent to Shopify for billing
+model UsageRecord {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  shop            String
+  subscriptionId  String   @db.ObjectId // Link to Subscription model
+  generationId    String   @db.ObjectId // Link to GenerationHistory
+  idempotencyKey  String   @unique // Prevent duplicate charges: ${shop}-${generationId}-${timestamp}
+
+  // Charge details
+  amount          Float    // Charge amount (USD)
+  description     String   // "Section generation - Hero banner"
+  billingCycle    DateTime // Which billing cycle this belongs to
+
+  // Shopify API response
+  shopifyChargeId String?  // Shopify usage charge ID (null if not yet sent)
+  chargeStatus    String   @default("pending") // pending, accepted, declined, error
+  errorMessage    String?  // If charge failed
+
+  createdAt       DateTime @default(now())
+  sentAt          DateTime? // When sent to Shopify
+
+  @@index([shop])
+  @@index([subscriptionId])
+  @@index([chargeStatus])
+  @@index([createdAt])
+}
+
+// Plan configuration (pricing tiers)
+model PlanConfiguration {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  planName      String   @unique // starter, growth, professional
+  displayName   String   // "Starter", "Growth", "Professional"
+  description   String   // Short description for UI
+
+  // Pricing
+  basePrice     Float    // Monthly base charge (USD)
+  includedQuota Int      // Included generations
+  overagePrice  Float    // Price per overage generation
+  cappedAmount  Float    // Max total monthly charge
+
+  // Features
+  features      String[] // Array of feature descriptions for UI
+
+  // Display
+  badge         String?  // "Popular", "Best Value" (null if none)
+  sortOrder     Int      @default(0) // Display order (lower = first)
+  isActive      Boolean  @default(true) // Can merchants subscribe?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+// Failed usage charges for recovery/reconciliation
+model FailedUsageCharge {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  shop          String
+  generationId  String   @db.ObjectId
+  errorMessage  String
+  retryCount    Int      @default(0)
+  createdAt     DateTime @default(now())
+  retriedAt     DateTime?
+
+  @@index([shop])
+  @@index([createdAt])
+  @@index([retryCount])
+}

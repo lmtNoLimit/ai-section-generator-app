@@ -79,8 +79,8 @@ export function SaveTemplateModal({
         <s-card>
           <s-stack gap="large" direction="block">
             {/* Header */}
-            <s-stack gap="small" distribution="equalSpacing">
-              <s-text variant="headingLg">
+            <s-stack gap="small" direction="inline" justifyContent="space-between">
+              <s-text type="strong">
                 Save as Template
               </s-text>
               <s-button variant="tertiary" onClick={onClose}>
@@ -96,7 +96,7 @@ export function SaveTemplateModal({
             <s-stack gap="large" direction="block">
               {/* Title */}
               <s-stack gap="small" direction="block">
-                <s-text variant="bodyMd" fontWeight="semibold">Title</s-text>
+                <s-text type="strong">Title</s-text>
                 <input
                   type="text"
                   value={title}
@@ -114,7 +114,7 @@ export function SaveTemplateModal({
 
               {/* Description */}
               <s-stack gap="small" direction="block">
-                <s-text variant="bodyMd" fontWeight="semibold">Description</s-text>
+                <s-text type="strong">Description</s-text>
                 <input
                   type="text"
                   value={description}
@@ -132,7 +132,7 @@ export function SaveTemplateModal({
 
               {/* Category */}
               <s-stack gap="small" direction="block">
-                <s-text variant="bodyMd" fontWeight="semibold">Category</s-text>
+                <s-text type="strong">Category</s-text>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
@@ -155,8 +155,8 @@ export function SaveTemplateModal({
 
               {/* Icon picker */}
               <s-stack gap="small" direction="block">
-                <s-text variant="bodyMd" fontWeight="semibold">Icon</s-text>
-                <s-stack gap="small" wrap>
+                <s-text type="strong">Icon</s-text>
+                <s-stack gap="small">
                   {ICONS.map((emoji) => (
                     <button
                       key={emoji}
@@ -184,7 +184,7 @@ export function SaveTemplateModal({
 
               {/* Prompt (read-only preview) */}
               <s-stack gap="small" direction="block">
-                <s-text variant="bodyMd" fontWeight="semibold">Prompt</s-text>
+                <s-text type="strong">Prompt</s-text>
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
@@ -203,7 +203,7 @@ export function SaveTemplateModal({
             </s-stack>
 
             {/* Actions */}
-            <s-stack gap="small" distribution="trailing">
+            <s-stack gap="small" alignItems="end">
               <s-button variant="secondary" onClick={onClose}>
                 Cancel
               </s-button>

@@ -4,6 +4,7 @@
  */
 
 import type { Theme, ThemeFileMetadata } from './shopify-api.types';
+import type { QuotaCheck } from './billing';
 
 // AI Service Types
 export interface AIGenerationOptions {
@@ -51,6 +52,8 @@ export interface GenerateActionData {
   prompt?: string;
   message?: string;
   historyId?: string;
+  error?: string;
+  quota?: QuotaCheck;
 }
 
 export interface SaveActionData {

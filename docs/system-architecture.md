@@ -487,6 +487,189 @@ const themes = await themeAdapter.getThemes(request);
 
 ---
 
+### Subscription Billing System
+
+**Location**: `app/services/billing.server.ts`, `app/routes/webhooks.app.subscriptions_update.tsx`
+
+**Architecture**: Hybrid subscription model (base recurring + usage overages)
+
+#### Webhook Flow - APP_SUBSCRIPTIONS_UPDATE
+
+**Purpose**: Handle subscription lifecycle events (activated, cancelled, expired, upgraded)
+
+**Flow Diagram**:
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Shopify sends APP_SUBSCRIPTIONS_UPDATE webhook             │
+│  - Triggered on status change (active, cancelled, etc.)     │
+│  - Payload includes subscriptionId, status, currentPeriodEnd│
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Webhook Handler (webhooks.app.subscriptions_update.tsx)    │
+│  1. Authenticate webhook (HMAC validation)                  │
+│  2. Extract payload (subscriptionId, status, period end)    │
+│  3. Validate payload structure                              │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Check currentPeriodEnd presence                            │
+│  - IF present: Use webhook value                            │
+│  - IF missing: Query Shopify GraphQL API (fallback)         │
+│  - Handles optional field safely                            │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Database Lookup by shopifySubId                            │
+│  - Find existing subscription record                         │
+│  - IF NOT FOUND: Check for pending subscription             │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ├─ Existing Record Found ──────────────┐
+                     │                                        │
+                     │                                        ▼
+                     │                           ┌──────────────────────┐
+                     │                           │ Update Status        │
+                     │                           │ - status = new value │
+                     │                           │ - period end updated │
+                     │                           │ - reset usage (cycle)│
+                     │                           └──────────────────────┘
+                     │
+                     ├─ Not Found + Active Status ──────────┐
+                     │                                        │
+                     │                                        ▼
+                     │                           ┌──────────────────────┐
+                     │                           │ Pending Subscription │
+                     │                           │ Upgrade Handler      │
+                     │                           │ - Find pending by shop│
+                     │                           │ - Update with real ID │
+                     │                           │ - Activate record     │
+                     │                           │ - Fetch period end    │
+                     │                           │ - Reset usage counters│
+                     │                           └──────────────────────┘
+                     │
+                     └─ Shop Validation ─────────────────────┐
+                                                              │
+                                                              ▼
+                                                   ┌──────────────────────┐
+                                                   │ Verify shop matches  │
+                                                   │ subscription record  │
+                                                   └──────────────────────┘
+```
+
+#### Subscription Upgrade Flow
+
+**Problem**: Shopify billing API creates new subscription on upgrade, cancels old subscription
+**Solution**: Two-phase activation with pending status + webhook reconciliation
+
+**Upgrade Sequence**:
+```
+1. User initiates upgrade (changeSubscription)
+   ├─ Cancel old subscription
+   └─ Create new subscription (status: pending, temp shopifySubId)
+
+2. User approves subscription in Shopify
+   └─ Shopify activates subscription (new shopifySubId assigned)
+
+3. Webhook received (APP_SUBSCRIPTIONS_UPDATE)
+   ├─ Payload: new shopifySubId, status=ACTIVE
+   ├─ Database lookup by shopifySubId: NOT FOUND
+   ├─ Fallback: Find pending subscription by shop
+   ├─ Update pending record:
+   │   ├─ shopifySubId = actual ID from Shopify
+   │   ├─ status = active
+   │   ├─ currentPeriodEnd = fetched from GraphQL (if missing)
+   │   └─ Reset usage counters
+   └─ Activation complete
+```
+
+#### GraphQL Fallback Strategy
+
+**Scenario**: Webhook payload missing optional `currentPeriodEnd` field
+
+**Implementation**:
+```typescript
+// Check if webhook includes currentPeriodEnd
+if (app_subscription.current_period_end) {
+  currentPeriodEnd = new Date(app_subscription.current_period_end);
+} else if (app_subscription.status.toLowerCase() === "active" && admin) {
+  // ACTIVE but no period end - query Shopify
+  const fetchedDate = await fetchCurrentPeriodEnd(admin, shopifySubId);
+  currentPeriodEnd = fetchedDate ?? undefined;
+}
+```
+
+**GraphQL Query** (`billing.server.ts`):
+```graphql
+query getSubscription($id: ID!) {
+  appSubscription(id: $id) {
+    currentPeriodEnd
+  }
+}
+```
+
+**Benefits**:
+- Handles webhook payload variations
+- Ensures data consistency
+- Prevents Invalid Date errors
+- Graceful degradation (undefined if query fails)
+
+#### Error Handling Patterns
+
+**Webhook Processing**:
+- Validate topic matches APP_SUBSCRIPTIONS_UPDATE
+- Check payload structure (admin_graphql_api_id present)
+- Verify shop matches subscription record
+- Log all errors with context (shop, subscriptionId, status)
+- Return HTTP 400/404/500 with descriptive messages
+
+**Type Safety**:
+```typescript
+// Optional field handling
+current_period_end?: string | null;
+
+// Safe Date construction
+const currentPeriodEnd = app_subscription.current_period_end
+  ? new Date(app_subscription.current_period_end)
+  : undefined;
+```
+
+**Status Normalization**:
+```typescript
+// Case-insensitive comparison (Shopify inconsistent casing)
+if (app_subscription.status.toLowerCase() === "active") {
+  // Handle active status
+}
+```
+
+#### Billing Service Functions
+
+**`createSubscription(admin, input)`**:
+- Creates hybrid subscription (base + usage)
+- Cancels existing pending/declined subscriptions
+- Stores record with status=pending
+- Returns confirmationUrl for merchant approval
+
+**`changeSubscription(admin, input)`**:
+- Cancels old subscription
+- Creates new subscription (pending)
+- Webhook activates when merchant approves
+
+**`updateSubscriptionStatus(shopifySubId, status, currentPeriodEnd?)`**:
+- Updates subscription status in DB
+- Handles optional currentPeriodEnd
+- Resets usage counters on new billing cycle
+
+**`fetchCurrentPeriodEnd(admin, shopifySubId)`**:
+- Queries Shopify GraphQL for currentPeriodEnd
+- Fallback when webhook data incomplete
+- Returns Date | null (safe handling)
+
+---
+
 ### 3. Data Access Layer
 
 **Location**: `app/db.server.ts`, `prisma/schema.prisma`
@@ -1031,12 +1214,13 @@ const text = result.response.text();
 
 ---
 
-**Document Version**: 1.2
-**Last Updated**: 2025-11-25
-**Architecture Status**: Current Implementation (Phase 04 Complete)
+**Document Version**: 1.3
+**Last Updated**: 2025-12-02
+**Architecture Status**: Current Implementation (Phase 04 Complete, Billing System Fixed)
 **Recent Changes**:
-- **Phase 04**: Added component layer to presentation architecture
-- Documented component-based architecture with shared and feature-specific components
-- Updated architecture diagram to include component layer
-- Added component organization patterns and design principles
+- **251202**: Subscription billing fixes - webhook processing, upgrade flow, GraphQL fallback
+- Added comprehensive billing system documentation (webhook flow, upgrade sequence, error patterns)
+- Documented GraphQL fallback strategy for missing webhook data
+- Added subscription lifecycle and pending subscription handling
+- **Phase 04**: Component layer to presentation architecture
 - Phase 03: Feature flag system, adapter pattern, mock services

@@ -24,14 +24,20 @@ export function Button({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   fullWidth = false
 }: ButtonProps) {
+  // Map "plain" variant to "tertiary" for Polaris web components
+  const mappedVariant = variant === 'plain' ? 'tertiary' : variant;
+  // Map "destructive" variant to secondary with critical tone
+  const tone = variant === 'destructive' ? 'critical' : undefined;
+
   // Note: fullWidth not directly supported by s-button, use wrapper if needed
   return (
     <s-button
-      variant={variant}
-      loading={loading ? 'true' : undefined}
+      variant={mappedVariant as 'primary' | 'secondary' | 'tertiary'}
+      tone={tone}
+      loading={loading || undefined}
       disabled={disabled}
       onClick={onClick}
-      submit={submit}
+      type={submit ? 'submit' : 'button'}
     >
       {children}
     </s-button>

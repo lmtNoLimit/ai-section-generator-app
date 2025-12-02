@@ -1,10 +1,8 @@
 /**
  * History feature component exports
  */
-export { HistoryList } from './HistoryList';
-export { HistoryItem } from './HistoryItem';
-export { HistoryPreview } from './HistoryPreview';
+export { HistoryTable } from './HistoryTable';
+export { HistoryPreviewModal } from './HistoryPreviewModal';
 
-export type { HistoryListProps } from './HistoryList';
-export type { HistoryItemProps } from './HistoryItem';
-export type { HistoryPreviewProps } from './HistoryPreview';
+export type { HistoryTableProps } from './HistoryTable';
+export type { HistoryPreviewModalProps } from './HistoryPreviewModal';
