@@ -7,6 +7,9 @@ import type {
   ThemeServiceInterface
 } from "../types";
 
+/** Prefix for all sections created by this app to avoid conflicts */
+const SECTION_PREFIX = 'bsm-';
+
 export class ThemeService implements ThemeServiceInterface {
   async getThemes(request: Request): Promise<Theme[]> {
     const { admin } = await authenticate.admin(request);
@@ -37,9 +40,19 @@ export class ThemeService implements ThemeServiceInterface {
   ): Promise<ThemeFileMetadata> {
     const { admin } = await authenticate.admin(request);
 
-    // Ensure filename ends with .liquid and is in sections/ folder if not specified
-    const filename = fileName.includes('/') ? fileName : `sections/${fileName}`;
-    const fullFilename = filename.endsWith('.liquid') ? filename : `${filename}.liquid`;
+    // Extract base filename (remove path prefix and .liquid extension)
+    let baseName = fileName.includes('/')
+      ? fileName.split('/').pop()!
+      : fileName;
+    baseName = baseName.replace(/\.liquid$/, '');
+
+    // Add BSM prefix if not already present (prevents conflicts, identifies app-created sections)
+    if (!baseName.startsWith(SECTION_PREFIX)) {
+      baseName = `${SECTION_PREFIX}${baseName}`;
+    }
+
+    // Construct full filename with sections/ folder and .liquid extension
+    const fullFilename = `sections/${baseName}.liquid`;
 
     const mutation = `
       mutation themeFilesUpsert($files: [OnlineStoreThemeFilesUpsertFileInput!]!, $themeId: ID!) {
