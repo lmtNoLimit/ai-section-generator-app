@@ -4,7 +4,12 @@
 
 import { useEffect } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-import { useLoaderData, useSubmit, useActionData, useNavigation } from "react-router";
+import {
+  useLoaderData,
+  useSubmit,
+  useActionData,
+  useNavigation,
+} from "react-router";
 import { authenticate } from "../shopify.server";
 import {
   getActivePlans,
@@ -52,8 +57,8 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // Build the embedded app URL that Shopify will redirect to after approval
     // Format: https://admin.shopify.com/store/{shop}/apps/{app-handle}/app/billing
-    const shopDomain = session.shop.replace('.myshopify.com', '');
-    const appHandle = 'blocksmith-ai'; // Your app handle from shopify.app.toml
+    const shopDomain = session.shop.replace(".myshopify.com", "");
+    const appHandle = "blocksmith-ai"; // Your app handle from shopify.app.toml
     const returnUrl = `https://admin.shopify.com/store/${shopDomain}/apps/${appHandle}/app/billing`;
 
     try {
@@ -91,7 +96,8 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function BillingPage() {
-  const { plans, subscription, quota, approvalStatus, chargeId } = useLoaderData<typeof loader>();
+  const { plans, subscription, quota, approvalStatus, chargeId } =
+    useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submit = useSubmit();
@@ -122,8 +128,11 @@ export default function BillingPage() {
     }
   };
 
-  // Show loading state during subscription creation
-  const isLoading = navigation.state === "submitting" || navigation.state === "loading";
+  // Show loading state during subscription operations
+  const isLoading =
+    navigation.state === "submitting" || navigation.state === "loading";
+  const isCancelling =
+    isLoading && navigation.formData?.get("action") === "cancel";
 
   return (
     <s-page heading="Billing & Usage" inlineSize="base">
@@ -144,7 +153,8 @@ export default function BillingPage() {
       {approvalStatus === "declined" && (
         <s-banner tone="warning">
           <s-paragraph>
-            Subscription approval was declined. Please select a plan to continue.
+            Subscription approval was declined. Please select a plan to
+            continue.
           </s-paragraph>
         </s-banner>
       )}
@@ -178,16 +188,24 @@ export default function BillingPage() {
                     <s-heading>
                       {subscription.planName === "starter" && "Starter Plan"}
                       {subscription.planName === "growth" && "Growth Plan"}
-                      {subscription.planName === "professional" && "Professional Plan"}
+                      {subscription.planName === "professional" &&
+                        "Professional Plan"}
                     </s-heading>
                     <s-paragraph color="subdued">
                       ${subscription.basePrice}/month + usage charges
                     </s-paragraph>
                   </s-grid>
                   <s-badge
-                    tone={subscription.status === "active" ? "success" : subscription.status === "cancelled" ? "critical" : "warning"}
+                    tone={
+                      subscription.status === "active"
+                        ? "success"
+                        : subscription.status === "cancelled"
+                          ? "critical"
+                          : "warning"
+                    }
                   >
-                    {subscription.status.charAt(0).toUpperCase() + subscription.status.slice(1)}
+                    {subscription.status.charAt(0).toUpperCase() +
+                      subscription.status.slice(1)}
                   </s-badge>
                 </s-grid>
 
@@ -198,7 +216,9 @@ export default function BillingPage() {
                     <s-grid gridTemplateColumns="1fr auto">
                       <s-paragraph>Next billing date</s-paragraph>
                       <s-text>
-                        {new Date(subscription.currentPeriodEnd).toLocaleDateString("en-US", {
+                        {new Date(
+                          subscription.currentPeriodEnd,
+                        ).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
@@ -207,36 +227,6 @@ export default function BillingPage() {
                     </s-grid>
                   </>
                 )}
-
-                {/* Actions */}
-                <s-divider />
-                <s-stack direction="inline" gap="small-200">
-                  {subscription.status === "active" && (
-                    <>
-                      <s-button
-                        variant="primary"
-                        onClick={handleUpgradeClick}
-                        accessibilityLabel="Change plan"
-                      >
-                        Change Plan
-                      </s-button>
-                      <s-button
-                        variant="secondary"
-                        tone="critical"
-                        onClick={() => {
-                          if (confirm("Are you sure you want to cancel your subscription?")) {
-                            const formData = new FormData();
-                            formData.append("action", "cancel");
-                            submit(formData, { method: "post" });
-                          }
-                        }}
-                        accessibilityLabel="Cancel subscription"
-                      >
-                        Cancel Subscription
-                      </s-button>
-                    </>
-                  )}
-                </s-stack>
               </s-grid>
             </s-box>
           </s-section>
@@ -247,7 +237,7 @@ export default function BillingPage() {
 
         {/* Plan Selector */}
         <PlanSelector
-          plans={plans.map(p => ({
+          plans={plans.map((p) => ({
             ...p,
             planName: p.planName as PlanTier,
             badge: p.badge ?? undefined,
@@ -255,6 +245,71 @@ export default function BillingPage() {
           currentPlan={(subscription?.planName as PlanTier) ?? null}
           onSelect={handlePlanSelect}
         />
+
+        {/* Cancel Subscription Button & Modal - only show if subscription exists */}
+        {subscription && subscription.status === "active" && (
+          <>
+            <s-button
+              variant="secondary"
+              tone="critical"
+              commandFor="cancel-subscription-modal"
+              command="--show"
+              accessibilityLabel="Cancel subscription"
+            >
+              Cancel Subscription
+            </s-button>
+
+            <s-modal id="cancel-subscription-modal" heading="Cancel your subscription?">
+              <s-stack gap="base" direction="block">
+                <s-paragraph>
+                  You&apos;re currently on the{" "}
+                  <s-text type="strong">
+                    {subscription.planName === "starter" && "Starter"}
+                    {subscription.planName === "growth" && "Growth"}
+                    {subscription.planName === "professional" && "Professional"}
+                  </s-text>{" "}
+                  plan.
+                </s-paragraph>
+
+                <s-paragraph>Canceling will remove access to:</s-paragraph>
+                <s-stack gap="small-100" direction="block">
+                  <s-text>• {quota.includedQuota} generations per month</s-text>
+                  <s-text>• Premium templates library</s-text>
+                  <s-text>• Section history & versioning</s-text>
+                </s-stack>
+
+                <s-banner tone="warning">
+                  <s-paragraph>
+                    Your subscription will end immediately. This action cannot be undone.
+                  </s-paragraph>
+                </s-banner>
+              </s-stack>
+
+              <s-button
+                slot="primary-action"
+                variant="primary"
+                tone="critical"
+                loading={isCancelling || undefined}
+                disabled={isCancelling || undefined}
+                onClick={() => {
+                  const formData = new FormData();
+                  formData.append("action", "cancel");
+                  submit(formData, { method: "post" });
+                }}
+              >
+                {isCancelling ? "Cancelling..." : "Yes, cancel subscription"}
+              </s-button>
+              <s-button
+                slot="secondary-actions"
+                variant="secondary"
+                commandFor="cancel-subscription-modal"
+                command="--hide"
+              >
+                Keep my subscription
+              </s-button>
+            </s-modal>
+          </>
+        )}
       </s-stack>
 
       {/* Loading Overlay */}
@@ -270,7 +325,7 @@ export default function BillingPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <s-text type="strong">Processing subscription...</s-text>
