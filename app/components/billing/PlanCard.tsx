@@ -16,7 +16,12 @@ export function PlanCard({ plan, isCurrentPlan, onSelect }: PlanCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   // Determine badge tone
-  const badgeTone = plan.badge === "Popular" ? "success" : plan.badge === "Best Value" ? "warning" : "info";
+  const badgeTone =
+    plan.badge === "Popular"
+      ? "success"
+      : plan.badge === "Best Value"
+        ? "warning"
+        : "info";
 
   return (
     <s-box
@@ -26,27 +31,18 @@ export function PlanCard({ plan, isCurrentPlan, onSelect }: PlanCardProps) {
       background={plan.badge ? "subdued" : "base"}
     >
       <s-grid gap="base">
-        {/* Badge (Popular/Best Value) */}
-        {plan.badge && (
-          <s-badge tone={badgeTone}>
-            {plan.badge}
-          </s-badge>
-        )}
-
-        {/* Plan Name */}
-        <s-heading>{plan.displayName}</s-heading>
+        <s-stack direction="inline" gap="large small-300">
+          {/* Plan Name */}
+          <s-heading>{plan.displayName}</s-heading>
+          {/* Badge (Popular/Best Value) */}
+          {plan.badge && <s-badge tone={badgeTone}>{plan.badge}</s-badge>}
+        </s-stack>
 
         {/* Pricing */}
         <s-grid gap="small-100">
           <s-text type="strong" fontVariantNumeric="tabular-nums">
             ${plan.basePrice}/month
           </s-text>
-          <s-paragraph color="subdued">
-            {plan.includedQuota} sections included
-          </s-paragraph>
-          <s-paragraph color="subdued">
-            ${plan.overagePrice.toFixed(2)} per additional section
-          </s-paragraph>
         </s-grid>
 
         {/* Features List */}
@@ -82,9 +78,15 @@ export function PlanCard({ plan, isCurrentPlan, onSelect }: PlanCardProps) {
               <s-button
                 variant="tertiary"
                 onClick={() => setExpanded(!expanded)}
-                accessibilityLabel={expanded ? "Show less features" : `Show ${plan.features.length - 3} more features`}
+                accessibilityLabel={
+                  expanded
+                    ? "Show less features"
+                    : `Show ${plan.features.length - 3} more features`
+                }
               >
-                {expanded ? "Show less" : `Show ${plan.features.length - 3} more`}
+                {expanded
+                  ? "Show less"
+                  : `Show ${plan.features.length - 3} more`}
               </s-button>
             </>
           )}
@@ -96,7 +98,11 @@ export function PlanCard({ plan, isCurrentPlan, onSelect }: PlanCardProps) {
             variant={plan.badge ? "primary" : "secondary"}
             onClick={onSelect}
             disabled={isCurrentPlan}
-            accessibilityLabel={isCurrentPlan ? `Current plan: ${plan.displayName}` : `Select ${plan.displayName} plan`}
+            accessibilityLabel={
+              isCurrentPlan
+                ? `Current plan: ${plan.displayName}`
+                : `Select ${plan.displayName} plan`
+            }
           >
             {isCurrentPlan ? "Current Plan" : `Select ${plan.displayName}`}
           </s-button>
