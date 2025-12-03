@@ -8,12 +8,6 @@ import type { MockProduct, MockCollection, MockArticle } from '../mockData/types
 
 export type ResourceType = 'product' | 'collection' | 'article';
 
-interface FetchResourceResult<T> {
-  data: T | null;
-  error: string | null;
-  loading: boolean;
-}
-
 interface UseResourceFetcherReturn {
   fetchProduct: (productId: string) => Promise<MockProduct | null>;
   fetchCollection: (collectionId: string) => Promise<MockCollection | null>;

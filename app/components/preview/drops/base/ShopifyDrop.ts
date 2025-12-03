@@ -26,7 +26,7 @@ export abstract class ShopifyDrop extends Drop {
    * Default implementation of liquidMethodMissing
    * Override in subclasses for custom behavior
    */
-  liquidMethodMissing(key: string): unknown {
+  liquidMethodMissing(_key: string): unknown {
     return undefined;
   }
 }

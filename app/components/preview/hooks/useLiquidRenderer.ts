@@ -34,7 +34,7 @@ export function useLiquidRenderer(): UseLiquidRendererResult {
     const engine = engineRef.current;
 
     // Register Shopify-specific filter stubs
-    engine.registerFilter('img_url', (image: string | { src: string } | null, _size?: string) => {
+    engine.registerFilter('img_url', (image: string | { src: string } | null) => {
       if (!image) return 'https://via.placeholder.com/300';
       return typeof image === 'string' ? image : image.src || 'https://via.placeholder.com/300';
     });

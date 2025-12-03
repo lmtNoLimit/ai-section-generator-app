@@ -40,7 +40,11 @@ export function HistoryPreviewModal({
   };
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="history-preview-title"
       style={{
         position: 'fixed',
         top: 0,
@@ -55,7 +59,9 @@ export function HistoryPreviewModal({
         padding: '20px'
       }}
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div
         style={{
           backgroundColor: 'var(--p-color-bg-surface)',
@@ -68,6 +74,7 @@ export function HistoryPreviewModal({
           flexDirection: 'column'
         }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--p-color-border)' }}>

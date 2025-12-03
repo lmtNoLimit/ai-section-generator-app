@@ -16,7 +16,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     // authenticate.webhook() validates HMAC signature automatically
-    const { topic, shop: webhookShop, session, admin, payload } = await authenticate.webhook(request);
+    const { topic, shop: webhookShop, admin, payload } = await authenticate.webhook(request);
     shop = webhookShop;
 
     // Validate topic

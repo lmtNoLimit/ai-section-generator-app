@@ -292,8 +292,16 @@ export async function recordUsage(
       const lineItems = queryData.data.appSubscription.lineItems;
 
       // Find usage line item (AppUsagePricing type)
+      interface LineItem {
+        id: string;
+        plan: {
+          pricingDetails: {
+            __typename: string;
+          };
+        };
+      }
       const usageLineItem = lineItems.find(
-        (item: any) => item.plan.pricingDetails.__typename === "AppUsagePricing"
+        (item: LineItem) => item.plan.pricingDetails.__typename === "AppUsagePricing"
       );
 
       if (!usageLineItem) {
@@ -516,7 +524,15 @@ export async function fetchCurrentPeriodEnd(
       variables: { id: shopifySubId }
     });
 
-    const data: any = await response.json();
+    interface AppSubscriptionResponse {
+      errors?: unknown;
+      data?: {
+        appSubscription?: {
+          currentPeriodEnd?: string;
+        };
+      };
+    }
+    const data: AppSubscriptionResponse = await response.json();
 
     if (data.errors || !data.data?.appSubscription?.currentPeriodEnd) {
       console.warn("[Billing] Failed to fetch currentPeriodEnd:", shopifySubId);

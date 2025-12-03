@@ -37,7 +37,7 @@ export class ImageDrop extends ShopifyDrop {
    * Get image URL with size modifier (simplified implementation)
    * In Shopify, this would resize the image
    */
-  img_url(size?: string): string {
+  img_url(_size?: string): string {
     // In real Shopify, size could be "100x100", "medium", "large", etc.
     // For preview, we just return the original URL
     return this.image.src;
@@ -50,8 +50,8 @@ export class ImageDrop extends ShopifyDrop {
     return this.image.width / this.image.height;
   }
 
-  liquidMethodMissing(key: string): unknown {
+  liquidMethodMissing(propertyName: string): unknown {
     const data = this.image as unknown as Record<string, unknown>;
-    return data[key];
+    return data[propertyName];
   }
 }

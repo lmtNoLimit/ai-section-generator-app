@@ -50,7 +50,11 @@ export function TemplateEditorModal({
   };
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="template-editor-title"
       style={{
         position: 'fixed',
         top: 0,
@@ -65,7 +69,9 @@ export function TemplateEditorModal({
         padding: '20px'
       }}
       onClick={onClose}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div
         style={{
           backgroundColor: 'var(--p-color-bg-surface)',
@@ -77,6 +83,7 @@ export function TemplateEditorModal({
           padding: '20px'
         }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         <s-stack gap="large" direction="block">
           {/* Header */}
