@@ -59,21 +59,34 @@ export const historyService = {
    */
   async getByShop(
     shop: string,
-    options: { page?: number; limit?: number; status?: string; favoritesOnly?: boolean } = {}
+    options: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      favoritesOnly?: boolean;
+      search?: string;
+      sort?: "newest" | "oldest";
+    } = {}
   ): Promise<{ items: GenerationHistory[]; total: number; page: number; totalPages: number }> {
-    const { page = 1, limit = 20, status, favoritesOnly } = options;
+    const { page = 1, limit = 20, status, favoritesOnly, search, sort = "newest" } = options;
     const skip = (page - 1) * limit;
 
     const where = {
       shop,
       ...(status && { status }),
       ...(favoritesOnly && { isFavorite: true }),
+      ...(search && {
+        prompt: {
+          contains: search,
+          mode: "insensitive" as const
+        }
+      }),
     };
 
     const [items, total] = await Promise.all([
       prisma.generationHistory.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: sort === "newest" ? "desc" : "asc" },
         skip,
         take: limit,
       }),
