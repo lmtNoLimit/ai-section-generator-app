@@ -3,11 +3,16 @@ import { PreviewFrame } from './PreviewFrame';
 import { PreviewToolbar } from './PreviewToolbar';
 import { useLiquidRenderer } from './hooks/useLiquidRenderer';
 import { usePreviewMessaging } from './hooks/usePreviewMessaging';
+import { useResourceDetection } from './hooks/useResourceDetection';
+import { useResourceFetcher } from './hooks/useResourceFetcher';
 import { parseSchema, extractSettings, buildInitialState } from './schema/parseSchema';
 import { SettingsPanel } from './settings/SettingsPanel';
-import { getAllPresets, buildContextFromPreset, getDefaultContext } from './mockData/registry';
+import { getAllPresets } from './mockData/registry';
+import { buildPreviewContext } from './utils/buildPreviewContext';
 import type { DeviceSize, PreviewMessage, PreviewSettings } from './types';
 import type { SchemaSetting, SettingsState, SchemaDefinition } from './schema/SchemaTypes';
+import type { MockProduct, MockCollection } from './mockData/types';
+import type { SelectedResource } from './ResourceSelector';
 
 export interface SectionPreviewProps {
   liquidCode: string;
@@ -17,6 +22,7 @@ export interface SectionPreviewProps {
 /**
  * Main section preview component
  * Renders Liquid code in sandboxed iframe with settings editor
+ * Supports both mock data presets and real Shopify data
  */
 export function SectionPreview({
   liquidCode,
@@ -26,6 +32,17 @@ export function SectionPreview({
   const [error, setError] = useState<string | null>(null);
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [renderedHtml, setRenderedHtml] = useState<string>('');
+
+  // Real data state
+  const [useRealData, setUseRealData] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<MockProduct | null>(null);
+  const [selectedCollection, setSelectedCollection] = useState<MockCollection | null>(null);
+  const [selectedProductResource, setSelectedProductResource] = useState<SelectedResource | null>(null);
+  const [selectedCollectionResource, setSelectedCollectionResource] = useState<SelectedResource | null>(null);
+
+  // Resource detection and fetching
+  const resourceNeeds = useResourceDetection(liquidCode);
+  const { fetchProduct, fetchCollection, loading: isLoadingResource, error: fetchError } = useResourceFetcher();
 
   // Parse schema from liquid code
   const parsedSchema = useMemo<SchemaDefinition | null>(
@@ -68,10 +85,13 @@ export function SectionPreview({
     try {
       setError(null);
 
-      // Build mock data context
-      const mockData = selectedPreset
-        ? buildContextFromPreset(selectedPreset)
-        : getDefaultContext();
+      // Build context with Drop classes or mock data
+      const mockData = buildPreviewContext({
+        useRealData,
+        product: selectedProduct,
+        collection: selectedCollection,
+        preset: selectedPreset
+      });
 
       const { html, css } = await render(liquidCode, settingsValues, mockData as unknown as Record<string, unknown>);
       setRenderedHtml(html);
@@ -81,9 +101,9 @@ export function SectionPreview({
       setError(errorMsg);
       sendMessage({ type: 'RENDER_ERROR', error: errorMsg });
     }
-  }, [liquidCode, settingsValues, selectedPreset, render, sendMessage]);
+  }, [liquidCode, settingsValues, selectedPreset, useRealData, selectedProduct, selectedCollection, render, sendMessage]);
 
-  // Debounce renders on code/settings/preset change
+  // Debounce renders on code/settings/preset/resource change
   useEffect(() => {
     if (renderTimeoutRef.current) {
       clearTimeout(renderTimeoutRef.current);
@@ -108,6 +128,62 @@ export function SectionPreview({
     onSettingsChange?.(newValues);
   }, [onSettingsChange]);
 
+  // Product selection handler
+  const handleProductSelect = useCallback(async (
+    productId: string | null,
+    resource: SelectedResource | null
+  ) => {
+    if (!productId) {
+      setSelectedProduct(null);
+      setSelectedProductResource(null);
+      return;
+    }
+
+    setSelectedProductResource(resource);
+
+    // Fetch product data from API
+    const product = await fetchProduct(productId);
+    if (product) {
+      setSelectedProduct(product);
+    } else {
+      setSelectedProductResource(null);
+    }
+  }, [fetchProduct]);
+
+  // Collection selection handler
+  const handleCollectionSelect = useCallback(async (
+    collectionId: string | null,
+    resource: SelectedResource | null
+  ) => {
+    if (!collectionId) {
+      setSelectedCollection(null);
+      setSelectedCollectionResource(null);
+      return;
+    }
+
+    setSelectedCollectionResource(resource);
+
+    // Fetch collection data from API
+    const collection = await fetchCollection(collectionId);
+    if (collection) {
+      setSelectedCollection(collection);
+    } else {
+      setSelectedCollectionResource(null);
+    }
+  }, [fetchCollection]);
+
+  // Handle real data toggle
+  const handleToggleRealData = useCallback((enabled: boolean) => {
+    setUseRealData(enabled);
+    if (!enabled) {
+      // Clear selections when switching to mock data
+      setSelectedProduct(null);
+      setSelectedCollection(null);
+      setSelectedProductResource(null);
+      setSelectedCollectionResource(null);
+    }
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -130,6 +206,9 @@ export function SectionPreview({
 
   const presets = getAllPresets();
 
+  // Combine errors
+  const displayError = error || fetchError;
+
   return (
     <s-stack gap="large" direction="block">
       {/* Settings panel if schema has settings */}
@@ -142,7 +221,7 @@ export function SectionPreview({
         />
       )}
 
-      {/* Toolbar */}
+      {/* Toolbar with resource picker */}
       <PreviewToolbar
         deviceSize={deviceSize}
         onDeviceSizeChange={setDeviceSize}
@@ -152,10 +231,19 @@ export function SectionPreview({
         onPresetChange={setSelectedPreset}
         presets={presets}
         renderedHtml={renderedHtml}
+        // Real data props
+        useRealData={useRealData}
+        onToggleRealData={handleToggleRealData}
+        selectedProduct={selectedProductResource}
+        selectedCollection={selectedCollectionResource}
+        onProductSelect={handleProductSelect}
+        onCollectionSelect={handleCollectionSelect}
+        resourceNeeds={resourceNeeds}
+        isLoadingResource={isLoadingResource}
       />
 
       {/* Error banner */}
-      {error && (
+      {displayError && (
         <div style={{
           padding: '12px 16px',
           backgroundColor: '#fff5ea',
@@ -166,7 +254,7 @@ export function SectionPreview({
           alignItems: 'center'
         }}>
           <p style={{ margin: 0, fontSize: '14px' }}>
-            Preview error: {error}. The code may use unsupported Liquid features.
+            Preview error: {displayError}. The code may use unsupported Liquid features.
           </p>
           <button
             onClick={() => setError(null)}
