@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useActionData, useLoaderData, useNavigation, useSubmit, useNavigate, data } from "react-router";
+import { useActionData, useLoaderData, useNavigation, useSubmit } from "react-router";
 import { authenticate } from "../shopify.server";
 import { aiAdapter } from "../services/adapters/ai-adapter";
 import { themeAdapter } from "../services/adapters/theme-adapter";
@@ -14,32 +14,16 @@ import { GenerateInputColumn } from "../components/generate/GenerateInputColumn"
 import { GeneratePreviewColumn } from "../components/generate/GeneratePreviewColumn";
 import { SaveTemplateModal } from "../components/generate/SaveTemplateModal";
 import type { AdvancedOptionsState } from "../components/generate/AdvancedOptions";
-import { DeleteConfirmModal } from "../components/generations/DeleteConfirmModal";
 
-export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
-  const { id } = params;
-
-  if (!id) {
-    throw data({ message: "Generation ID is required" }, { status: 400 });
-  }
-
-  const generation = await sectionService.getById(id, shop);
-
-  if (!generation) {
-    throw data({ message: "Generation not found" }, { status: 404 });
-  }
-
+export async function loader({ request }: LoaderFunctionArgs) {
+  await authenticate.admin(request);
   const themes = await themeAdapter.getThemes(request);
-
-  return { generation, themes };
+  return { themes };
 }
 
-export async function action({ request, params }: ActionFunctionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
-  const { id } = params;
   const formData = await request.formData();
   const actionType = formData.get("action");
 
@@ -61,7 +45,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const code = await aiAdapter.generateSection(prompt);
 
-    // Create a NEW section entry (regenerate creates new, doesn't update old)
+    // Save to sections
     const sectionEntry = await sectionService.create({
       shop,
       prompt,
@@ -81,8 +65,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       prompt,
       historyId: sectionEntry.id,
       quota: quotaCheck.quota,
-      regenerated: true,
-    } satisfies GenerateActionData & { regenerated?: boolean };
+    } satisfies GenerateActionData;
   }
 
   if (actionType === "save") {
@@ -95,10 +78,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const result = await themeAdapter.createSection(request, themeId, fileName, content);
 
       // Update section entry with save info
-      const entryToUpdate = historyId || id;
-      if (entryToUpdate) {
+      if (historyId) {
         const themeName = formData.get("themeName") as string | null;
-        await sectionService.update(entryToUpdate, shop, {
+        await sectionService.update(historyId, shop, {
           themeId,
           themeName: themeName || undefined,
           fileName,
@@ -152,82 +134,39 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
   }
 
-  if (actionType === "updateName") {
-    const name = formData.get("name") as string;
-    if (!id) {
-      return { success: false, message: "Generation ID is required" };
-    }
-
-    await sectionService.update(id, shop, { name });
-    return { success: true, nameUpdated: true, message: "Section name updated" };
-  }
-
-  if (actionType === "delete") {
-    if (!id) {
-      return { success: false, message: "Generation ID is required" };
-    }
-
-    const deleted = await sectionService.delete(id, shop);
-
-    if (!deleted) {
-      return { success: false, message: "Failed to delete generation" };
-    }
-
-    return { success: true, deleted: true, message: "Generation deleted successfully" };
-  }
-
   return null;
 }
 
-function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-
-export default function GenerationEditPage() {
-  const { generation, themes } = useLoaderData<typeof loader>();
+export default function CreateSectionPage() {
+  const { themes } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submit = useSubmit();
-  const navigate = useNavigate();
 
-  // Initialize state from loaded generation
-  const [prompt, setPrompt] = useState(generation.prompt);
-  const [sectionName, setSectionName] = useState(generation.name || "");
-  const [generatedCode, setGeneratedCode] = useState(generation.code);
-  const [currentHistoryId, setCurrentHistoryId] = useState(generation.id);
+  const [prompt, setPrompt] = useState(actionData?.prompt || "");
+  const [sectionName, setSectionName] = useState("");
+  const [generatedCode, setGeneratedCode] = useState(actionData?.code || "");
+  const [currentHistoryId, setCurrentHistoryId] = useState(actionData?.historyId || "");
 
-  // Advanced options state
+  // Advanced options state (for future AI integration)
   const [advancedOptions, setAdvancedOptions] = useState<AdvancedOptionsState>({
-    tone: (generation.tone as AdvancedOptionsState['tone']) || 'professional',
-    style: (generation.style as AdvancedOptionsState['style']) || 'minimal',
+    tone: 'professional',
+    style: 'minimal',
     includeSchema: true
   });
 
-  // Theme selection - use original theme if available, else active theme, else first theme
-  const originalTheme = themes.find((t: Theme) => t.id === generation.themeId);
+  // Find the active (main) theme to set as default
   const activeTheme = themes.find((theme: Theme) => theme.role === "MAIN");
-  const [selectedTheme, setSelectedTheme] = useState(
-    originalTheme?.id || activeTheme?.id || themes[0]?.id || ""
-  );
+  const [selectedTheme, setSelectedTheme] = useState(activeTheme?.id || themes[0]?.id || "");
 
-  const [fileName, setFileName] = useState(generation.fileName || "ai-section");
+  const [fileName, setFileName] = useState("ai-section");
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
-
-  // Modal ID for commandFor pattern
-  const DELETE_MODAL_ID = "delete-generation-modal";
 
   const isLoading = navigation.state === "submitting";
   const isGenerating = isLoading && navigation.formData?.get("action") === "generate";
   const isSaving = isLoading && navigation.formData?.get("action") === "save";
-  const isDeleting = isLoading && navigation.formData?.get("action") === "delete";
 
-  // Update state when action data changes (after regeneration)
+  // Update state when action data changes
   useEffect(() => {
     if (actionData?.code && actionData.code !== generatedCode) {
       setGeneratedCode(actionData.code);
@@ -237,22 +176,7 @@ export default function GenerationEditPage() {
     }
   }, [actionData?.code, actionData?.historyId, generatedCode, currentHistoryId]);
 
-  // Handle delete success - show toast and navigate back to generations list
-  useEffect(() => {
-    if (actionData?.deleted) {
-      shopify.toast.show(actionData.message || "Generation deleted successfully");
-      navigate("/app/generations");
-    }
-  }, [actionData?.deleted, actionData?.message, navigate]);
-
-  // Close modal on successful template save
-  useEffect(() => {
-    if (actionData?.templateSaved) {
-      setShowSaveTemplateModal(false);
-    }
-  }, [actionData?.templateSaved]);
-
-  // Get theme name for success message
+  // Get theme name for success message and save handler
   const selectedThemeName = themes.find((t: Theme) => t.id === selectedTheme)?.name || 'theme';
 
   // Handlers
@@ -265,16 +189,6 @@ export default function GenerationEditPage() {
     formData.append("tone", advancedOptions.tone);
     formData.append("style", advancedOptions.style);
     submit(formData, { method: "post" });
-  };
-
-  // Save name on blur
-  const handleNameBlur = () => {
-    if (sectionName !== (generation.name || "")) {
-      const formData = new FormData();
-      formData.append("action", "updateName");
-      formData.append("name", sectionName);
-      submit(formData, { method: "post" });
-    }
   };
 
   const handleSave = () => {
@@ -290,15 +204,9 @@ export default function GenerationEditPage() {
     submit(formData, { method: "post" });
   };
 
-  const handleDelete = () => {
-    const formData = new FormData();
-    formData.append("action", "delete");
-    submit(formData, { method: "post" });
-  };
-
   const canSave = Boolean(generatedCode && fileName && selectedTheme);
 
-  const handleSaveAsTemplate = (templateData: {
+  const handleSaveAsTemplate = (data: {
     title: string;
     description: string;
     category: string;
@@ -307,11 +215,11 @@ export default function GenerationEditPage() {
   }) => {
     const formData = new FormData();
     formData.append("action", "saveAsTemplate");
-    formData.append("title", templateData.title);
-    formData.append("description", templateData.description);
-    formData.append("category", templateData.category);
-    formData.append("icon", templateData.icon);
-    formData.append("prompt", templateData.prompt);
+    formData.append("title", data.title);
+    formData.append("description", data.description);
+    formData.append("category", data.category);
+    formData.append("icon", data.icon);
+    formData.append("prompt", data.prompt);
     if (generatedCode) {
       formData.append("code", generatedCode);
     }
@@ -319,40 +227,18 @@ export default function GenerationEditPage() {
     setShowSaveTemplateModal(false);
   };
 
+  // Close modal on successful template save
+  useEffect(() => {
+    if (actionData?.templateSaved) {
+      setShowSaveTemplateModal(false);
+    }
+  }, [actionData?.templateSaved]);
+
   return (
     <>
-      <s-page heading="Edit Generation" inlineSize="large">
+      <s-page heading="Create Section" inlineSize="large">
         <s-stack gap="large" direction="block">
-          {/* Breadcrumb */}
-          <s-stack direction="inline" gap="small" alignItems="center">
-            <a href="/app/generations" style={{ color: "var(--p-color-text-secondary)" }}>Generations</a>
-            <s-text color="subdued">/</s-text>
-            <s-text>{prompt.length > 40 ? prompt.substring(0, 40) + "..." : prompt}</s-text>
-          </s-stack>
-
-          {/* Generation Info Banner */}
-          <s-banner tone="info">
-            <s-stack direction="inline" gap="base" alignItems="center">
-              <s-badge tone={generation.status === "saved" ? "success" : "neutral"}>
-                {generation.status === "saved" ? "Saved" : "Generated"}
-              </s-badge>
-              <s-text color="subdued">
-                Created: {formatDate(generation.createdAt)}
-              </s-text>
-              {generation.themeName && (
-                <s-text color="subdued">
-                  Theme: {generation.themeName}
-                </s-text>
-              )}
-            </s-stack>
-          </s-banner>
-
-          {/* Regeneration info callout */}
-          {actionData?.regenerated && (
-            <s-banner tone="success" dismissible>
-              New generation created! The previous version is still available in your history.
-            </s-banner>
-          )}
+          {/* Enhanced feedback banners */}
 
           {/* Template saved banner */}
           {actionData?.templateSaved && (
@@ -362,17 +248,22 @@ export default function GenerationEditPage() {
           )}
 
           {/* Success banner after save */}
-          {actionData?.success && !actionData?.templateSaved && !actionData?.deleted && (
+          {actionData?.success && !actionData?.templateSaved && (
             <s-banner tone="success" dismissible>
-              Section saved successfully to {selectedThemeName}!{" "}
-              <a href="/app/generations">Back to Generations</a>
+              Section saved successfully to {selectedThemeName}! Visit the Theme Editor to customize your new section.
             </s-banner>
           )}
 
-          {/* Error banner */}
+          {/* Error banner with recovery guidance */}
           {actionData?.success === false && (
             <s-banner tone="critical">
               {actionData.message}
+              {actionData.message?.toLowerCase().includes('generate') && (
+                <span> Try simplifying your prompt or choose a pre-built template.</span>
+              )}
+              {actionData.message?.toLowerCase().includes('save') && (
+                <span> Verify that the selected theme exists and you have permission to modify it.</span>
+              )}
             </s-banner>
           )}
 
@@ -384,7 +275,6 @@ export default function GenerationEditPage() {
                 onPromptChange={setPrompt}
                 sectionName={sectionName}
                 onSectionNameChange={setSectionName}
-                onSectionNameBlur={handleNameBlur}
                 advancedOptions={advancedOptions}
                 onAdvancedOptionsChange={setAdvancedOptions}
                 disabled={isGenerating || isSaving}
@@ -408,20 +298,6 @@ export default function GenerationEditPage() {
               />
             }
           />
-
-          {/* Delete button at bottom */}
-          <s-section>
-            <s-stack direction="inline" justifyContent="end">
-              <s-button
-                tone="critical"
-                command="--show"
-                commandFor={DELETE_MODAL_ID}
-                disabled={isDeleting}
-              >
-                Delete Generation
-              </s-button>
-            </s-stack>
-          </s-section>
         </s-stack>
       </s-page>
 
@@ -433,36 +309,6 @@ export default function GenerationEditPage() {
           onClose={() => setShowSaveTemplateModal(false)}
         />
       )}
-
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        id={DELETE_MODAL_ID}
-        isBulk={false}
-        count={1}
-        isDeleting={isDeleting}
-        onConfirm={handleDelete}
-      />
     </>
-  );
-}
-
-// Error boundary for 404
-export function ErrorBoundary() {
-  return (
-    <s-page heading="Generation Not Found" inlineSize="large">
-      <s-stack gap="large" direction="block" alignItems="center">
-        <s-section>
-          <s-stack gap="base" alignItems="center">
-            <s-heading>Generation not found</s-heading>
-            <s-paragraph>
-              The generation you are looking for does not exist or you do not have access to it.
-            </s-paragraph>
-            <s-button variant="primary" onClick={() => window.location.href = "/app/generations"}>
-              Back to Generations
-            </s-button>
-          </s-stack>
-        </s-section>
-      </s-stack>
-    </s-page>
   );
 }

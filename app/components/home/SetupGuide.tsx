@@ -15,12 +15,12 @@ interface SetupGuideProps {
 const SETUP_STEPS = [
   {
     id: "generate",
-    title: "Generate your first section",
+    title: "Create your first section",
     description:
       "Describe what you want in natural language and get production-ready Liquid code for your Shopify theme.",
-    href: "/app/generate",
+    href: "/app/sections/new",
     completionKey: "hasGeneratedSection" as const,
-    actionLabel: "Generate section",
+    actionLabel: "Create section",
     image: "/images/onboarding/generate-section.svg",
     imageAlt: "AI code generation illustration",
   },
@@ -37,12 +37,12 @@ const SETUP_STEPS = [
   },
   {
     id: "history",
-    title: "Check your generation history",
+    title: "Check your section history",
     description:
-      "View all the sections you've generated, mark favorites, and quickly access previous work.",
-    href: "/app/history",
+      "View all the sections you've created, mark favorites, and quickly access previous work.",
+    href: "/app/sections",
     completionKey: "hasViewedHistory" as const,
-    actionLabel: "View history",
+    actionLabel: "View sections",
     image: "/images/onboarding/view-history.svg",
     imageAlt: "History review illustration",
   },

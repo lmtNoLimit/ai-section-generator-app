@@ -2,9 +2,9 @@ import { Fragment } from "react";
 
 const FEATURES = [
   {
-    title: "Generate Sections",
+    title: "Create Sections",
     description: "AI-powered Liquid code from natural language",
-    href: "/app/generate",
+    href: "/app/sections/new",
     icon: "wand",
   },
   {
@@ -14,9 +14,9 @@ const FEATURES = [
     icon: "file-list",
   },
   {
-    title: "Generation History",
+    title: "Section History",
     description: "Track all your generated sections",
-    href: "/app/history",
+    href: "/app/sections",
     icon: "clock",
   },
 ] as const;

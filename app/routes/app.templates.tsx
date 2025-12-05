@@ -138,7 +138,7 @@ export default function TemplatesPage() {
   };
 
   const handleUseTemplate = (template: typeof templates[0]) => {
-    navigate(`/app/generate?prompt=${encodeURIComponent(template.prompt)}`);
+    navigate(`/app/sections/new?prompt=${encodeURIComponent(template.prompt)}`);
   };
 
   const handleToggleFavorite = (id: string) => {

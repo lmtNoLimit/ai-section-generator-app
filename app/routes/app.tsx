@@ -21,7 +21,7 @@ export default function App() {
         <a href="/" rel="home">
           Home
         </a>
-        <a href="/app/generations">Generations</a>
+        <a href="/app/sections">Sections</a>
         <a href="/app/templates">Templates</a>
         <a href="/app/billing">Billing</a>
       </s-app-nav>

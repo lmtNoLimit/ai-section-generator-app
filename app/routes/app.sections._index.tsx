@@ -3,8 +3,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useActionData, useLoaderData, useSearchParams, useSubmit, useNavigate, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { sectionService } from "../services/section.server";
-import { GenerationsEmptyState } from "../components/generations/GenerationsEmptyState";
-import { DeleteConfirmModal } from "../components/generations/DeleteConfirmModal";
+import { SectionsEmptyState } from "../components/sections/SectionsEmptyState";
+import { DeleteConfirmModal } from "../components/sections/DeleteConfirmModal";
 
 // Type alias for Shopify web component events (they don't use React event types)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,7 +48,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (actionType === "delete") {
     const id = formData.get("id") as string;
     await sectionService.delete(id, shop);
-    return { success: true, action: "delete", message: "Generation deleted successfully." };
+    return { success: true, action: "delete", message: "Section deleted successfully." };
   }
 
   if (actionType === "bulkDelete") {
@@ -62,7 +62,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return {
       success: true,
       action: "bulkDelete",
-      message: `${idsToDelete.length} generation${idsToDelete.length > 1 ? 's' : ''} deleted successfully.`,
+      message: `${idsToDelete.length} section${idsToDelete.length > 1 ? 's' : ''} deleted successfully.`,
       deletedCount: idsToDelete.length
     };
   }
@@ -92,7 +92,7 @@ function truncateText(text: string, maxLength: number): string {
   return text.substring(0, maxLength) + "...";
 }
 
-export default function GenerationsPage() {
+export default function SectionsPage() {
   const { history } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
@@ -264,16 +264,16 @@ export default function GenerationsPage() {
   // Show toast for delete success messages
   useEffect(() => {
     if (actionData?.success && (actionData.action === "delete" || actionData.action === "bulkDelete")) {
-      shopify.toast.show(actionData.message || "Generation deleted successfully");
+      shopify.toast.show(actionData.message || "Section deleted successfully");
     }
   }, [actionData]);
 
   return (
     <>
-      <s-page heading="Generations" inlineSize="large">
+      <s-page heading="Sections" inlineSize="large">
         {/* Primary action button */}
-        <s-button slot="primary-action" variant="primary" href="/app/generate">
-          Generate Section
+        <s-button slot="primary-action" variant="primary" href="/app/sections/new">
+          Create Section
         </s-button>
 
         {/* Success messages now use Toast (see useEffect above) */}
@@ -302,7 +302,7 @@ export default function GenerationsPage() {
         )}
 
         {/* Table section */}
-        <s-section padding="none" accessibilityLabel="Generations table">
+        <s-section padding="none" accessibilityLabel="Sections table">
           {history.items.length > 0 || hasFilters ? (
             <s-table
               ref={tableRef}
@@ -314,10 +314,10 @@ export default function GenerationsPage() {
               {/* Filters slot */}
               <s-grid slot="filters" gap="small" gridTemplateColumns="1fr auto auto">
                 <s-text-field
-                  label="Search generations"
+                  label="Search sections"
                   labelAccessibilityVisibility="exclusive"
                   icon="search"
-                  placeholder="Search prompts..."
+                  placeholder="Search sections..."
                   value={searchValue}
                   onInput={handleSearchInput}
                 />
@@ -346,7 +346,7 @@ export default function GenerationsPage() {
               <s-table-header-row>
                 <s-table-header>
                   <s-checkbox
-                    accessibilityLabel="Select all generations"
+                    accessibilityLabel="Select all sections"
                     checked={allSelected}
                     indeterminate={someSelected}
                     onChange={handleSelectAll}
@@ -367,7 +367,7 @@ export default function GenerationsPage() {
                       <s-table-cell>
                         <s-checkbox
                           id={`checkbox-${item.id}`}
-                          accessibilityLabel={`Select generation: ${truncateText(item.prompt, 30)}`}
+                          accessibilityLabel={`Select section: ${truncateText(item.prompt, 30)}`}
                           checked={selectedIds.has(item.id)}
                           onChange={(e: ShopifyEvent) => handleSelectOne(item.id, e)}
                         />
@@ -377,7 +377,7 @@ export default function GenerationsPage() {
                           {item.isFavorite && (
                             <s-badge tone="warning" icon="star-filled">Fav</s-badge>
                           )}
-                          <s-link id={`link-${item.id}`} href={`/app/generations/${item.id}`}>
+                          <s-link id={`link-${item.id}`} href={`/app/sections/${item.id}`}>
                             {item.name || truncateText(item.prompt, 50)}
                           </s-link>
                         </s-stack>
@@ -386,7 +386,7 @@ export default function GenerationsPage() {
                         {item.status === "saved" ? (
                           <s-badge tone="success">Saved</s-badge>
                         ) : (
-                          <s-badge tone="neutral">Generated</s-badge>
+                          <s-badge tone="neutral">Draft</s-badge>
                         )}
                       </s-table-cell>
                       <s-table-cell>
@@ -413,7 +413,7 @@ export default function GenerationsPage() {
                             icon="delete"
                             variant="tertiary"
                             tone="critical"
-                            accessibilityLabel="Delete generation"
+                            accessibilityLabel="Delete section"
                             command="--show"
                             commandFor={DELETE_MODAL_ID}
                             onClick={() => handleDeleteClick(item.id)}
@@ -427,7 +427,7 @@ export default function GenerationsPage() {
                     <s-table-cell>
                       <s-box padding="large">
                         <s-stack gap="base" alignItems="center">
-                          <s-paragraph>No generations match your filters.</s-paragraph>
+                          <s-paragraph>No sections match your filters.</s-paragraph>
                           <s-button
                             onClick={() => {
                               setSearchParams(new URLSearchParams());
@@ -444,10 +444,10 @@ export default function GenerationsPage() {
               </s-table-body>
             </s-table>
           ) : (
-            <GenerationsEmptyState
+            <SectionsEmptyState
               hasFilters={false}
               onClearFilters={() => setSearchParams(new URLSearchParams())}
-              onCreateNew={() => navigate("/app/generate")}
+              onCreateNew={() => navigate("/app/sections/new")}
             />
           )}
         </s-section>
@@ -456,7 +456,7 @@ export default function GenerationsPage() {
         {history.totalPages > 1 && (
           <s-stack direction="inline" justifyContent="center" gap="base">
             <s-text color="subdued">
-              Page {history.page} of {history.totalPages} ({history.total} generations)
+              Page {history.page} of {history.totalPages} ({history.total} sections)
             </s-text>
           </s-stack>
         )}
