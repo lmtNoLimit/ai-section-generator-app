@@ -64,7 +64,7 @@ const PRODUCT_QUERY = `#graphql
         maxVariantPrice { amount currencyCode }
       }
       compareAtPriceRange {
-        minVariantPrice { amount }
+        minVariantCompareAtPrice { amount }
       }
       totalInventory
       featuredImage {
@@ -133,7 +133,7 @@ const COLLECTION_QUERY = `#graphql
               maxVariantPrice { amount }
             }
             compareAtPriceRange {
-              minVariantPrice { amount }
+              minVariantCompareAtPrice { amount }
             }
             totalInventory
             featuredImage {
@@ -233,7 +233,7 @@ interface GraphQLProductResponse {
         maxVariantPrice: { amount: string; currencyCode: string };
       };
       compareAtPriceRange?: {
-        minVariantPrice?: { amount: string };
+        minVariantCompareAtPrice?: { amount: string };
       };
       totalInventory: number;
       featuredImage?: {
@@ -379,8 +379,8 @@ function transformProduct(graphqlProduct: NonNullable<GraphQLProductResponse['da
 
   const priceMin = Math.round(parseFloat(graphqlProduct.priceRange.minVariantPrice.amount) * 100);
   const priceMax = Math.round(parseFloat(graphqlProduct.priceRange.maxVariantPrice.amount) * 100);
-  const compareAtPrice = graphqlProduct.compareAtPriceRange?.minVariantPrice?.amount
-    ? Math.round(parseFloat(graphqlProduct.compareAtPriceRange.minVariantPrice.amount) * 100)
+  const compareAtPrice = graphqlProduct.compareAtPriceRange?.minVariantCompareAtPrice?.amount
+    ? Math.round(parseFloat(graphqlProduct.compareAtPriceRange.minVariantCompareAtPrice.amount) * 100)
     : null;
 
   return {
