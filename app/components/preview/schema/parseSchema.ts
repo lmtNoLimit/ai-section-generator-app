@@ -115,7 +115,9 @@ export function extractSettings(schema: SchemaDefinition | null): SchemaSetting[
   const supportedTypes = [
     'text', 'textarea', 'richtext', 'number', 'range',
     'checkbox', 'select', 'color', 'color_background',
-    'image_picker', 'url', 'html'
+    'image_picker', 'url', 'html',
+    // Resource types
+    'product', 'collection'
   ];
 
   return schema.settings

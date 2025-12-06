@@ -8,6 +8,7 @@ export { ImageDrop } from './ImageDrop';
 export { VariantDrop } from './VariantDrop';
 export { ProductDrop } from './ProductDrop';
 export { CollectionDrop } from './CollectionDrop';
+export { CollectionsDrop } from './CollectionsDrop';
 export { ArticleDrop } from './ArticleDrop';
 export { ShopDrop } from './ShopDrop';
 export { BlockDrop } from './BlockDrop';

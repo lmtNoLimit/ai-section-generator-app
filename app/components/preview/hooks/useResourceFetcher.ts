@@ -10,6 +10,7 @@ export type ResourceType = 'product' | 'collection' | 'article';
 
 interface UseResourceFetcherReturn {
   fetchProduct: (productId: string) => Promise<MockProduct | null>;
+  fetchProducts: (productIds: string[]) => Promise<MockProduct[]>;
   fetchCollection: (collectionId: string) => Promise<MockCollection | null>;
   fetchArticle: (articleId: string) => Promise<MockArticle | null>;
   loading: boolean;
@@ -54,6 +55,27 @@ export function useResourceFetcher(): UseResourceFetcherReturn {
     return fetchResource<MockProduct>('product', productId);
   }, [fetchResource]);
 
+  const fetchProducts = useCallback(async (productIds: string[]): Promise<MockProduct[]> => {
+    if (productIds.length === 0) return [];
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch all products in parallel
+      const results = await Promise.all(
+        productIds.map(id => fetchResource<MockProduct>('product', id))
+      );
+      return results.filter((p): p is MockProduct => p !== null);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch products';
+      setError(errorMessage);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchResource]);
+
   const fetchCollection = useCallback(async (collectionId: string): Promise<MockCollection | null> => {
     return fetchResource<MockCollection>('collection', collectionId);
   }, [fetchResource]);
@@ -68,6 +90,7 @@ export function useResourceFetcher(): UseResourceFetcherReturn {
 
   return {
     fetchProduct,
+    fetchProducts,
     fetchCollection,
     fetchArticle,
     loading,

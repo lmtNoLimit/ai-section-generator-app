@@ -18,7 +18,10 @@ export interface SelectedResource {
 interface ResourceSelectorProps {
   resourceType: ResourceType;
   onSelect: (resourceId: string | null, resource: SelectedResource | null) => void;
+  onSelectMultiple?: (resources: SelectedResource[]) => void;
   selectedResource?: SelectedResource | null;
+  selectedResources?: SelectedResource[];
+  multiple?: boolean;
   disabled?: boolean;
   loading?: boolean;
 }
@@ -30,7 +33,10 @@ interface ResourceSelectorProps {
 export function ResourceSelector({
   resourceType,
   onSelect,
+  onSelectMultiple,
   selectedResource,
+  selectedResources = [],
+  multiple = false,
   disabled,
   loading
 }: ResourceSelectorProps) {
@@ -43,6 +49,12 @@ export function ResourceSelector({
     variant: 'Variant'
   }[resourceType];
 
+  const pluralLabel = {
+    product: 'Products',
+    collection: 'Collections',
+    variant: 'Variants'
+  }[resourceType];
+
   const handleOpenPicker = useCallback(async () => {
     if (disabled || loading || isOpening) return;
 
@@ -51,30 +63,49 @@ export function ResourceSelector({
       // Use App Bridge resourcePicker API
       const selected = await shopify.resourcePicker({
         type: resourceType,
-        multiple: false,
+        multiple: multiple,
         action: 'select'
       });
 
       if (selected && selected.length > 0) {
-        const resource = selected[0];
+        if (multiple && onSelectMultiple) {
+          // Handle multiple selection
+          const resources: SelectedResource[] = selected.map((resource) => {
+            let imageUrl: string | undefined;
+            if ('images' in resource && Array.isArray(resource.images) && resource.images.length > 0) {
+              const firstImage = resource.images[0] as { originalSrc?: string; src?: string; url?: string };
+              imageUrl = firstImage.originalSrc || firstImage.src || firstImage.url;
+            } else if ('image' in resource && resource.image) {
+              const img = resource.image as { originalSrc?: string; src?: string; url?: string };
+              imageUrl = img.originalSrc || img.src || img.url;
+            }
+            return {
+              id: resource.id,
+              title: resource.title || 'Untitled',
+              image: imageUrl
+            };
+          });
+          onSelectMultiple(resources);
+        } else {
+          // Handle single selection
+          const resource = selected[0];
+          let imageUrl: string | undefined;
+          if ('images' in resource && Array.isArray(resource.images) && resource.images.length > 0) {
+            const firstImage = resource.images[0] as { originalSrc?: string; src?: string; url?: string };
+            imageUrl = firstImage.originalSrc || firstImage.src || firstImage.url;
+          } else if ('image' in resource && resource.image) {
+            const img = resource.image as { originalSrc?: string; src?: string; url?: string };
+            imageUrl = img.originalSrc || img.src || img.url;
+          }
 
-        // Extract image based on resource type
-        let imageUrl: string | undefined;
-        if ('images' in resource && Array.isArray(resource.images) && resource.images.length > 0) {
-          const firstImage = resource.images[0] as { originalSrc?: string; src?: string; url?: string };
-          imageUrl = firstImage.originalSrc || firstImage.src || firstImage.url;
-        } else if ('image' in resource && resource.image) {
-          const img = resource.image as { originalSrc?: string; src?: string; url?: string };
-          imageUrl = img.originalSrc || img.src || img.url;
+          const selectedResource: SelectedResource = {
+            id: resource.id,
+            title: resource.title || 'Untitled',
+            image: imageUrl
+          };
+
+          onSelect(resource.id, selectedResource);
         }
-
-        const selectedResource: SelectedResource = {
-          id: resource.id,
-          title: resource.title || 'Untitled',
-          image: imageUrl
-        };
-
-        onSelect(resource.id, selectedResource);
       }
     } catch (error) {
       // User cancelled the picker - this is expected behavior
@@ -85,11 +116,22 @@ export function ResourceSelector({
     } finally {
       setIsOpening(false);
     }
-  }, [shopify, resourceType, disabled, loading, isOpening, onSelect]);
+  }, [shopify, resourceType, multiple, disabled, loading, isOpening, onSelect, onSelectMultiple]);
 
   const handleClear = useCallback(() => {
-    onSelect(null, null);
-  }, [onSelect]);
+    if (multiple && onSelectMultiple) {
+      onSelectMultiple([]);
+    } else {
+      onSelect(null, null);
+    }
+  }, [multiple, onSelect, onSelectMultiple]);
+
+  // Determine display state
+  const hasSelection = multiple ? selectedResources.length > 0 : !!selectedResource;
+  const selectionCount = multiple ? selectedResources.length : (selectedResource ? 1 : 0);
+  const buttonLabel = hasSelection
+    ? (multiple ? `Change ${pluralLabel} (${selectionCount})` : `Change ${resourceTypeLabel}`)
+    : (multiple ? `Select ${pluralLabel}` : `Select ${resourceTypeLabel}`);
 
   return (
     <s-stack gap="small" direction="inline">
@@ -100,17 +142,45 @@ export function ResourceSelector({
         disabled={disabled || loading || isOpening || undefined}
         loading={isOpening || loading || undefined}
       >
-        {selectedResource ? `Change ${resourceTypeLabel}` : `Select ${resourceTypeLabel}`}
+        {buttonLabel}
       </s-button>
 
-      {/* Selected resource display */}
-      {selectedResource && (
+      {/* Selected resource display (single) */}
+      {!multiple && selectedResource && (
         <SelectedResourceDisplay
           title={selectedResource.title}
           image={selectedResource.image}
           onClear={handleClear}
           disabled={disabled || loading}
         />
+      )}
+
+      {/* Selected resources display (multiple) */}
+      {multiple && selectedResources.length > 0 && (
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {selectedResources.slice(0, 3).map((res) => (
+            <span key={res.id} style={{
+              padding: '2px 8px',
+              backgroundColor: '#e4e5e7',
+              borderRadius: '4px',
+              fontSize: '12px'
+            }}>
+              {res.title}
+            </span>
+          ))}
+          {selectedResources.length > 3 && (
+            <span style={{ fontSize: '12px', color: '#6d7175' }}>
+              +{selectedResources.length - 3} more
+            </span>
+          )}
+          <s-button
+            variant="tertiary"
+            onClick={handleClear}
+            disabled={disabled || loading || undefined}
+          >
+            Clear
+          </s-button>
+        </div>
       )}
     </s-stack>
   );

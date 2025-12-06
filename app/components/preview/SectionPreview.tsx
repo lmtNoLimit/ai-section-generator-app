@@ -1,14 +1,12 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { PreviewFrame } from './PreviewFrame';
-import { PreviewToolbar } from './PreviewToolbar';
 import { useLiquidRenderer } from './hooks/useLiquidRenderer';
 import { usePreviewMessaging } from './hooks/usePreviewMessaging';
-import { useResourceDetection } from './hooks/useResourceDetection';
 import { useResourceFetcher } from './hooks/useResourceFetcher';
 import { parseSchema, extractSettings, buildInitialState, buildBlockInstancesFromPreset } from './schema/parseSchema';
 import { SettingsPanel } from './settings/SettingsPanel';
-import { getAllPresets } from './mockData/registry';
 import { buildPreviewContext } from './utils/buildPreviewContext';
+import { getAllPresets } from './mockData/registry';
 import type { DeviceSize, PreviewMessage, PreviewSettings } from './types';
 import type { SchemaSetting, SettingsState, SchemaDefinition, BlockInstance } from './schema/SchemaTypes';
 import type { MockProduct, MockCollection } from './mockData/types';
@@ -31,18 +29,14 @@ export function SectionPreview({
   const [deviceSize, setDeviceSize] = useState<DeviceSize>('desktop');
   const [error, setError] = useState<string | null>(null);
   const [selectedPreset, setSelectedPreset] = useState<string>('');
-  const [renderedHtml, setRenderedHtml] = useState<string>('');
 
-  // Real data state
-  const [useRealData, setUseRealData] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<MockProduct | null>(null);
-  const [selectedCollection, setSelectedCollection] = useState<MockCollection | null>(null);
-  const [selectedProductResource, setSelectedProductResource] = useState<SelectedResource | null>(null);
-  const [selectedCollectionResource, setSelectedCollectionResource] = useState<SelectedResource | null>(null);
+  // Settings-based resources (from schema settings with type: product/collection)
+  const [settingsResourceSelections, setSettingsResourceSelections] = useState<Record<string, SelectedResource | null>>({});
+  const [settingsResources, setSettingsResources] = useState<Record<string, MockProduct | MockCollection>>({});
+  const [isLoadingSettingsResource, setIsLoadingSettingsResource] = useState(false);
 
-  // Resource detection and fetching
-  const resourceNeeds = useResourceDetection(liquidCode);
-  const { fetchProduct, fetchCollection, loading: isLoadingResource, error: fetchError } = useResourceFetcher();
+  // Resource fetching hook
+  const { fetchProduct, fetchCollection, error: fetchError } = useResourceFetcher();
 
   // Parse schema from liquid code
   const parsedSchema = useMemo<SchemaDefinition | null>(
@@ -94,23 +88,21 @@ export function SectionPreview({
     try {
       setError(null);
 
-      // Build context with Drop classes or mock data
+      // Build context with mock data preset and settings-based resources
       const mockData = buildPreviewContext({
-        useRealData,
-        product: selectedProduct,
-        collection: selectedCollection,
-        preset: selectedPreset
+        useRealData: false,
+        preset: selectedPreset,
+        settingsResources
       });
 
       const { html, css } = await render(liquidCode, settingsValues, blocksState, mockData as unknown as Record<string, unknown>);
-      setRenderedHtml(html);
       sendMessage({ type: 'RENDER', html, css });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Render failed';
       setError(errorMsg);
       sendMessage({ type: 'RENDER_ERROR', error: errorMsg });
     }
-  }, [liquidCode, settingsValues, blocksState, selectedPreset, useRealData, selectedProduct, selectedCollection, render, sendMessage]);
+  }, [liquidCode, settingsValues, blocksState, selectedPreset, settingsResources, render, sendMessage]);
 
   // Debounce renders on code/settings/preset/resource change
   useEffect(() => {
@@ -155,61 +147,52 @@ export function SectionPreview({
     []
   );
 
-  // Product selection handler
-  const handleProductSelect = useCallback(async (
-    productId: string | null,
+  // Settings resource selection handler (for schema-based resource settings)
+  const handleSettingsResourceSelect = useCallback(async (
+    settingId: string,
+    resourceId: string | null,
     resource: SelectedResource | null
   ) => {
-    if (!productId) {
-      setSelectedProduct(null);
-      setSelectedProductResource(null);
+    // Update selection UI state
+    setSettingsResourceSelections(prev => ({
+      ...prev,
+      [settingId]: resource
+    }));
+
+    if (!resourceId) {
+      // Clear the resource data
+      setSettingsResources(prev => {
+        const updated = { ...prev };
+        delete updated[settingId];
+        return updated;
+      });
       return;
     }
 
-    setSelectedProductResource(resource);
+    // Find the setting type to know what kind of resource to fetch
+    const setting = schemaSettings.find(s => s.id === settingId);
+    if (!setting) return;
 
-    // Fetch product data from API
-    const product = await fetchProduct(productId);
-    if (product) {
-      setSelectedProduct(product);
-    } else {
-      setSelectedProductResource(null);
+    setIsLoadingSettingsResource(true);
+    try {
+      let data: MockProduct | MockCollection | null = null;
+
+      if (setting.type === 'product') {
+        data = await fetchProduct(resourceId);
+      } else if (setting.type === 'collection') {
+        data = await fetchCollection(resourceId);
+      }
+
+      if (data) {
+        setSettingsResources(prev => ({
+          ...prev,
+          [settingId]: data
+        }));
+      }
+    } finally {
+      setIsLoadingSettingsResource(false);
     }
-  }, [fetchProduct]);
-
-  // Collection selection handler
-  const handleCollectionSelect = useCallback(async (
-    collectionId: string | null,
-    resource: SelectedResource | null
-  ) => {
-    if (!collectionId) {
-      setSelectedCollection(null);
-      setSelectedCollectionResource(null);
-      return;
-    }
-
-    setSelectedCollectionResource(resource);
-
-    // Fetch collection data from API
-    const collection = await fetchCollection(collectionId);
-    if (collection) {
-      setSelectedCollection(collection);
-    } else {
-      setSelectedCollectionResource(null);
-    }
-  }, [fetchCollection]);
-
-  // Handle real data toggle
-  const handleToggleRealData = useCallback((enabled: boolean) => {
-    setUseRealData(enabled);
-    if (!enabled) {
-      // Clear selections when switching to mock data
-      setSelectedProduct(null);
-      setSelectedCollection(null);
-      setSelectedProductResource(null);
-      setSelectedCollectionResource(null);
-    }
-  }, []);
+  }, [schemaSettings, fetchProduct, fetchCollection]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -238,21 +221,19 @@ export function SectionPreview({
 
   return (
     <s-stack gap="large" direction="block">
-      {/* Settings panel if schema has settings or blocks */}
-      {(schemaSettings.length > 0 || blocksState.length > 0) && (
-        <SettingsPanel
-          settings={schemaSettings}
-          values={settingsValues}
-          onChange={handleSettingsChange}
-          disabled={isRendering}
-          schema={parsedSchema}
-          blocks={blocksState}
-          onBlockSettingChange={handleBlockSettingChange}
-        />
-      )}
-
-      {/* Toolbar with resource picker */}
-      <PreviewToolbar
+      {/* Settings panel with preview controls */}
+      <SettingsPanel
+        settings={schemaSettings}
+        values={settingsValues}
+        onChange={handleSettingsChange}
+        disabled={isRendering}
+        schema={parsedSchema}
+        blocks={blocksState}
+        onBlockSettingChange={handleBlockSettingChange}
+        resourceSettings={settingsResourceSelections}
+        onResourceSelect={handleSettingsResourceSelect}
+        isLoadingResource={isLoadingSettingsResource}
+        // Preview controls (formerly in toolbar)
         deviceSize={deviceSize}
         onDeviceSizeChange={setDeviceSize}
         onRefresh={triggerRender}
@@ -260,16 +241,6 @@ export function SectionPreview({
         selectedPreset={selectedPreset}
         onPresetChange={setSelectedPreset}
         presets={presets}
-        renderedHtml={renderedHtml}
-        // Real data props
-        useRealData={useRealData}
-        onToggleRealData={handleToggleRealData}
-        selectedProduct={selectedProductResource}
-        selectedCollection={selectedCollectionResource}
-        onProductSelect={handleProductSelect}
-        onCollectionSelect={handleCollectionSelect}
-        resourceNeeds={resourceNeeds}
-        isLoadingResource={isLoadingResource}
       />
 
       {/* Error banner */}

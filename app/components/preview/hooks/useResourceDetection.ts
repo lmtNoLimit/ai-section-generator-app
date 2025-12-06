@@ -28,17 +28,27 @@ export function useResourceDetection(liquidCode: string): ResourceNeeds {
     }
 
     // Patterns to detect resource usage in Liquid templates
+    // Product patterns: {{ product.title }}, {% for variant in product.variants %}
     const productPattern = /\{\{-?\s*product\./i;
     const productForPattern = /{%\s*for\s+\w+\s+in\s+product\./i;
+
+    // Collection patterns: {{ collection.title }}, {% for product in collection.products %}
+    // Also detect: collections['handle'], collections[settings.collection], collections.all
     const collectionPattern = /\{\{-?\s*collection\./i;
     const collectionForPattern = /{%\s*for\s+\w+\s+in\s+collection\.products/i;
+    const collectionsAccessPattern = /collections\[/i;
+    const collectionsPropertyPattern = /collections\.\w+/i;
+
     const articlePattern = /\{\{-?\s*article\./i;
     const blogPattern = /\{\{-?\s*blog\./i;
     const cartPattern = /\{\{-?\s*cart\./i;
 
+    // Detect if template iterates over products (common pattern in product grids)
+    const productLoopPattern = /{%\s*for\s+product\s+in\s+/i;
+
     return {
-      needsProduct: productPattern.test(liquidCode) || productForPattern.test(liquidCode),
-      needsCollection: collectionPattern.test(liquidCode) || collectionForPattern.test(liquidCode),
+      needsProduct: productPattern.test(liquidCode) || productForPattern.test(liquidCode) || productLoopPattern.test(liquidCode),
+      needsCollection: collectionPattern.test(liquidCode) || collectionForPattern.test(liquidCode) || collectionsAccessPattern.test(liquidCode) || collectionsPropertyPattern.test(liquidCode),
       needsArticle: articlePattern.test(liquidCode),
       needsBlog: blogPattern.test(liquidCode),
       needsCart: cartPattern.test(liquidCode)

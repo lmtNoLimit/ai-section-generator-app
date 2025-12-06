@@ -2,7 +2,7 @@ import type { MockProduct, DataPreset } from '../types';
 
 const PLACEHOLDER_IMAGE = 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png';
 
-const baseProduct: MockProduct = {
+export const defaultProduct: MockProduct = {
   id: 12345678,
   title: 'Premium Cotton T-Shirt',
   handle: 'premium-cotton-t-shirt',
@@ -40,7 +40,7 @@ export const productPresets: DataPreset[] = [
     id: 'product-standard',
     name: 'Standard Product',
     description: 'Typical product with variants and compare price',
-    data: { product: baseProduct }
+    data: { product: defaultProduct }
   },
   {
     id: 'product-low-stock',
@@ -48,9 +48,9 @@ export const productPresets: DataPreset[] = [
     description: 'Product with only 3 items remaining',
     data: {
       product: {
-        ...baseProduct,
+        ...defaultProduct,
         inventory_quantity: 3,
-        variants: baseProduct.variants.map(v => ({
+        variants: defaultProduct.variants.map(v => ({
           ...v,
           inventory_quantity: v.available ? 1 : 0
         }))
@@ -63,10 +63,10 @@ export const productPresets: DataPreset[] = [
     description: 'Product with no available inventory',
     data: {
       product: {
-        ...baseProduct,
+        ...defaultProduct,
         available: false,
         inventory_quantity: 0,
-        variants: baseProduct.variants.map(v => ({
+        variants: defaultProduct.variants.map(v => ({
           ...v,
           available: false,
           inventory_quantity: 0
@@ -80,7 +80,7 @@ export const productPresets: DataPreset[] = [
     description: 'Product with very long title and description',
     data: {
       product: {
-        ...baseProduct,
+        ...defaultProduct,
         title: 'Extra Premium Deluxe Cotton T-Shirt with Extended Features and Special Edition Materials',
         description: 'This is an exceptionally detailed product description that goes on for quite a while to test how the section handles long text content. ' +
           'It includes multiple sentences and paragraphs to ensure proper text wrapping and overflow handling in the preview. ' +
@@ -94,7 +94,7 @@ export const productPresets: DataPreset[] = [
     description: 'Product without a compare-at price (no sale)',
     data: {
       product: {
-        ...baseProduct,
+        ...defaultProduct,
         compare_at_price: null
       }
     }

@@ -1,6 +1,6 @@
 import type { MockDataContext, DataPreset } from './types';
-import { productPresets } from './presets/product';
-import { collectionPresets } from './presets/collection';
+import { productPresets, defaultProduct } from './presets/product';
+import { collectionPresets, defaultCollection } from './presets/collection';
 import { defaultShop, cartPresets } from './presets/shop';
 
 // Combine all presets into categories
@@ -31,11 +31,13 @@ export function getPresetById(id: string): DataPreset | undefined {
 }
 
 /**
- * Get default context (always includes shop)
+ * Get default context (includes shop, product, and collection for preview)
  */
 export function getDefaultContext(): MockDataContext {
   return {
     shop: defaultShop,
+    product: defaultProduct,
+    collection: defaultCollection,
     request: {
       design_mode: true,
       page_type: 'product',

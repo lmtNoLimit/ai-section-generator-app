@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { DeviceSize } from './types';
 import type { ResourceNeeds } from './hooks/useResourceDetection';
 import type { SelectedResource } from './ResourceSelector';
+import type { SchemaSetting } from './schema/SchemaTypes';
 import { ResourceSelector } from './ResourceSelector';
 
 export interface PreviewToolbarProps {
@@ -17,11 +18,15 @@ export interface PreviewToolbarProps {
   useRealData?: boolean;
   onToggleRealData?: (enabled: boolean) => void;
   selectedProduct?: SelectedResource | null;
+  selectedProducts?: SelectedResource[];
   selectedCollection?: SelectedResource | null;
   onProductSelect?: (productId: string | null, resource: SelectedResource | null) => void;
+  onProductsSelect?: (resources: SelectedResource[]) => void;
   onCollectionSelect?: (collectionId: string | null, resource: SelectedResource | null) => void;
   resourceNeeds?: ResourceNeeds;
   isLoadingResource?: boolean;
+  // Schema settings (to check if resource pickers are in settings panel)
+  schemaSettings?: SchemaSetting[];
 }
 
 /**
@@ -40,13 +45,26 @@ export function PreviewToolbar({
   useRealData = false,
   onToggleRealData,
   selectedProduct,
+  selectedProducts = [],
   selectedCollection,
   onProductSelect,
+  onProductsSelect,
   onCollectionSelect,
   resourceNeeds,
-  isLoadingResource
+  isLoadingResource,
+  schemaSettings = []
 }: PreviewToolbarProps) {
   const [copied, setCopied] = useState(false);
+
+  // Check if schema already has resource settings (so we can hide toolbar pickers)
+  const hasSchemaProductSetting = useMemo(
+    () => schemaSettings.some(s => s.type === 'product'),
+    [schemaSettings]
+  );
+  const hasSchemaCollectionSetting = useMemo(
+    () => schemaSettings.some(s => s.type === 'collection'),
+    [schemaSettings]
+  );
 
   const handleCopy = async () => {
     if (!renderedHtml) return;
@@ -197,20 +215,25 @@ export function PreviewToolbar({
             </s-button>
           </div>
 
-          {/* Resource selectors (only when using real data) */}
+          {/* Resource selectors (only when using real data AND schema doesn't have those settings) */}
           {useRealData && (
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-              {resourceNeeds?.needsProduct && onProductSelect && (
+              {/* Only show product picker if schema doesn't have product setting */}
+              {resourceNeeds?.needsProduct && onProductsSelect && !hasSchemaProductSetting && (
                 <ResourceSelector
                   resourceType="product"
-                  onSelect={onProductSelect}
+                  onSelect={onProductSelect || (() => {})}
+                  onSelectMultiple={onProductsSelect}
                   selectedResource={selectedProduct}
+                  selectedResources={selectedProducts}
+                  multiple={true}
                   disabled={isLoadingResource}
                   loading={isLoadingResource}
                 />
               )}
 
-              {resourceNeeds?.needsCollection && onCollectionSelect && (
+              {/* Only show collection picker if schema doesn't have collection setting */}
+              {resourceNeeds?.needsCollection && onCollectionSelect && !hasSchemaCollectionSetting && (
                 <ResourceSelector
                   resourceType="collection"
                   onSelect={onCollectionSelect}
@@ -219,6 +242,13 @@ export function PreviewToolbar({
                   loading={isLoadingResource}
                 />
               )}
+
+              {/* Show hint when pickers are in settings panel */}
+              {(hasSchemaProductSetting || hasSchemaCollectionSetting) && (
+                <span style={{ fontSize: '13px', color: '#6d7175', fontStyle: 'italic' }}>
+                  Resource pickers available in Settings panel
+                </span>
+              )}
             </div>
           )}
 
@@ -226,6 +256,13 @@ export function PreviewToolbar({
           {isLoadingResource && (
             <span style={{ color: '#6d7175', fontSize: '14px' }}>
               Loading...
+            </span>
+          )}
+
+          {/* Hint when real data mode but no selection */}
+          {useRealData && selectedProducts.length === 0 && !selectedCollection && !isLoadingResource && (
+            <span style={{ color: '#6d7175', fontSize: '13px', fontStyle: 'italic' }}>
+              Using mock data (select products or collection above for real data)
             </span>
           )}
         </div>

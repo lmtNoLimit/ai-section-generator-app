@@ -32,7 +32,7 @@ const createProduct = (id: number, title: string, handle: string, price: number)
   url: `/products/${handle}`
 });
 
-const baseCollection: MockCollection = {
+export const defaultCollection: MockCollection = {
   id: 98765432,
   title: 'Summer Collection',
   handle: 'summer-collection',
@@ -58,7 +58,7 @@ export const collectionPresets: DataPreset[] = [
     id: 'collection-standard',
     name: 'Standard Collection',
     description: 'Collection with 4 products and image',
-    data: { collection: baseCollection, products: baseCollection.products }
+    data: { collection: defaultCollection, products: defaultCollection.products }
   },
   {
     id: 'collection-large',
@@ -66,7 +66,7 @@ export const collectionPresets: DataPreset[] = [
     description: 'Collection with 12 products',
     data: {
       collection: {
-        ...baseCollection,
+        ...defaultCollection,
         products_count: 12,
         products: Array(12).fill(null).map((_, i) =>
           createProduct(i + 1, `Product ${i + 1}`, `product-${i + 1}`, 2999 + (i * 500))
@@ -83,7 +83,7 @@ export const collectionPresets: DataPreset[] = [
     description: 'Collection with no products',
     data: {
       collection: {
-        ...baseCollection,
+        ...defaultCollection,
         products: [],
         products_count: 0
       },
@@ -96,10 +96,10 @@ export const collectionPresets: DataPreset[] = [
     description: 'Collection without a featured image',
     data: {
       collection: {
-        ...baseCollection,
+        ...defaultCollection,
         image: null
       },
-      products: baseCollection.products
+      products: defaultCollection.products
     }
   }
 ];
