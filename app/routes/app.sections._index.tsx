@@ -13,10 +13,6 @@ import { sectionService } from "../services/section.server";
 import { SectionsEmptyState } from "../components/sections/SectionsEmptyState";
 import { DeleteConfirmModal } from "../components/sections/DeleteConfirmModal";
 
-// Type alias for Shopify web component events (they don't use React event types)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ShopifyEvent = any;
-
 // View type for tab switching
 type ViewType = "all" | "active" | "draft" | "archived";
 
@@ -185,24 +181,6 @@ export default function SectionsPage() {
     setSingleDeleteId(null);
   };
 
-  const handleSelectAll = (e: ShopifyEvent) => {
-    if (e.currentTarget?.checked) {
-      setSelectedIds(new Set(history.items.map((item) => item.id)));
-    } else {
-      setSelectedIds(new Set());
-    }
-  };
-
-  const handleSelectOne = (id: string, e: ShopifyEvent) => {
-    const newSelected = new Set(selectedIds);
-    if (e.currentTarget?.checked) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
-    }
-    setSelectedIds(newSelected);
-  };
-
   // Pagination handlers for s-table
   const handleNextPage = useCallback(() => {
     if (currentPage < history.totalPages) {
@@ -236,11 +214,6 @@ export default function SectionsPage() {
       table.removeEventListener("previouspage", prevHandler);
     };
   }, [handleNextPage, handlePreviousPage]);
-
-  const allSelected =
-    history.items.length > 0 && selectedIds.size === history.items.length;
-  const someSelected =
-    selectedIds.size > 0 && selectedIds.size < history.items.length;
 
   // Show toast for delete success messages
   useEffect(() => {

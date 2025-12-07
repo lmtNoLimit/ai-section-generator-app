@@ -23,7 +23,7 @@ export interface ProductSettingProps {
  */
 export function ProductSetting({
   setting,
-  value,
+  value: _value,
   onChange,
   disabled,
   selectedResource,

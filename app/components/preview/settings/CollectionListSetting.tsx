@@ -19,7 +19,7 @@ export interface CollectionListSettingProps {
 
 export function CollectionListSetting({
   setting,
-  value,
+  value: _value,
   onChange,
   disabled,
   selectedResources = [],

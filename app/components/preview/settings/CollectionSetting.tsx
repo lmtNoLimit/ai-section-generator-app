@@ -23,7 +23,7 @@ export interface CollectionSettingProps {
  */
 export function CollectionSetting({
   setting,
-  value,
+  value: _value,
   onChange,
   disabled,
   selectedResource,

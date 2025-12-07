@@ -19,7 +19,7 @@ export interface ProductListSettingProps {
 
 export function ProductListSetting({
   setting,
-  value,
+  value: _value,
   onChange,
   disabled,
   selectedResources = [],
