@@ -241,7 +241,7 @@ export default function TemplatesPage() {
           {/* Success banners */}
           {wasSeeded && (
             <s-banner tone="info" dismissible>
-              Welcome! We've loaded {templates.length} starter templates to help you get started.
+              Welcome! We&apos;ve loaded {templates.length} starter templates to help you get started.
             </s-banner>
           )}
           {actionData?.action === "resetToDefaults" && (
