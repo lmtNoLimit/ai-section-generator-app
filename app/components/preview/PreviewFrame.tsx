@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import type { DeviceSize } from './types';
 
 export interface PreviewFrameProps {
@@ -6,10 +6,11 @@ export interface PreviewFrameProps {
   onLoad?: (iframe: HTMLIFrameElement) => void;
 }
 
-const DEVICE_WIDTHS: Record<DeviceSize, string> = {
-  mobile: '375px',
-  tablet: '768px',
-  desktop: '100%'
+// Fixed widths for each device mode
+const DEVICE_WIDTHS: Record<DeviceSize, number> = {
+  mobile: 375,
+  tablet: 768,
+  desktop: 1200
 };
 
 // Standalone HTML template for iframe
@@ -116,9 +117,39 @@ const IFRAME_HTML = `
 /**
  * Sandboxed iframe wrapper for preview rendering
  * Uses postMessage for parent-child communication
+ * Desktop mode uses CSS transform scaling to maintain exact layout on small screens
  */
 export function PreviewFrame({ deviceSize, onLoad }: PreviewFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const [iframeHeight, setIframeHeight] = useState<number>(400);
+
+  // Measure container width for scaling calculation
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // Listen for height updates from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'RESIZE' && typeof event.data.height === 'number') {
+        setIframeHeight(Math.max(300, event.data.height));
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   useEffect(() => {
     if (iframeRef.current && onLoad) {
@@ -127,31 +158,62 @@ export function PreviewFrame({ deviceSize, onLoad }: PreviewFrameProps) {
     }
   }, [onLoad]);
 
+  // Get the target width for the device
+  const targetWidth = DEVICE_WIDTHS[deviceSize];
+
+  // Calculate scale: only scale down if container is smaller than target width
+  const needsScaling = containerWidth > 0 && containerWidth < targetWidth;
+  const scale = needsScaling ? containerWidth / targetWidth : 1;
+
+  // Calculate the visual height after scaling
+  const scaledHeight = iframeHeight * scale;
+
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      backgroundColor: '#f6f6f7',
-      borderRadius: '8px',
-      padding: '16px',
-      minHeight: '400px'
-    }}>
-      <iframe
-        ref={iframeRef}
-        srcDoc={IFRAME_HTML}
-        sandbox="allow-scripts allow-same-origin"
+    <div
+      ref={containerRef}
+      style={{
+        backgroundColor: '#f6f6f7',
+        borderRadius: '8px',
+        padding: '16px',
+        // Container height matches the scaled content
+        height: `${scaledHeight + 32}px`,
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
+      {/*
+        Wrapper div that renders at full target width.
+        Uses absolute positioning so it's not constrained by parent width.
+        Transform origin at top-left for predictable scaling behavior.
+      */}
+      <div
         style={{
-          width: DEVICE_WIDTHS[deviceSize],
-          maxWidth: '100%',
-          minHeight: '300px',
-          border: '1px solid #e1e3e5',
-          borderRadius: '8px',
-          backgroundColor: '#fff',
-          transition: 'width 0.2s ease'
+          position: 'absolute',
+          top: '16px',
+          left: '50%',
+          width: `${targetWidth}px`,
+          marginLeft: `-${targetWidth / 2}px`, // Center the element
+          transform: `scale(${scale})`,
+          transformOrigin: 'top center'
         }}
-        title="Section Preview"
-        aria-label="Live preview of generated section"
-      />
+      >
+        <iframe
+          ref={iframeRef}
+          srcDoc={IFRAME_HTML}
+          sandbox="allow-scripts allow-same-origin"
+          style={{
+            width: '100%',
+            height: `${iframeHeight}px`,
+            border: '1px solid #e1e3e5',
+            borderRadius: '8px',
+            backgroundColor: '#fff',
+            display: 'block'
+          }}
+          title="Section Preview"
+          aria-label="Live preview of generated section"
+        />
+      </div>
     </div>
   );
 }
+
