@@ -73,9 +73,10 @@ export async function action({ request }: ActionFunctionArgs) {
     const fileName = formData.get("fileName") as string;
     const content = formData.get("content") as string;
     const historyId = formData.get("historyId") as string | null;
+    const sectionName = formData.get("sectionName") as string | null;
 
     try {
-      const result = await themeAdapter.createSection(request, themeId, fileName, content);
+      const result = await themeAdapter.createSection(request, themeId, fileName, content, sectionName || undefined);
 
       // Update section entry with save info
       if (historyId) {
@@ -198,6 +199,7 @@ export default function CreateSectionPage() {
     formData.append("fileName", fileName);
     formData.append("content", generatedCode);
     formData.append("themeName", selectedThemeName);
+    formData.append("sectionName", sectionName);
     if (currentHistoryId) {
       formData.append("historyId", currentHistoryId);
     }

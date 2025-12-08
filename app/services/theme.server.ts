@@ -10,6 +10,52 @@ import type {
 /** Prefix for all sections created by this app to avoid conflicts */
 const SECTION_PREFIX = 'bsm-';
 
+/**
+ * Truncate name to Shopify's 25-char limit for schema names
+ */
+function truncateName(name: string, maxLength = 25): string {
+  if (name.length <= maxLength) return name;
+  return name.substring(0, maxLength - 3).trim() + '...';
+}
+
+/**
+ * Update schema "name" and preset names in Liquid code
+ * Returns original code if parsing fails (safe fallback)
+ */
+function updateSchemaName(liquidCode: string, newName: string): string {
+  const safeName = truncateName(newName.trim());
+
+  const schemaMatch = liquidCode.match(
+    /{% schema %}\s*([\s\S]*?)\s*{% endschema %}/
+  );
+
+  if (!schemaMatch?.[1]) {
+    console.warn('updateSchemaName: No schema block found');
+    return liquidCode;
+  }
+
+  try {
+    const schema = JSON.parse(schemaMatch[1]);
+    schema.name = safeName;
+
+    // Sync preset names
+    if (Array.isArray(schema.presets)) {
+      schema.presets = schema.presets.map((preset: Record<string, unknown>) => ({
+        ...preset,
+        name: safeName
+      }));
+    }
+
+    return liquidCode.replace(
+      /{% schema %}\s*[\s\S]*?\s*{% endschema %}/,
+      `{% schema %}\n${JSON.stringify(schema, null, 2)}\n{% endschema %}`
+    );
+  } catch (error) {
+    console.error('updateSchemaName: Failed to parse schema JSON', error);
+    return liquidCode; // Safe fallback
+  }
+}
+
 export class ThemeService implements ThemeServiceInterface {
   async getThemes(request: Request): Promise<Theme[]> {
     const { admin } = await authenticate.admin(request);
@@ -36,9 +82,16 @@ export class ThemeService implements ThemeServiceInterface {
     request: Request,
     themeId: string,
     fileName: string,
-    content: string
+    content: string,
+    sectionName?: string
   ): Promise<ThemeFileMetadata> {
     const { admin } = await authenticate.admin(request);
+
+    // Apply section name to schema if provided
+    let finalContent = content;
+    if (sectionName?.trim()) {
+      finalContent = updateSchemaName(content, sectionName);
+    }
 
     // Extract base filename (remove path prefix and .liquid extension)
     let baseName = fileName.includes('/')
@@ -76,7 +129,7 @@ export class ThemeService implements ThemeServiceInterface {
             filename: fullFilename,
             body: {
               type: "TEXT",
-              value: content
+              value: finalContent
             }
           }
         ]

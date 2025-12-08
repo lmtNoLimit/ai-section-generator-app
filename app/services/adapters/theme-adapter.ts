@@ -20,9 +20,10 @@ class ThemeAdapter implements ThemeServiceInterface {
     request: Request,
     themeId: string,
     fileName: string,
-    content: string
+    content: string,
+    sectionName?: string
   ): Promise<import('../../types/shopify-api.types').ThemeFileMetadata> {
-    return this.service.createSection(request, themeId, fileName, content);
+    return this.service.createSection(request, themeId, fileName, content, sectionName);
   }
 }
 

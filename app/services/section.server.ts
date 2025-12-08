@@ -2,7 +2,32 @@ import prisma from "../db.server";
 import type { Section } from "@prisma/client";
 
 /**
+ * Extract the "name" field from Liquid schema block
+ * Returns null if unable to parse
+ */
+function extractSchemaName(liquidCode: string): string | null {
+  const schemaMatch = liquidCode.match(
+    /{% schema %}\s*([\s\S]*?)\s*{% endschema %}/
+  );
+
+  if (!schemaMatch?.[1]) {
+    return null;
+  }
+
+  try {
+    const schema = JSON.parse(schemaMatch[1]);
+    if (schema.name && typeof schema.name === 'string') {
+      return schema.name.trim();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Generate a default section name from prompt text
+ * Used as fallback when schema name extraction fails
  * Truncates to ~50 chars at last word boundary
  */
 function generateDefaultName(prompt: string): string {
@@ -43,12 +68,17 @@ export interface UpdateSectionInput {
 export const sectionService = {
   /**
    * Create a new section entry after generation
+   * Uses schema name from generated code if user doesn't provide a name
    */
   async create(input: CreateSectionInput): Promise<Section> {
+    // Priority: user-provided name > schema name > prompt-based fallback
+    const schemaName = extractSchemaName(input.code);
+    const defaultName = input.name || schemaName || generateDefaultName(input.prompt);
+
     return prisma.section.create({
       data: {
         shop: input.shop,
-        name: input.name || generateDefaultName(input.prompt),
+        name: defaultName,
         prompt: input.prompt,
         code: input.code,
         tone: input.tone,

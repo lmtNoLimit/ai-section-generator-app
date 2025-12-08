@@ -32,7 +32,8 @@ export interface ThemeServiceInterface {
     request: Request,
     themeId: string,
     fileName: string,
-    content: string
+    content: string,
+    sectionName?: string
   ): Promise<ThemeFileMetadata>;
 }
 

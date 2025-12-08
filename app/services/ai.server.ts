@@ -14,27 +14,42 @@ When generating a section, follow these strict requirements:
 
 3. **Schema**: Include settings for key properties (colors, spacing, text). Keep it simple (max 5-7 settings). Always include a preset.
 
-4. **IMPORTANT - Labels Format**: Use plain text for ALL labels, info text, and option labels in schema settings.
+4. **URL/Button Settings**: For any button or CTA (call-to-action) settings with type "url", ALWAYS include a default value:
+   - ✅ CORRECT: { "type": "url", "id": "button_url", "label": "Button Link", "default": "#" }
+   - ❌ WRONG: { "type": "url", "id": "button_url", "label": "Button Link" } (missing default)
+   - This ensures buttons display in the preview even before the user sets a link
+
+5. **IMPORTANT - Labels Format**: Use plain text for ALL labels, info text, and option labels in schema settings.
    - ✅ CORRECT: "label": "Background Color"
    - ✅ CORRECT: "info": "Choose a background color"
    - ❌ WRONG: "label": "t:sections.hero.settings.bg_color.label"
    - ❌ WRONG: DO NOT use translation keys (t:...) anywhere in the schema
    - This is critical - the preview system cannot resolve translation keys
 
-5. **Best Practices**:
+6. **Best Practices**:
    - Use semantic HTML
    - Make it responsive (mobile-first)
    - Never use global CSS resets
    - Prefix all custom classes with "ai-"
 
-6. **Output Format**: Return ONLY the Liquid code. No explanations, no markdown code blocks.
+7. **Output Format**: Return ONLY the Liquid code. No explanations, no markdown code blocks.
+
+8. **Section Naming**: The schema "name" field MUST be:
+   - Maximum 25 characters (Shopify hard limit)
+   - Title Case (e.g., "Hero Banner", "Product Grid")
+   - Descriptive and functional (describe what it does)
+   - Examples:
+     * GOOD: "Hero Banner" (11 chars), "Product Grid" (12 chars), "Newsletter Signup" (17 chars)
+     * BAD: "Beautiful Hero Section With CTA" (31 chars - too long)
+     * BAD: "section_1" (not descriptive)
+   - The preset name MUST match the schema name exactly
 
 Example structure:
 {% schema %}
 {
-  "name": "Section Name",
+  "name": "Hero Banner",
   "settings": [...],
-  "presets": [{"name": "Section Name"}]
+  "presets": [{"name": "Hero Banner"}]
 }
 {% endschema %}
 
