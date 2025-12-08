@@ -10,20 +10,29 @@ interface FilterButtonGroupProps {
 }
 
 /**
- * Reusable filter button group using Polaris button-group pattern
+ * Scrollable filter button group using Polaris button-group pattern
+ * Handles overflow for many categories
  */
 export function FilterButtonGroup({ options, value, onChange }: FilterButtonGroupProps) {
   return (
-    <s-button-group gap="none">
-      {options.map((opt) => (
-        <s-button
-          key={opt.value}
-          variant={value === opt.value ? "primary" : "secondary"}
-          onClick={() => onChange(opt.value)}
-        >
-          {opt.label}
-        </s-button>
-      ))}
-    </s-button-group>
+    <div
+      style={{
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: '4px', // Space for scrollbar
+      }}
+    >
+      <s-button-group gap="base">
+        {options.map((opt) => (
+          <s-button
+            key={opt.value}
+            variant={value === opt.value ? "primary" : "secondary"}
+            onClick={() => onChange(opt.value)}
+          >
+            {opt.label}
+          </s-button>
+        ))}
+      </s-button-group>
+    </div>
   );
 }

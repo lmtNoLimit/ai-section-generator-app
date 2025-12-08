@@ -3,6 +3,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useActionData, useLoaderData, useSearchParams, useSubmit, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
 import { templateService } from "../services/template.server";
+import { templateSeeder } from "../services/template-seeder.server";
 import { TemplateGrid } from "../components/templates/TemplateGrid";
 import { TemplateEditorModal } from "../components/templates/TemplateEditorModal";
 import { FilterButtonGroup } from "../components/shared/FilterButtonGroup";
@@ -11,6 +12,10 @@ import { EmptyState } from "../components/shared/EmptyState";
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
+
+  // Auto-seed default templates on first visit
+  const seedResult = await templateSeeder.seedDefaultTemplates(shop);
+  const wasSeeded = seedResult.seeded;
 
   const url = new URL(request.url);
   const category = url.searchParams.get("category") || undefined;
@@ -21,7 +26,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     favoritesOnly,
   });
 
-  return { templates };
+  return { templates, wasSeeded };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -88,15 +93,26 @@ export async function action({ request }: ActionFunctionArgs) {
     return { success: true, action: "delete" };
   }
 
+  if (actionType === "resetToDefaults") {
+    const result = await templateSeeder.resetToDefaults(shop);
+    return { success: true, action: "resetToDefaults", count: result.count };
+  }
+
   return null;
 }
 
 const CATEGORIES = [
   { value: "", label: "All Categories" },
-  { value: "marketing", label: "Marketing" },
-  { value: "product", label: "Product" },
+  { value: "hero", label: "Hero" },
+  { value: "features", label: "Features" },
+  { value: "testimonials", label: "Testimonials" },
+  { value: "pricing", label: "Pricing" },
+  { value: "cta", label: "Call to Action" },
+  { value: "faq", label: "FAQ" },
+  { value: "team", label: "Team" },
+  { value: "gallery", label: "Gallery" },
   { value: "content", label: "Content" },
-  { value: "layout", label: "Layout" },
+  { value: "footer", label: "Footer" },
 ];
 
 const FILTER_OPTIONS = [
@@ -104,8 +120,9 @@ const FILTER_OPTIONS = [
   { value: "favorites", label: "Favorites" },
 ];
 
+
 export default function TemplatesPage() {
-  const { templates } = useLoaderData<typeof loader>();
+  const { templates, wasSeeded } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigate = useNavigate();
@@ -137,7 +154,15 @@ export default function TemplatesPage() {
     setSearchParams(params);
   };
 
-  const handleUseTemplate = (template: typeof templates[0]) => {
+  // Use pre-built code directly (skip AI)
+  const handleUseAsIs = (template: typeof templates[0]) => {
+    if (template.code) {
+      navigate(`/app/sections/new?code=${encodeURIComponent(template.code)}&name=${encodeURIComponent(template.title)}`);
+    }
+  };
+
+  // Use prompt to generate with AI
+  const handleCustomize = (template: typeof templates[0]) => {
     navigate(`/app/sections/new?prompt=${encodeURIComponent(template.prompt)}`);
   };
 
@@ -191,9 +216,20 @@ export default function TemplatesPage() {
     setEditingTemplate(null);
   };
 
+  const handleResetToDefaults = () => {
+    if (confirm("This will delete all your templates and restore the default templates. Are you sure?")) {
+      const formData = new FormData();
+      formData.append("action", "resetToDefaults");
+      submit(formData, { method: "post" });
+    }
+  };
+
   return (
     <>
       <s-page heading="Section Templates" inlineSize="large">
+        <s-button slot="secondary-actions" onClick={handleResetToDefaults}>
+          Reset to Defaults
+        </s-button>
         <s-button slot="primary-action" variant="primary" onClick={() => {
           setEditingTemplate(null);
           setShowEditor(true);
@@ -203,6 +239,16 @@ export default function TemplatesPage() {
 
         <s-stack gap="large" direction="block">
           {/* Success banners */}
+          {wasSeeded && (
+            <s-banner tone="info" dismissible>
+              Welcome! We've loaded {templates.length} starter templates to help you get started.
+            </s-banner>
+          )}
+          {actionData?.action === "resetToDefaults" && (
+            <s-banner tone="success" dismissible>
+              Templates reset to defaults successfully.
+            </s-banner>
+          )}
           {actionData?.action === "delete" && (
             <s-banner tone="success" dismissible>
               Template deleted successfully.
@@ -237,7 +283,8 @@ export default function TemplatesPage() {
               {templates.length > 0 ? (
                 <TemplateGrid
                   templates={templates}
-                  onUse={handleUseTemplate}
+                  onUseAsIs={handleUseAsIs}
+                  onCustomize={handleCustomize}
                   onEdit={handleEdit}
                   onToggleFavorite={handleToggleFavorite}
                   onDuplicate={handleDuplicate}

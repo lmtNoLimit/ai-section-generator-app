@@ -3,7 +3,8 @@ import { TemplateCard } from "./TemplateCard";
 
 export interface TemplateGridProps {
   templates: SectionTemplate[];
-  onUse: (template: SectionTemplate) => void;
+  onUseAsIs: (template: SectionTemplate) => void;
+  onCustomize: (template: SectionTemplate) => void;
   onEdit: (template: SectionTemplate) => void;
   onToggleFavorite: (id: string) => void;
   onDuplicate: (id: string) => void;
@@ -15,7 +16,8 @@ export interface TemplateGridProps {
  */
 export function TemplateGrid({
   templates,
-  onUse,
+  onUseAsIs,
+  onCustomize,
   onEdit,
   onToggleFavorite,
   onDuplicate,
@@ -24,13 +26,14 @@ export function TemplateGrid({
   return (
     <s-grid
       gap="base"
-      gridTemplateColumns="repeat(auto-fill, minmax(280px, 1fr))"
+      gridTemplateColumns="repeat(auto-fill, minmax(320px, 1fr))"
     >
       {templates.map((template) => (
         <TemplateCard
           key={template.id}
           template={template}
-          onUse={() => onUse(template)}
+          onUseAsIs={() => onUseAsIs(template)}
+          onCustomize={() => onCustomize(template)}
           onEdit={() => onEdit(template)}
           onToggleFavorite={() => onToggleFavorite(template.id)}
           onDuplicate={() => onDuplicate(template.id)}

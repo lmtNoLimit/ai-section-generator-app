@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { SectionTemplate } from "@prisma/client";
 
 export interface TemplateEditorModalProps {
@@ -13,17 +13,26 @@ export interface TemplateEditorModalProps {
   onClose: () => void;
 }
 
+// Updated categories to match the new 10 categories
 const CATEGORIES = [
-  { value: "marketing", label: "Marketing" },
-  { value: "product", label: "Product" },
+  { value: "hero", label: "Hero" },
+  { value: "features", label: "Features" },
+  { value: "testimonials", label: "Testimonials" },
+  { value: "pricing", label: "Pricing" },
+  { value: "cta", label: "Call to Action" },
+  { value: "faq", label: "FAQ" },
+  { value: "team", label: "Team" },
+  { value: "gallery", label: "Gallery" },
   { value: "content", label: "Content" },
-  { value: "layout", label: "Layout" },
+  { value: "footer", label: "Footer" },
 ];
 
-const ICONS = ["📋", "🎨", "📦", "📝", "🛒", "⭐", "🔥", "💡", "🎯", "🚀"];
+const ICONS = ["🖼️", "🎬", "⬛", "✨", "🛍️", "📋", "🃏", "💬", "⭐", "💰", "📧", "❓", "👥", "📦", "📝"];
+
+const MODAL_ID = "template-editor-modal";
 
 /**
- * Modal for creating/editing templates
+ * Modal for creating/editing templates using s-modal
  */
 export function TemplateEditorModal({
   template,
@@ -32,9 +41,18 @@ export function TemplateEditorModal({
 }: TemplateEditorModalProps) {
   const [title, setTitle] = useState(template?.title || "");
   const [description, setDescription] = useState(template?.description || "");
-  const [category, setCategory] = useState(template?.category || "marketing");
-  const [icon, setIcon] = useState(template?.icon || "📋");
+  const [category, setCategory] = useState(template?.category || "hero");
+  const [icon, setIcon] = useState(template?.icon || "🖼️");
   const [prompt, setPrompt] = useState(template?.prompt || "");
+
+  // Update form when template changes
+  useEffect(() => {
+    setTitle(template?.title || "");
+    setDescription(template?.description || "");
+    setCategory(template?.category || "hero");
+    setIcon(template?.icon || "🖼️");
+    setPrompt(template?.prompt || "");
+  }, [template]);
 
   const isValid = title.trim() && description.trim() && prompt.trim();
 
@@ -49,113 +67,103 @@ export function TemplateEditorModal({
     });
   };
 
+  // Programmatically show modal when component mounts
+  useEffect(() => {
+    const modal = document.getElementById(MODAL_ID);
+    if (modal) {
+      (modal as HTMLElement & { show: () => void }).show?.();
+    }
+  }, []);
+
+  // Handle close via modal's close event
+  const handleModalClose = () => {
+    onClose();
+  };
+
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="template-editor-title"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px'
-      }}
-      onClick={onClose}
-      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+    <s-modal
+      id={MODAL_ID}
+      heading={template ? "Edit Template" : "Create Template"}
+      size="large"
     >
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
-      <div
-        style={{
-          backgroundColor: 'var(--p-color-bg-surface)',
-          borderRadius: '12px',
-          width: '100%',
-          maxWidth: '600px',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          padding: '20px'
-        }}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-      >
-        <s-stack gap="large" direction="block">
-          {/* Header */}
-          <s-stack gap="small" justifyContent="space-between" alignItems="center" direction="inline">
-            <s-heading>{template ? "Edit Template" : "Create Template"}</s-heading>
-            <s-button variant="tertiary" onClick={onClose}>Close</s-button>
-          </s-stack>
+      <s-stack gap="large" direction="block">
+        {/* Title */}
+        <s-text-field
+          label="Title"
+          value={title}
+          onInput={(e: Event) => setTitle((e.target as HTMLInputElement).value)}
+          placeholder="e.g., Hero with Background Image"
+          required
+        />
 
-          {/* Form */}
-          <s-stack gap="large" direction="block">
-            <s-text-field
-              label="Title"
-              value={title}
-              onInput={(e: Event) => setTitle((e.target as HTMLInputElement).value)}
-              placeholder="e.g., Hero Banner"
-            />
+        {/* Description */}
+        <s-text-field
+          label="Description"
+          value={description}
+          onInput={(e: Event) => setDescription((e.target as HTMLInputElement).value)}
+          placeholder="Brief description of what this template creates"
+          required
+        />
 
-            <s-text-field
-              label="Description"
-              value={description}
-              onInput={(e: Event) => setDescription((e.target as HTMLInputElement).value)}
-              placeholder="Brief description of the template"
-            />
+        {/* Category */}
+        <s-select
+          label="Category"
+          value={category}
+          onChange={(e: Event) => setCategory((e.target as HTMLSelectElement).value)}
+        >
+          {CATEGORIES.map((cat) => (
+            <option key={cat.value} value={cat.value}>{cat.label}</option>
+          ))}
+        </s-select>
 
-            <s-select
-              label="Category"
-              value={category}
-              onChange={(e: Event) => setCategory((e.target as HTMLSelectElement).value)}
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat.value} value={cat.value}>{cat.label}</option>
+        {/* Icon picker */}
+        <s-stack gap="small" direction="block">
+          <s-text type="strong">Icon</s-text>
+          <div style={{ overflowX: 'auto', paddingBottom: '4px' }}>
+            <s-button-group gap="none">
+              {ICONS.map((emoji) => (
+                <s-button
+                  key={emoji}
+                  variant={icon === emoji ? "primary" : "secondary"}
+                  onClick={() => setIcon(emoji)}
+                >
+                  <span style={{ fontSize: '18px' }}>{emoji}</span>
+                </s-button>
               ))}
-            </s-select>
-
-            {/* Icon picker */}
-            <s-stack gap="small" direction="block">
-              <s-text>Icon</s-text>
-              <s-button-group gap="none">
-                {ICONS.map((emoji) => (
-                  <s-button
-                    key={emoji}
-                    variant={icon === emoji ? "primary" : "secondary"}
-                    onClick={() => setIcon(emoji)}
-                  >
-                    {emoji}
-                  </s-button>
-                ))}
-              </s-button-group>
-            </s-stack>
-
-            <s-text-area
-              label="Prompt"
-              value={prompt}
-              onInput={(e: Event) => setPrompt((e.target as HTMLTextAreaElement).value)}
-              placeholder="Describe what this template generates..."
-              rows={4}
-            />
-          </s-stack>
-
-          {/* Actions */}
-          <s-stack gap="small" justifyContent="end" direction="inline">
-            <s-button variant="secondary" onClick={onClose}>Cancel</s-button>
-            <s-button
-              variant="primary"
-              onClick={handleSubmit}
-              disabled={!isValid}
-            >
-              {template ? "Save Changes" : "Create Template"}
-            </s-button>
-          </s-stack>
+            </s-button-group>
+          </div>
         </s-stack>
-      </div>
-    </div>
+
+        {/* Prompt */}
+        <s-text-area
+          label="Prompt"
+          value={prompt}
+          onInput={(e: Event) => setPrompt((e.target as HTMLTextAreaElement).value)}
+          placeholder="Describe what section this template should generate when used..."
+          rows={4}
+          required
+        />
+      </s-stack>
+
+      {/* Modal Actions */}
+      <s-button
+        slot="secondary-actions"
+        command="--hide"
+        commandFor={MODAL_ID}
+        onClick={handleModalClose}
+      >
+        Cancel
+      </s-button>
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        command="--hide"
+        commandFor={MODAL_ID}
+        onClick={handleSubmit}
+        disabled={!isValid}
+      >
+        {template ? "Save Changes" : "Create Template"}
+      </s-button>
+    </s-modal>
   );
 }

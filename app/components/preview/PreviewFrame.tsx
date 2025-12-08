@@ -32,6 +32,11 @@ const IFRAME_HTML = `
       color: #1a1a1a;
     }
     img { max-width: 100%; height: auto; }
+    img.placeholder-image {
+      background: #f0f0f0;
+      border: 1px dashed #ccc;
+      object-fit: contain;
+    }
     .preview-error {
       color: #d72c0d;
       padding: 16px;
@@ -78,6 +83,31 @@ const IFRAME_HTML = `
           '<div class="preview-error">' + (error || 'Render error') + '</div>';
       }
     });
+
+    // Placeholder image as inline SVG data URI
+    const PLACEHOLDER_SVG = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect fill="#f0f0f0" width="300" height="200"/><rect fill="#e0e0e0" x="110" y="60" width="80" height="80" rx="4"/><circle fill="#ccc" cx="130" cy="85" r="8"/><polygon fill="#ccc" points="120,130 150,95 180,130"/><polygon fill="#d0d0d0" points="140,130 160,110 180,130"/></svg>');
+
+    // Handle broken images by replacing with placeholder
+    function handleImageError(img) {
+      if (!img.dataset.placeholderApplied) {
+        img.dataset.placeholderApplied = 'true';
+        img.src = PLACEHOLDER_SVG;
+        img.classList.add('placeholder-image');
+      }
+    }
+
+    // Apply error handlers to all images after content updates
+    const observer = new MutationObserver(function() {
+      document.querySelectorAll('img:not([data-error-handled])').forEach(function(img) {
+        img.dataset.errorHandled = 'true';
+        img.onerror = function() { handleImageError(this); };
+        // Also check if image already failed to load
+        if (img.complete && img.naturalWidth === 0 && img.src && !img.src.startsWith('data:')) {
+          handleImageError(img);
+        }
+      });
+    });
+    observer.observe(document.getElementById('preview-content'), { childList: true, subtree: true });
   </script>
 </body>
 </html>
