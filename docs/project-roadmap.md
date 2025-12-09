@@ -189,6 +189,7 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
 | Database (Prisma) | ✅ Complete | 100% | 2025-12-01 |
 | Gemini API Integration | ✅ Complete | 100% | 2025-12-01 |
 | Shopify Admin API | ✅ Complete | 100% | 2025-12-01 |
+| AI System Prompt Enhancement | ✅ 75% Complete | 75% | 2025-12-09 |
 
 ---
 
@@ -203,6 +204,13 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
 6. ✅ Component-based architecture (Phase 04)
 7. ✅ Subscription billing system fixes (webhook, upgrade flow, GraphQL fallback)
 8. ✅ Section metadata tracking and status badges
+9. ✅ AI System Prompt Enhancement (Phase 1-2 Complete)
+   - Rewrote SYSTEM_PROMPT: 65 → 157 lines
+   - Added 25+ input types catalog with validation rules
+   - Added 10 validation rules per type
+   - Added JSON examples for 9 setting types
+   - Added 10 common error anti-patterns
+   - Fixed mock section translation key
 
 ### In Progress
 - Documentation updates for Phase 3 completion
@@ -317,6 +325,15 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
   - Phase 02: Frontend redirect to edit page
   - Toast notification "Section saved"
   - Consistent Save Draft + Publish buttons on create and edit pages
+- ✅ AI System Prompt Enhancement (Phases 1-2 Complete)
+  - SYSTEM_PROMPT rewritten: 65 → 157 lines
+  - Added comprehensive input types catalog (25+ types with validation rules)
+  - Added per-type validation guidance (range, select, richtext, etc.)
+  - Added JSON examples for 9 setting types
+  - Added 10 common error anti-patterns to avoid
+  - Fixed mock section translation key issue
+  - Token efficiency: 157 lines (under 250-line target)
+  - Phase 3 manual Shopify theme editor testing pending
 
 #### 2025-12-08
 - ✅ Edit section functionality completed

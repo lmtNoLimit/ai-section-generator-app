@@ -5,8 +5,8 @@
 AI Section Generator is a Shopify embedded app built with React Router 7, Prisma, and Google Gemini AI. The app enables merchants to generate custom Liquid theme sections via natural language prompts and save them directly to their Shopify themes.
 
 **Total Files**: 90+ files (routes: 17, services: 15, components: 60+, types: 4)
-**Total Tokens**: ~18,500 tokens (estimated)
-**Lines of Code**: ~2,500+ lines (excluding migrations, config)
+**Total Tokens**: ~19,200 tokens (estimated, +700 tokens from Phase 5 SYSTEM_PROMPT enhancement)
+**Lines of Code**: ~2,650+ lines (excluding migrations, config)
 **Architecture**: Clean service layer with adapter pattern, singleton pattern, comprehensive billing system, multi-tenant support
 
 ## Directory Structure
@@ -384,27 +384,94 @@ const code = await aiAdapter.generateSection(prompt);
 const themes = await themeAdapter.getThemes(request);
 ```
 
-#### `/app/services/ai.server.ts` (128 lines)
+#### `/app/services/ai.server.ts` (260 lines, Phase 5 enhancement)
 **Purpose**: Google Gemini AI integration for Liquid section generation (Real Implementation)
 
-**Key Components**:
-1. **SYSTEM_PROMPT** (lines 4-44):
-   - Comprehensive system instruction for Gemini
-   - Enforces Liquid section structure (schema + style + markup)
-   - CSS scoping rules (#shopify-section-{{ section.id }})
-   - Best practices (responsive, semantic HTML, translations)
-   - Output format requirements (no markdown blocks)
+**SYSTEM_PROMPT Structure** (157 lines, expanded from 65 lines):
+Comprehensive prompt engineering guide for Gemini to generate production-ready Liquid sections.
 
-2. **AIService Class**:
-   - Implements `AIServiceInterface`
-   - **Constructor**: Initializes GoogleGenerativeAI if GEMINI_API_KEY set
-   - **generateSection(prompt)**: Uses gemini-2.0-flash-exp model
-   - **getMockSection(prompt)**: Returns basic fallback Liquid section
+**1. Core Instructions (lines 4-6)**:
+- Output format: Raw Liquid code only (no markdown, no explanations)
+- Required section structure validation
+- Response format rules
+
+**2. Section Structure (lines 8-21)**:
+- Required order: schema, style, markup
+- Schema configuration rules (name, tag, settings, blocks)
+- Preset configuration requirements
+
+**3. Input Type Catalog (lines 23-63)** - 25+ Shopify input types:
+- **TEXT TYPES**: text, textarea, richtext, inline_richtext, html, liquid
+- **NUMBERS**: number, range, checkbox
+- **SELECTION**: select, radio, text_alignment
+- **COLORS**: color, color_background
+- **MEDIA**: image_picker, video, video_url, font_picker
+- **RESOURCES**: article, blog, collection, page, product, url
+- **RESOURCE LISTS**: article_list, blog_list, collection_list, product_list, link_list
+- **METAOBJECTS**: metaobject, metaobject_list
+- **DISPLAY-ONLY**: header, paragraph
+
+**4. Validation Rules (lines 69-79)** - 10 critical rules:
+1. range requires min/max/step
+2. select/radio require options array
+3. number default must be number type (not string)
+4. richtext default must start with <p> or <ul>
+5. video_url requires accept array
+6. font_picker must have default
+7. Resource pickers don't support defaults
+8. Setting IDs must be unique
+9. Block types must be unique
+10. URL buttons should default to "#"
+
+**5. Block Configuration (lines 81-93)**:
+- Block structure with type, name, limit, settings
+- Title precedence rules (heading → title → text → name)
+
+**6. Preset Configuration (lines 95-102)**:
+- Preset structure with name matching schema name
+- Optional default values and block configurations
+
+**7. CSS Rules (lines 104-109)**:
+- Scoped styles with #shopify-section-{{ section.id }}
+- Custom class prefix requirement (ai-)
+- Mobile-first responsive design
+- Global CSS reset restrictions
+
+**8. Markup Rules (lines 111-114)**:
+- Semantic HTML requirements
+- Responsive image handling
+- Accessibility standards (alt text, heading hierarchy, aria labels)
+
+**9. Labels Format (lines 116-119)**:
+- Plain text labels only (never translation keys like "t:sections....")
+
+**10. JSON Examples (lines 121-148)** - 9 setting type examples:
+- Text, Number (with correct type), Range, Select, Color, Image, Richtext, URL, Video URL
+
+**11. Common Errors Section (lines 150-160)** - 10 anti-patterns to avoid:
+1. String defaults for numbers ("5" instead of 5)
+2. Range missing min/max/step
+3. Select missing options
+4. Richtext without <p> or <ul> wrapper
+5. Translation key labels
+6. Empty liquid defaults
+7. Duplicate setting IDs
+8. Schema inside {% if %}
+9. JS-style comments in JSON
+10. Missing presets
+
+**AIService Class**:
+- Implements `AIServiceInterface`
+- **Constructor**: Initializes GoogleGenerativeAI if GEMINI_API_KEY set
+- **generateSection(prompt)**: Uses gemini-2.5-flash model
+- **stripMarkdownFences(text)**: Removes markdown code block wrappers (handles ```liquid, ```html, ``` variants)
+- **getMockSection(prompt)**: Returns basic fallback Liquid section with plain text (non-translated labels)
 
 **Error Handling**:
 - Falls back to getMockSection() on API errors
 - Logs warnings if API key missing
 - Always returns valid Liquid code
+- Handles partial markdown wrapper removal from AI responses
 
 #### `/app/services/mocks/mock-ai.server.ts` (41 lines)
 **Purpose**: Mock AI service for development/testing without Gemini API
@@ -1052,11 +1119,12 @@ FLAG_SIMULATE_API_LATENCY=true
 
 ---
 
-**Document Version**: 1.4
+**Document Version**: 1.5
 **Last Updated**: 2025-12-09
-**Codebase Size**: ~18,500 tokens across 90+ files
+**Codebase Size**: ~19,200 tokens across 90+ files
 **Primary Language**: TypeScript (TSX)
 **Recent Changes** (December 2025):
+- **Phase 5**: SYSTEM_PROMPT rewrite (65→157 lines) with comprehensive input type catalog, validation rules, and anti-pattern guide
 - **251209**: Redirect after save feature with toast notifications
 - **251209**: s-select and s-text-field component consolidation
 - **251202**: Billing system fixes - webhook type safety, GraphQL fallback, upgrade flow
