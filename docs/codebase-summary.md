@@ -34,6 +34,14 @@ ai-section-generator/
 │   │   │   ├── CodePreview.tsx   # Generated code display
 │   │   │   ├── SectionNameInput.tsx # Filename input
 │   │   │   └── GenerateActions.tsx  # Generate/Save buttons
+│   │   ├── preview/              # Section preview system (NEW in Phase 6)
+│   │   │   ├── utils/            # Liquid filter utilities
+│   │   │   │   ├── liquidFilters.ts  # Array, string, math filters (285 lines)
+│   │   │   │   ├── colorFilters.ts   # Color manipulation filters (325 lines)
+│   │   │   │   └── __tests__/    # Filter test suites
+│   │   │   ├── hooks/            # Preview rendering hooks
+│   │   │   │   └── useLiquidRenderer.ts # LiquidJS engine wrapper (462 lines)
+│   │   │   └── drops/            # Shopify drop objects
 │   │   ├── ServiceModeIndicator.tsx # Debug mode indicator
 │   │   └── index.ts              # Barrel export file
 │   ├── services/                 # Business logic layer
@@ -178,6 +186,220 @@ import {
 - **Scalability**: New features can reuse existing components
 - **Maintainability**: Changes to UI components don't affect route logic
 - **Type Safety**: TypeScript interfaces prevent prop errors
+
+### Phase 1 Critical Filters Implementation (NEW in Phase 6)
+
+Phase 1 introduces 47 Shopify Liquid filters for section preview rendering. Filters are organized into 3 categories: Array, String, Math, and Color manipulation.
+
+#### Filter Architecture
+
+**File Organization**:
+```
+app/components/preview/utils/
+├── liquidFilters.ts      # Array, string, math filters (285 lines)
+├── colorFilters.ts       # Color transformation filters (325 lines)
+└── __tests__/            # Comprehensive test suites
+    ├── liquidFilters.test.ts
+    └── colorFilters.test.ts
+```
+
+**Integration Point** (`useLiquidRenderer.ts` - lines 167-185):
+```typescript
+// Register array filters (first, last, map, compact, concat, etc.)
+Object.entries(arrayFilters).forEach(([name, fn]) => {
+  engine.registerFilter(name, fn);
+});
+
+// Register string filters (escape_once, newline_to_br, strip_html, etc.)
+Object.entries(stringFilters).forEach(([name, fn]) => {
+  engine.registerFilter(name, fn);
+});
+
+// Register math filters (abs, at_least, at_most, ceil, floor, round, plus, minus)
+Object.entries(mathFilters).forEach(([name, fn]) => {
+  engine.registerFilter(name, fn);
+});
+
+// Register color filters (all 12 color manipulation filters)
+Object.entries(colorFilters).forEach(([name, fn]) => {
+  engine.registerFilter(name, fn);
+});
+```
+
+#### Array Filters (11 filters)
+
+**Category**: Collection manipulation for arrays and lists
+
+1. `first` - Returns first element
+2. `last` - Returns last element
+3. `map(key)` - Extracts property values from array of objects
+4. `compact` - Removes null/undefined values
+5. `concat(arr2)` - Concatenates two arrays
+6. `reverse` - Reverses array order
+7. `sort(key?)` - Sorts array (optionally by property)
+8. `sort_natural(key?)` - Case-insensitive natural sort
+9. `uniq` - Returns unique values
+10. `find(key, value)` - Finds first item matching property value
+11. `reject(key, value)` - Filters out items matching property value
+
+**Safety Features**:
+- Input validation: `validateArraySize()` limits arrays to 10,000 items
+- Null/undefined handling with optional chaining
+- Type-safe object property access
+- Prevents DoS via array explosion
+
+#### String Filters (16 filters)
+
+**Category**: Text manipulation, encoding, and formatting
+
+1. `escape_once` - Escapes HTML without double-escaping (uses lookahead regex)
+2. `newline_to_br` - Converts newlines to `<br>` tags
+3. `strip_html` - Removes all HTML tags (prevents backtracking with limited regex)
+4. `strip_newlines` - Removes newline characters
+5. `url_encode` - URL encodes string (encodeURIComponent)
+6. `url_decode` - URL decodes string (decodeURIComponent with error handling)
+7. `base64_encode` - Base64 encodes with UTF-8 support (TextEncoder for Unicode/emoji)
+8. `base64_decode` - Base64 decodes with UTF-8 support (TextDecoder)
+9. `md5` - Mock MD5 hash (simple JS hash, non-cryptographic for preview)
+10. `sha256` - Mock SHA256 hash (simple JS hash, non-cryptographic for preview)
+11. `hmac_sha256` - HMAC SHA256 placeholder (delegates to sha256)
+12. `remove_first(sub)` - Removes first occurrence of substring
+13. `remove_last(sub)` - Removes last occurrence of substring
+14. `replace_first(old, new)` - Replaces first occurrence
+15. `replace_last(old, new)` - Replaces last occurrence
+16. `slice(start, length?)` - Extracts substring (handles negative indices)
+17. `camelize` - Converts to camelCase
+
+**Safety Features**:
+- String length validation: `validateStringLength()` limits strings to 100,000 chars
+- Error handling for encoding/decoding operations
+- Safe HTML escaping with lookahead to prevent double-escaping
+- Unicode-aware encoding (TextEncoder/TextDecoder)
+
+**Hash Functions Note**: MD5, SHA256, and HMAC_SHA256 return mock hashes suitable for preview rendering but NOT cryptographically secure. Designed for visual feedback only.
+
+#### Math Filters (8 filters)
+
+**Category**: Numeric operations and calculations
+
+1. `abs` - Returns absolute value
+2. `at_least(min)` - Returns maximum of number and min
+3. `at_most(max)` - Returns minimum of number and max
+4. `ceil` - Rounds up to nearest integer
+5. `floor` - Rounds down to nearest integer
+6. `round(precision?)` - Rounds to specified decimal places (default: 0)
+7. `plus(addend)` - Adds two numbers
+8. `minus(subtrahend)` - Subtracts second number from first
+
+**Features**:
+- Coerce string inputs to numbers with `Number(input) || 0`
+- Supports precision parameter for rounding
+- Safe arithmetic operations without overflow risk
+
+#### Color Filters (12 filters)
+
+**Category**: Color space conversion and manipulation
+
+**Color Format Support**:
+- Hex: `#rgb`, `#rrggbb`, `#rrggbbaa`
+- RGB: `rgb(r, g, b)` or `rgba(r, g, b, a)`
+- HSL: `hsl(h, s%, l%)` or `hsla(h, s%, l%, a)`
+
+**Conversion Filters**:
+1. `color_to_rgb(color)` - Converts to RGB/RGBA format
+2. `color_to_hsl(color)` - Converts to HSL/HSLA format
+3. `color_to_hex(color)` - Converts to hex format (always returns #rrggbb)
+
+**Adjustment Filters**:
+4. `color_lighten(color, amount)` - Lightens by amount (0-100)
+5. `color_darken(color, amount)` - Darkens by amount (0-100)
+6. `color_saturate(color, amount)` - Increases saturation (0-100)
+7. `color_desaturate(color, amount)` - Decreases saturation (0-100)
+
+**Analysis Filters**:
+8. `color_brightness(color)` - Returns perceived brightness (0-255) using ITU-R BT.601 formula
+9. `color_contrast(color)` - Returns contrasting color (black or white) for accessibility
+
+**Advanced Filters**:
+10. `color_modify(color, attr, value)` - Modifies specific attribute (alpha, hue, saturation, lightness)
+11. `color_mix(color1, color2, weight?)` - Mixes two colors with optional weight (default: 50)
+12. `color_extract(color, component)` - Extracts component value (red, green, blue, alpha, hue, saturation, lightness)
+
+**Color Space Conversions**:
+- **RGB to HSL**: Standard algorithm with hue range 0-360, saturation/lightness 0-100
+- **HSL to RGB**: Proper hue-to-RGB conversion with hue2rgb helper function
+- **Clamp Function**: Keeps values within valid ranges (0-255 for RGB, 0-100 for saturation/lightness, 0-360 for hue)
+
+**Example Usages**:
+```liquid
+{{ '#e74c3c' | color_lighten: 20 }}          → Lighten red by 20%
+{{ 'rgb(100, 150, 200)' | color_darken: 10 }} → Darken blue by 10%
+{{ '#3498db' | color_to_hsl }}                 → Convert to HSL
+{{ '#ff00ff' | color_brightness }}             → Returns brightness value
+{{ '#fff' | color_contrast }}                  → Returns #000000 (black)
+{{ '#ff0000' | color_mix: '#0000ff', 75 }}    → Mix red & blue (75% red)
+```
+
+#### Input Validation Strategy
+
+**DoS Prevention**:
+- `MAX_ARRAY_SIZE = 10,000`: Prevents array explosion attacks
+- `MAX_STRING_LENGTH = 100,000`: Prevents string buffer overflow
+- Validation functions warn to console when limits exceeded
+
+**Type Safety**:
+- All filters coerce inputs to expected types
+- Graceful fallback on null/undefined inputs
+- No thrown errors (returns sensible defaults)
+
+**Regex Safety**:
+- Limited regex patterns: `/<[^>]{0,1000}>/g` for HTML tag stripping
+- Lookahead in `escape_once` to prevent catastrophic backtracking
+- Bounded quantifiers prevent ReDoS attacks
+
+#### Testing
+
+**Test Coverage** (NEW test suites):
+- `liquidFilters.test.ts` - Tests for array, string, and math filters
+- `colorFilters.test.ts` - Tests for color conversions and manipulations
+
+**Test Categories**:
+- Input validation (null, undefined, edge cases)
+- Type coercion (string to number, etc.)
+- Color space conversions (round-trip hex ↔ RGB ↔ HSL)
+- Unicode handling (emoji in base64 encoding)
+- Error recovery (invalid inputs return sensible defaults)
+
+#### Performance Characteristics
+
+- **Array Operations**: O(n) complexity, optimized for preview use
+- **String Encoding**: O(n) for TextEncoder/TextDecoder
+- **Color Conversions**: O(1) constant time operations
+- **Hash Functions**: O(n) string iteration (mock implementations)
+
+#### Integration with LiquidJS
+
+The `useLiquidRenderer` hook registers all filters during initialization:
+- Filters are attached to the LiquidJS engine via `engine.registerFilter(name, fn)`
+- All 47 filters available in Liquid template expressions during preview rendering
+- Filters chain seamlessly: `{{ text | escape_once | url_encode }}`
+
+#### Use Cases
+
+**E-commerce Sections**:
+- Price formatting: `{{ price | divide_by: 100 | round: 2 }}`
+- Product colors: `{{ product.color | color_lighten: 10 }}`
+- Dynamic text: `{{ section.settings.title | escape_once }}`
+
+**Content Display**:
+- HTML sanitization: `{{ user_input | strip_html | escape_once }}`
+- URL encoding: `{{ search_query | url_encode }}`
+- Array handling: `{{ products | map: 'title' | join: ', ' }}`
+
+**Color Theming**:
+- Accessible contrasts: `{{ brand_color | color_contrast }}`
+- Color variants: `{{ primary_color | color_darken: 20 }}`
+- Dynamic palettes: `{{ base_color | color_mix: '#ffffff', 80 }}`
 
 ### Core Application Routes
 
@@ -1119,11 +1341,18 @@ FLAG_SIMULATE_API_LATENCY=true
 
 ---
 
-**Document Version**: 1.5
-**Last Updated**: 2025-12-09
-**Codebase Size**: ~19,200 tokens across 90+ files
+**Document Version**: 1.6
+**Last Updated**: 2025-12-10
+**Codebase Size**: ~19,200 tokens across 90+ files (+1,072 lines from Phase 1 filters)
 **Primary Language**: TypeScript (TSX)
 **Recent Changes** (December 2025):
+- **Phase 6**: 47 Shopify Liquid filters (array: 11, string: 16, math: 8, color: 12) with DoS prevention & security hardening
+  - `liquidFilters.ts` (285 lines): array, string, math filter implementations
+  - `colorFilters.ts` (325 lines): RGB/HSL/hex color space conversions & manipulations
+  - `useLiquidRenderer.ts` (462 lines): LiquidJS engine wrapper with filter registration
+  - Comprehensive test coverage for all filter categories
+  - Input validation: MAX_ARRAY_SIZE=10K, MAX_STRING_LENGTH=100K
+  - Color filters: parse multiple formats, convert between spaces, mix colors, accessibility-aware
 - **Phase 5**: SYSTEM_PROMPT rewrite (65→157 lines) with comprehensive input type catalog, validation rules, and anti-pattern guide
 - **251209**: Redirect after save feature with toast notifications
 - **251209**: s-select and s-text-field component consolidation

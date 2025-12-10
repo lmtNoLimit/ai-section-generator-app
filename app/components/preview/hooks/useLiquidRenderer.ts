@@ -3,6 +3,8 @@ import { Liquid, TopLevelToken, Context, Template } from 'liquidjs';
 import type { PreviewSettings } from '../types';
 import type { BlockInstance } from '../schema/SchemaTypes';
 import { BlockDrop } from '../drops';
+import { arrayFilters, stringFilters, mathFilters } from '../utils/liquidFilters';
+import { colorFilters } from '../utils/colorFilters';
 
 interface RenderResult {
   html: string;
@@ -162,12 +164,25 @@ export function useLiquidRenderer(): UseLiquidRendererResult {
     engine.registerFilter('divided_by', (a: number, b: number) => Math.floor(a / b));
     engine.registerFilter('modulo', (a: number, b: number) => a % b);
 
-    // Color filters (stubs)
-    engine.registerFilter('color_to_rgb', (color: string) => color);
-    engine.registerFilter('color_to_hsl', (color: string) => color);
-    engine.registerFilter('color_modify', (color: string) => color);
-    engine.registerFilter('color_lighten', (color: string) => color);
-    engine.registerFilter('color_darken', (color: string) => color);
+    // Register array filters (first, last, map, compact, concat, etc.)
+    Object.entries(arrayFilters).forEach(([name, fn]) => {
+      engine.registerFilter(name, fn as (...args: unknown[]) => unknown);
+    });
+
+    // Register string filters (escape_once, newline_to_br, strip_html, etc.)
+    Object.entries(stringFilters).forEach(([name, fn]) => {
+      engine.registerFilter(name, fn as (...args: unknown[]) => unknown);
+    });
+
+    // Register math filters (abs, at_least, at_most, ceil, floor, round, plus, minus)
+    Object.entries(mathFilters).forEach(([name, fn]) => {
+      engine.registerFilter(name, fn as (...args: unknown[]) => unknown);
+    });
+
+    // Register color filters (replace stubs with real implementations)
+    Object.entries(colorFilters).forEach(([name, fn]) => {
+      engine.registerFilter(name, fn as (...args: unknown[]) => unknown);
+    });
 
     // Register Shopify-specific custom tags for preview support
     // These tags are not in standard Liquid but required by Shopify sections
