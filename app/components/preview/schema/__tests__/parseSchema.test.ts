@@ -1,5 +1,5 @@
-import { resolveTranslationKey, extractSettings, extractBlocks } from '../parseSchema';
-import type { SchemaDefinition } from '../SchemaTypes';
+import { resolveTranslationKey, extractSettings, extractBlocks, buildInitialState } from '../parseSchema';
+import type { SchemaDefinition, SchemaSetting } from '../SchemaTypes';
 
 describe('resolveTranslationKey', () => {
   it('resolves translation key with label suffix', () => {
@@ -191,5 +191,123 @@ describe('extractBlocks', () => {
     expect(blocks[0].settings?.[0].label).toBe('Style');
     expect(blocks[0].settings?.[0].options?.[0].label).toBe('Style');
     expect(blocks[0].settings?.[0].options?.[1].label).toBe('Style');
+  });
+});
+
+describe('buildInitialState - expanded defaults', () => {
+  it('sets font_picker default to system-ui', () => {
+    const settings: SchemaSetting[] = [{ type: 'font_picker', id: 'font', label: 'Font' }];
+    const state = buildInitialState(settings);
+    expect(state.font).toBe('system-ui');
+  });
+
+  it('sets text_alignment default to left', () => {
+    const settings: SchemaSetting[] = [{ type: 'text_alignment', id: 'align', label: 'Align' }];
+    const state = buildInitialState(settings);
+    expect(state.align).toBe('left');
+  });
+
+  it('sets radio default to first option', () => {
+    const settings: SchemaSetting[] = [{
+      type: 'radio',
+      id: 'layout',
+      label: 'Layout',
+      options: [{ value: 'grid', label: 'Grid' }, { value: 'list', label: 'List' }]
+    }];
+    const state = buildInitialState(settings);
+    expect(state.layout).toBe('grid');
+  });
+
+  it('sets collection_list default to empty JSON array', () => {
+    const settings: SchemaSetting[] = [{ type: 'collection_list', id: 'collections', label: 'Collections' }];
+    const state = buildInitialState(settings);
+    expect(state.collections).toBe('[]');
+  });
+
+  it('sets product_list default to empty JSON array', () => {
+    const settings: SchemaSetting[] = [{ type: 'product_list', id: 'products', label: 'Products' }];
+    const state = buildInitialState(settings);
+    expect(state.products).toBe('[]');
+  });
+
+  it('sets url default to #', () => {
+    const settings: SchemaSetting[] = [{ type: 'url', id: 'link', label: 'Link' }];
+    const state = buildInitialState(settings);
+    expect(state.link).toBe('#');
+  });
+
+  it('uses explicit default over type default', () => {
+    const settings: SchemaSetting[] = [{ type: 'url', id: 'link', label: 'Link', default: '/products' }];
+    const state = buildInitialState(settings);
+    expect(state.link).toBe('/products');
+  });
+
+  it('sets image_picker default to placeholder', () => {
+    const settings: SchemaSetting[] = [{ type: 'image_picker', id: 'image', label: 'Image' }];
+    const state = buildInitialState(settings);
+    expect(state.image).toBe('placeholder');
+  });
+
+  it('sets checkbox default to false', () => {
+    const settings: SchemaSetting[] = [{ type: 'checkbox', id: 'enabled', label: 'Enabled' }];
+    const state = buildInitialState(settings);
+    expect(state.enabled).toBe(false);
+  });
+
+  it('sets color default to #000000', () => {
+    const settings: SchemaSetting[] = [{ type: 'color', id: 'text_color', label: 'Text Color' }];
+    const state = buildInitialState(settings);
+    expect(state.text_color).toBe('#000000');
+  });
+
+  it('sets number default to min value or 0', () => {
+    const settings: SchemaSetting[] = [
+      { type: 'number', id: 'count', label: 'Count' },
+      { type: 'range', id: 'opacity', label: 'Opacity', min: 0.5, max: 1 }
+    ];
+    const state = buildInitialState(settings);
+    expect(state.count).toBe(0);
+    expect(state.opacity).toBe(0.5);
+  });
+
+  it('sets select default to first option value', () => {
+    const settings: SchemaSetting[] = [{
+      type: 'select',
+      id: 'size',
+      label: 'Size',
+      options: [{ value: 'small', label: 'Small' }, { value: 'large', label: 'Large' }]
+    }];
+    const state = buildInitialState(settings);
+    expect(state.size).toBe('small');
+  });
+
+  it('sets resource types to empty string', () => {
+    const settings: SchemaSetting[] = [
+      { type: 'product', id: 'featured_product', label: 'Product' },
+      { type: 'collection', id: 'featured_collection', label: 'Collection' },
+      { type: 'article', id: 'featured_article', label: 'Article' },
+      { type: 'blog', id: 'featured_blog', label: 'Blog' },
+      { type: 'page', id: 'featured_page', label: 'Page' },
+      { type: 'link_list', id: 'menu', label: 'Menu' }
+    ];
+    const state = buildInitialState(settings);
+    expect(state.featured_product).toBe('');
+    expect(state.featured_collection).toBe('');
+    expect(state.featured_article).toBe('');
+    expect(state.featured_blog).toBe('');
+    expect(state.featured_page).toBe('');
+    expect(state.menu).toBe('');
+  });
+
+  it('skips header and paragraph display-only types', () => {
+    const settings: SchemaSetting[] = [
+      { type: 'header', id: 'header1', label: 'Section Header' },
+      { type: 'paragraph', id: 'para1', label: 'Info text' },
+      { type: 'text', id: 'title', label: 'Title' }
+    ];
+    const state = buildInitialState(settings);
+    expect(state.header1).toBeUndefined();
+    expect(state.para1).toBeUndefined();
+    expect(state.title).toBe('');
   });
 });

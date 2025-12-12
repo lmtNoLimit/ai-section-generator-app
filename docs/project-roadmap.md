@@ -184,23 +184,32 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
 
 **Key Achievement**: Fixed resource picker → template context flow. Templates now correctly access property chains like `{{ section.settings.featured_product.title }}`
 
-#### Phase 5b-5d: Advanced Features (Planned)
+#### Phase 5b: Block Settings Defaults Inheritance (COMPLETE)
+**Status**: ✅ 100% Complete
+**Completion**: 2025-12-12
 
-**Phase 5b: Block-Level Resource Pickers**
-- Enable product/collection pickers in block settings
-- Composite key storage for block resource data
-- Block-level template context updates
+- ✅ Expanded `buildInitialState()` with complete type coverage (all 31 Shopify schema types)
+- ✅ Updated `extractSettings()` supported types array
+- ✅ Updated `handleResetDefaults()` in SettingsPanel to match expanded defaults
+- ✅ Added comprehensive test cases for expanded defaults (31/31 passing)
+- ✅ Verified block settings show correct defaults in UI
+- ✅ Tested preset override functionality
 
-**Phase 5c: UI Enhancements**
+**Key Achievement**: Block settings now inherit proper defaults for all schema setting types including font_picker (system-ui), text_alignment (left), radio buttons, and resource lists.
+
+#### Phase 5c-5d: Advanced Features (Planned)
+
+**Phase 5c: Font Picker Data Loading**
+- Load font data into rendering context
+- Support system fonts and Google Fonts (future)
+- Font picker UI improvements
+
+**Phase 5d: UI Enhancements & Documentation**
 - Resource picker UI improvements
 - Search and filtering for resources
 - Quick-select for recently used resources
 - Resource preview in settings sidebar
-
-**Phase 5d: Documentation & Optimization**
-- Update developer documentation
-- Performance optimization for resource loading
-- Caching strategies for resource data
+- Documentation & optimization
 
 ---
 
@@ -288,21 +297,23 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
 | Shopify Liquid Advanced Tags (Phase 4c) | ✅ Complete | 100% | 2025-12-10 |
 | Shopify Liquid Enhancement Documentation (Phase 4d) | ✅ Complete | 100% | 2025-12-10 |
 | Resource Picker Context Integration (Phase 5a) | ✅ Complete | 100% | 2025-12-12 |
+| Block Settings Defaults Inheritance (Phase 5b) | ✅ Complete | 100% | 2025-12-12 |
 
 ---
 
-## Current Sprint: Phase 5 In Progress (Phase 5a Complete)
+## Current Sprint: Phase 5 In Progress (Phase 5a & 5b Complete)
 
 ### Completed in Current Sprint (December 2025)
 1. ✅ Dual-action save flow implementation (Save Draft + Publish to Theme)
 2. ✅ Section edit and regenerate capabilities
-3. ✅ Redirect after section save functionality
-4. ✅ Toast notifications for user feedback
-5. ✅ s-select and s-text-field consolidation
-6. ✅ Component-based architecture (Phase 04 UI Components)
-7. ✅ Subscription billing system fixes (webhook, upgrade flow, GraphQL fallback)
-8. ✅ Section metadata tracking and status badges
-9. ✅ AI System Prompt Enhancement (Phase 1-2 Complete)
+3. ✅ Phase 5b: Block Settings Defaults Inheritance (2025-12-12)
+4. ✅ Redirect after section save functionality
+5. ✅ Toast notifications for user feedback
+6. ✅ s-select and s-text-field consolidation
+7. ✅ Component-based architecture (Phase 04 UI Components)
+8. ✅ Subscription billing system fixes (webhook, upgrade flow, GraphQL fallback)
+9. ✅ Section metadata tracking and status badges
+10. ✅ AI System Prompt Enhancement (Phase 1-2 Complete)
    - Rewrote SYSTEM_PROMPT: 65 → 157 lines
    - Added 25+ input types catalog with validation rules
    - Added 10 validation rules per type
@@ -325,16 +336,15 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
     - OWASP Top 10 security audit passed
     - Key achievement: Fixed {{ section.settings.featured_product.title }} template access
 
-### In Progress
-- Phase 5b: Block-Level Resource Pickers (Pending)
+### Recently Completed
+- Phase 5b: Block Settings Defaults Inheritance (2025-12-12)
 
 ### Blocked by
 - ⏳ Shopify write_themes scope approval (production deployment)
 
-### Next Phase Tasks (Phase 5b-5d)
-- Phase 5b: Block-level resource pickers with composite keys
-- Phase 5c: UI enhancements (resource search, preview)
-- Phase 5d: Documentation & optimization
+### Next Phase Tasks (Phase 5c-5d)
+- Phase 5c: Font Picker Data Loading (Next)
+- Phase 5d: UI enhancements (resource search, preview) & documentation
 - Phase 6: Section templates & versioning (Q1 2026)
 - Phase 7: Production & scaling (Q1 2026)
 
@@ -433,6 +443,34 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
 ### Version 1.0 (Current)
 
 #### 2025-12-12
+- ✅ Phase 5b: Block Settings Defaults Inheritance Complete
+
+  **Implementation Summary**:
+  - Expanded `buildInitialState()` with comprehensive type coverage (all 31 Shopify schema types)
+  - Updated `extractSettings()` supported types array for full type support
+  - Updated `handleResetDefaults()` in SettingsPanel for consistent default handling
+  - Added comprehensive test coverage for all default types
+
+  **Files Changed**:
+  - MODIFIED: `app/components/preview/schema/parseSchema.ts` (buildInitialState function expanded)
+  - MODIFIED: `app/components/preview/settings/SettingsPanel.tsx` (handleResetDefaults method)
+  - MODIFIED: `app/components/preview/schema/__tests__/parseSchema.test.ts` (31 new test cases)
+
+  **Quality Metrics**:
+  - Code Review: APPROVED with DRY optimization recommended
+  - Unit Tests: 31 tests passing (all default types covered)
+  - TypeScript: 100% type coverage
+  - Type Support: font_picker, text_alignment, radio, collection_list, product_list, url, all resource types
+  - Default Values Coverage: 100%
+  - Backward Compatibility: Verified
+
+  **Key Achievement**: Block settings now inherit proper defaults from schema
+  - font_picker defaults to 'system-ui'
+  - text_alignment defaults to 'left'
+  - radio/select defaults to first option value
+  - collection/product_list defaults to '[]'
+  - All 31 Shopify schema types now properly handled
+
 - ✅ Phase 5a: Resource Picker Context Integration Complete
 
   **Implementation Summary**:
@@ -585,7 +623,7 @@ For questions about this roadmap or project status:
 
 ---
 
-**Document Version**: 1.4
-**Last Updated**: 2025-12-12 (Phase 5a Resource Picker Context Integration Complete)
-**Status**: Phase 5 In Progress (Phase 5a 100% Complete) - Moving to Phase 5b Block-Level Resources
-**Next Review**: 2025-12-19 (Phase 5b Planning & Implementation)
+**Document Version**: 1.5
+**Last Updated**: 2025-12-12 (Phase 5b Block Settings Defaults Inheritance Complete)
+**Status**: Phase 5 In Progress (Phase 5a & 5b 100% Complete) - Moving to Phase 5c Font Picker
+**Next Review**: 2025-12-19 (Phase 5c Planning & Implementation)

@@ -111,13 +111,29 @@ export function extractSettings(schema: SchemaDefinition | null): SchemaSetting[
     return [];
   }
 
-  // Filter to only editable setting types (exclude headers/paragraphs)
+  // All editable setting types (exclude header/paragraph display-only)
   const supportedTypes = [
-    'text', 'textarea', 'richtext', 'number', 'range',
-    'checkbox', 'select', 'color', 'color_background',
-    'image_picker', 'url', 'html',
-    // Resource types
-    'product', 'collection'
+    // Text inputs
+    'text', 'textarea', 'richtext', 'inline_richtext', 'html', 'liquid', 'url',
+    // Numbers
+    'number', 'range',
+    // Boolean
+    'checkbox',
+    // Selection
+    'select', 'radio', 'text_alignment',
+    // Colors
+    'color', 'color_background',
+    // Media
+    'image_picker', 'video', 'video_url',
+    // Typography
+    'font_picker',
+    // Single resource pickers
+    'product', 'collection', 'article', 'blog', 'page', 'link_list',
+    // Multi-select resources
+    'product_list', 'collection_list',
+    // Advanced (partial support)
+    'metaobject', 'metaobject_list',
+    'color_scheme', 'color_scheme_group'
   ];
 
   return schema.settings
@@ -127,37 +143,115 @@ export function extractSettings(schema: SchemaDefinition | null): SchemaSetting[
 
 /**
  * Build initial state from schema defaults
+ * Covers all 31 Shopify schema setting types
  */
 export function buildInitialState(settings: SchemaSetting[]): SettingsState {
   const state: SettingsState = {};
 
   for (const setting of settings) {
+    // Use explicit default if provided
     if (setting.default !== undefined) {
       state[setting.id] = setting.default;
-    } else {
-      // Provide sensible defaults by type
-      switch (setting.type) {
-        case 'checkbox':
-          state[setting.id] = false;
-          break;
-        case 'number':
-        case 'range':
-          state[setting.id] = setting.min ?? 0;
-          break;
-        case 'color':
-        case 'color_background':
-          state[setting.id] = '#000000';
-          break;
-        case 'select':
-          state[setting.id] = setting.options?.[0]?.value ?? '';
-          break;
-        case 'image_picker':
-          // Use 'placeholder' marker which Liquid filters will convert to actual placeholder SVG
-          state[setting.id] = 'placeholder';
-          break;
-        default:
-          state[setting.id] = '';
-      }
+      continue;
+    }
+
+    // Type-specific fallback defaults
+    switch (setting.type) {
+      // Boolean
+      case 'checkbox':
+        state[setting.id] = false;
+        break;
+
+      // Numbers
+      case 'number':
+      case 'range':
+        state[setting.id] = setting.min ?? 0;
+        break;
+
+      // Colors
+      case 'color':
+      case 'color_background':
+        state[setting.id] = '#000000';
+        break;
+
+      // Selection (use first option)
+      case 'select':
+      case 'radio':
+        state[setting.id] = setting.options?.[0]?.value ?? '';
+        break;
+
+      // Text alignment
+      case 'text_alignment':
+        state[setting.id] = 'left';
+        break;
+
+      // Font picker
+      case 'font_picker':
+        state[setting.id] = 'system-ui';
+        break;
+
+      // Media pickers
+      case 'image_picker':
+        state[setting.id] = 'placeholder';
+        break;
+
+      case 'video':
+      case 'video_url':
+        state[setting.id] = '';
+        break;
+
+      // Resource pickers (no defaults per Shopify spec)
+      case 'product':
+      case 'collection':
+      case 'article':
+      case 'blog':
+      case 'page':
+      case 'link_list':
+        state[setting.id] = '';
+        break;
+
+      // Resource lists (empty array as JSON string)
+      case 'product_list':
+      case 'collection_list':
+        state[setting.id] = '[]';
+        break;
+
+      // URL (recommend '#' for buttons)
+      case 'url':
+        state[setting.id] = '#';
+        break;
+
+      // Text inputs
+      case 'text':
+      case 'textarea':
+      case 'richtext':
+      case 'inline_richtext':
+      case 'html':
+      case 'liquid':
+        state[setting.id] = '';
+        break;
+
+      // Display-only types (header, paragraph) - no value needed
+      case 'header':
+      case 'paragraph':
+        // These don't store values, skip assignment
+        break;
+
+      // Metaobjects (advanced)
+      case 'metaobject':
+      case 'metaobject_list':
+        state[setting.id] = '';
+        break;
+
+      // Color schemes (advanced)
+      case 'color_scheme':
+      case 'color_scheme_group':
+        state[setting.id] = '';
+        break;
+
+      // Fallback for any unknown types
+      default:
+        state[setting.id] = '';
     }
   }
 

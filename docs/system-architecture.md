@@ -338,6 +338,70 @@ Template can now use: {{ section.settings.featured_product.title }}
 
 ---
 
+#### Phase 02: Block Defaults & Schema Parsing Expansion
+
+**Purpose**: Provide comprehensive default value handling for all 31 Shopify schema setting types, ensuring blocks render correctly with sensible defaults. DRY refactor using shared `buildInitialState()` function across components.
+
+**Key Changes**:
+
+1. **Enhanced buildInitialState() Function** (`app/components/preview/schema/parseSchema.ts`)
+   - **Coverage**: All 31 Shopify setting types (previously ~10)
+   - **Type-Specific Defaults**:
+     - Text inputs (text, textarea, richtext, inline_richtext, html, liquid): `''` (empty string)
+     - Numbers (number, range): `setting.min ?? 0`
+     - Boolean (checkbox): `false`
+     - Colors (color, color_background): `'#000000'`
+     - Selection (select, radio): First option value
+     - Text alignment: `'left'`
+     - Font picker: `'system-ui'`
+     - Media (image_picker): `'placeholder'` (preview only)
+     - Video (video, video_url): `''`
+     - URL: `'#'` (for button links)
+     - Resource pickers (product, collection, article, blog, page, link_list): `''` (empty)
+     - Resource lists (product_list, collection_list): `'[]'` (JSON string)
+     - Metaobjects (metaobject, metaobject_list): `''`
+     - Color schemes (color_scheme, color_scheme_group): `''`
+     - Display-only (header, paragraph): Skip (no value needed)
+
+2. **DRY Refactor in SettingsPanel** (`app/components/preview/settings/SettingsPanel.tsx`)
+   - `handleResetDefaults()` now uses `buildInitialState(settings)` instead of inline defaults
+   - Single source of truth for default value logic
+   - Reduced code duplication
+
+3. **Enhanced Schema Parser** (`app/components/preview/schema/parseSchema.ts`)
+   - `extractSettings()` explicitly supports 25+ types
+   - `buildBlockInstancesFromPreset()` initializes block settings with proper defaults
+   - Respects explicit `default` field when provided by schema author
+
+4. **Test Coverage** (`app/components/preview/schema/__tests__/parseSchema.test.ts`)
+   - 14 new test cases covering buildInitialState()
+   - Tests for each major type category
+   - Validates explicit defaults override type defaults
+   - Tests resource lists, colors, fonts, text alignment
+
+**Data Flow**:
+```
+Schema Definition (with or without defaults)
+    ↓
+extractSettings() → Filter supported types
+    ↓
+buildInitialState() → Apply type-specific defaults
+    ↓
+SettingsPanel → Initial form state & Reset button
+    ↓
+Liquid Preview → Populated with default values
+```
+
+**Benefits**:
+- Eliminates "undefined" values in block previews
+- Consistent default behavior across all setting types
+- Blocks render immediately with sensible defaults
+- DRY principle - single source for defaults
+- Type-safe with comprehensive test coverage
+- Supports both explicit schema defaults and fallback type defaults
+
+---
+
 ### 2. Business Logic Layer
 
 **Location**: `app/services/`
@@ -1275,13 +1339,16 @@ const text = result.response.text();
 
 ---
 
-**Document Version**: 1.5
+**Document Version**: 1.6
 **Last Updated**: 2025-12-12
-**Architecture Status**: Phase 1 Resource Context Integration Complete, Production Ready for Testing
+**Architecture Status**: Phase 02 Block Defaults Complete, Phase 01 Resource Context Done
 **Recent Changes** (December 2025):
+- **251212**: Phase 02 Block Defaults - Expanded buildInitialState() to support all 31 Shopify schema types, DRY refactor with shared function in SettingsPanel
 - **251212**: Phase 01 Resource Context Integration - SectionSettingsDrop for property chaining ({{ section.settings.featured_product.title }})
 - **251209**: Redirect after save with toast notifications (Section edit flow complete)
 - **251209**: s-select and s-text-field Web Components consolidation
 - **251202**: Subscription billing fixes - webhook processing, upgrade flow, GraphQL fallback
 - **Phase 04**: Component layer with 9 reusable UI components (Button, Card, Banner, PromptInput, ThemeSelector, CodePreview, SectionNameInput, GenerateActions, ServiceModeIndicator)
 - **Phase 03**: Feature flag system, adapter pattern with mock services, dual-action save flow, section editing
+- **Phase 02**: Block defaults and schema parsing expansion for 31 Shopify setting types
+- **Phase 01**: Resource context integration with SectionSettingsDrop

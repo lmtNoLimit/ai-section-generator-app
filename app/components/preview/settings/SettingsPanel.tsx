@@ -4,6 +4,7 @@ import type { SelectedResource } from '../ResourceSelector';
 import type { DeviceSize } from '../types';
 import { SettingField } from './SettingField';
 import { ImagePickerModal } from './ImagePickerModal';
+import { buildInitialState } from '../schema/parseSchema';
 
 
 export interface SettingsPanelProps {
@@ -150,43 +151,7 @@ export function SettingsPanel({
   };
 
   const handleResetDefaults = () => {
-    const defaults: SettingsState = {};
-    for (const setting of settings) {
-      if (setting.default !== undefined) {
-        defaults[setting.id] = setting.default;
-      } else {
-        switch (setting.type) {
-          case 'checkbox':
-            defaults[setting.id] = false;
-            break;
-          case 'number':
-          case 'range':
-            defaults[setting.id] = setting.min ?? 0;
-            break;
-          case 'color':
-          case 'color_background':
-            defaults[setting.id] = '#000000';
-            break;
-          case 'select':
-          case 'radio':
-            defaults[setting.id] = setting.options?.[0]?.value ?? '';
-            break;
-          case 'font_picker':
-            defaults[setting.id] = 'system-ui';
-            break;
-          case 'text_alignment':
-            defaults[setting.id] = 'left';
-            break;
-          case 'collection_list':
-          case 'product_list':
-            defaults[setting.id] = '[]';
-            break;
-          default:
-            defaults[setting.id] = '';
-        }
-      }
-    }
-    onChange(defaults);
+    onChange(buildInitialState(settings));
   };
 
   return (

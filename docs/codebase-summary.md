@@ -35,17 +35,33 @@ ai-section-generator/
 │   │   │   ├── SectionNameInput.tsx # Filename input
 │   │   │   └── GenerateActions.tsx  # Generate/Save buttons
 │   │   ├── preview/              # Section preview system (Phase 3-6)
+│   │   │   ├── schema/           # Schema parsing & defaults (Phase 02 EXPANDED)
+│   │   │   │   ├── parseSchema.ts     # Schema parser with all 31 Shopify types (293 lines, expanded Phase 02)
+│   │   │   │   │   - buildInitialState() - Covers all 31 Shopify setting types with type-specific defaults
+│   │   │   │   │   - extractSettings() - Filters & resolves 25+ supported types
+│   │   │   │   │   - extractBlocks() - Block definitions with translation resolution
+│   │   │   │   │   - buildBlockInstancesFromPreset() - Initializes blocks with defaults
+│   │   │   │   ├── SchemaTypes.ts # Type definitions (SchemaSetting, BlockInstance, etc)
+│   │   │   │   └── __tests__/parseSchema.test.ts # 14 test cases (expanded Phase 02)
+│   │   │   │       - 5 buildInitialState() defaults tests
+│   │   │   │       - 9 resolveTranslationKey() tests
+│   │   │   │       - Translation & block tests
+│   │   │   ├── settings/         # Settings panel & rendering (Phase 02 REFACTORED)
+│   │   │   │   ├── SettingsPanel.tsx  # Settings form (uses shared buildInitialState, Phase 02 DRY)
+│   │   │   │   ├── SettingField.tsx   # Individual setting renderer
+│   │   │   │   ├── ImagePickerModal.tsx # Image picker dialog
+│   │   │   │   └── ResourceSelector.tsx # Resource picker context
 │   │   │   ├── utils/            # Liquid filter utilities
-│   │   │   │   ├── liquidTags.ts     # Shopify tags (form, paginate, style, tablerow, etc. - 455 lines, NEW Phase 3)
+│   │   │   │   ├── liquidTags.ts     # Shopify tags (form, paginate, style, tablerow, etc. - 455 lines)
 │   │   │   │   ├── liquidFilters.ts  # Array, string, math filters (285 lines)
 │   │   │   │   ├── colorFilters.ts   # Color manipulation filters (325 lines)
 │   │   │   │   └── __tests__/    # Filter & tag test suites
 │   │   │   ├── hooks/            # Preview rendering hooks
 │   │   │   │   └── useLiquidRenderer.ts # LiquidJS engine wrapper with tag registration (462 lines)
-│   │   │   │       - Updated Phase 01 to use SectionSettingsDrop for resource context
+│   │   │   │       - Uses SectionSettingsDrop for resource context
 │   │   │   └── drops/            # Shopify drop objects (Phase 01-02)
-│   │   │       ├── SectionSettingsDrop.ts  # Resource context integration (NEW Phase 01)
-│   │   │       ├── __tests__/SectionSettingsDrop.test.ts # 13 resource tests (NEW Phase 01)
+│   │   │       ├── SectionSettingsDrop.ts  # Resource context integration (Phase 01)
+│   │   │       ├── __tests__/SectionSettingsDrop.test.ts # 13 resource tests (Phase 01)
 │   │   ├── ServiceModeIndicator.tsx # Debug mode indicator
 │   │   └── index.ts              # Barrel export file
 │   ├── services/                 # Business logic layer
