@@ -2,7 +2,6 @@ import { PromptInput } from "./PromptInput";
 import { TemplateSuggestions } from "./TemplateSuggestions";
 import { PromptExamples } from "./PromptExamples";
 import { AdvancedOptions, type AdvancedOptionsState } from "./AdvancedOptions";
-import { SectionTypeSelector, type SectionType } from "./SectionTypeSelector";
 
 export interface GenerateInputColumnProps {
   prompt: string;
@@ -10,8 +9,6 @@ export interface GenerateInputColumnProps {
   sectionName?: string;
   onSectionNameChange?: (value: string) => void;
   onSectionNameBlur?: () => void;
-  sectionType: SectionType;
-  onSectionTypeChange: (type: SectionType) => void;
   advancedOptions: AdvancedOptionsState;
   onAdvancedOptionsChange: (options: AdvancedOptionsState) => void;
   disabled: boolean;
@@ -30,8 +27,6 @@ export function GenerateInputColumn({
   sectionName,
   onSectionNameChange,
   onSectionNameBlur,
-  sectionType,
-  onSectionTypeChange,
   advancedOptions,
   onAdvancedOptionsChange,
   disabled,
@@ -47,12 +42,6 @@ export function GenerateInputColumn({
       {/* Main input section */}
       <s-section heading="Describe your section">
         <s-stack gap="large" direction="block">
-          <SectionTypeSelector
-            value={sectionType}
-            onChange={onSectionTypeChange}
-            disabled={disabled}
-          />
-
           <PromptInput
             value={prompt}
             onChange={onPromptChange}

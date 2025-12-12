@@ -3,7 +3,6 @@ import { useState } from 'react';
 export interface AdvancedOptionsState {
   tone: 'professional' | 'casual' | 'friendly';
   style: 'minimal' | 'bold' | 'elegant';
-  // includeSchema is now controlled by sectionType in parent component
   includeSchema: boolean;
 }
 
@@ -15,7 +14,7 @@ export interface AdvancedOptionsProps {
 
 /**
  * Collapsible advanced options for generation customization
- * Tone and style settings (includeSchema controlled by SectionTypeSelector)
+ * Tone and style settings for AI-generated sections
  */
 export function AdvancedOptions({
   value,

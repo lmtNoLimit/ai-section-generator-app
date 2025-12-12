@@ -6,9 +6,6 @@
 import type { Theme, ThemeFileMetadata } from './shopify-api.types';
 import type { QuotaCheck } from './billing';
 
-// Section Type for generation mode
-export type SectionType = 'customizable' | 'production-ready';
-
 // AI Service Types
 export interface AIGenerationOptions {
   prompt: string;

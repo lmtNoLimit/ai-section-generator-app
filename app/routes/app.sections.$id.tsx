@@ -25,7 +25,6 @@ import { GenerateInputColumn } from "../components/generate/GenerateInputColumn"
 import { GeneratePreviewColumn } from "../components/generate/GeneratePreviewColumn";
 import { SaveTemplateModal } from "../components/generate/SaveTemplateModal";
 import type { AdvancedOptionsState } from "../components/generate/AdvancedOptions";
-import type { SectionType } from "../components/generate/SectionTypeSelector";
 import { DeleteConfirmModal } from "../components/sections/DeleteConfirmModal";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -280,23 +279,12 @@ export default function SectionEditPage() {
   const [sectionName, setSectionName] = useState(generation.name || "");
   const [generatedCode, setGeneratedCode] = useState(generation.code);
 
-  // Section type state (customizable vs production-ready) - default based on existing section
-  const [sectionType, setSectionType] = useState<SectionType>('customizable');
-
   // Advanced options state
   const [advancedOptions, setAdvancedOptions] = useState<AdvancedOptionsState>({
     tone: (generation.tone as AdvancedOptionsState["tone"]) || "professional",
     style: (generation.style as AdvancedOptionsState["style"]) || "minimal",
     includeSchema: true,
   });
-
-  // Auto-sync includeSchema with sectionType
-  useEffect(() => {
-    setAdvancedOptions(prev => ({
-      ...prev,
-      includeSchema: sectionType === 'customizable'
-    }));
-  }, [sectionType]);
 
   // Theme selection - use original theme if available, else active theme, else first theme
   const originalTheme = themes.find((t: Theme) => t.id === generation.themeId);
@@ -362,7 +350,6 @@ export default function SectionEditPage() {
     formData.append("name", sectionName);
     formData.append("tone", advancedOptions.tone);
     formData.append("style", advancedOptions.style);
-    formData.append("sectionType", sectionType);
     submit(formData, { method: "post" });
   };
 
@@ -494,8 +481,6 @@ export default function SectionEditPage() {
                 sectionName={sectionName}
                 onSectionNameChange={setSectionName}
                 onSectionNameBlur={handleNameBlur}
-                sectionType={sectionType}
-                onSectionTypeChange={setSectionType}
                 advancedOptions={advancedOptions}
                 onAdvancedOptionsChange={setAdvancedOptions}
                 disabled={isGenerating || isSaving}
