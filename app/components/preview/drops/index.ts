@@ -22,3 +22,5 @@ export { PaginateDrop } from './PaginateDrop';
 export { ThemeDrop, SettingsDrop } from './ThemeDrop';
 // Phase 4: Media Drop
 export { MediaDrop } from './MediaDrop';
+// Phase 1: Resource Context Integration
+export { SectionSettingsDrop } from './SectionSettingsDrop';

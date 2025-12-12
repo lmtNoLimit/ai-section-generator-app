@@ -275,6 +275,67 @@ AI Section Generator is a **serverless embedded Shopify app** built on React Rou
 - React 18 hooks (useState, useEffect, etc.)
 - Component-based architecture (Phase 04)
 
+#### Phase 01: Resource Context Integration (NEW)
+
+**Purpose**: Enable dynamic property chaining from resource picker selections into Liquid templates
+
+**Architecture**:
+```
+Resource Picker Selection (Product/Collection)
+    ↓
+settingsResourceDrops (Record<key, ProductDrop | CollectionDrop>)
+    ↓
+SectionSettingsDrop (merges primitives + resource Drops)
+    ↓
+useLiquidRenderer instantiates SectionSettingsDrop
+    ↓
+Liquid Template: {{ section.settings.featured_product.title }}
+```
+
+**Key Components**:
+
+1. **SectionSettingsDrop Class** (`app/components/preview/drops/SectionSettingsDrop.ts`)
+   - Extends `ShopifyDrop` for LiquidJS compatibility
+   - Dual-source property resolution:
+     - Resource Drops (ProductDrop, CollectionDrop) take precedence
+     - Primitive settings (text, number, color, boolean) as fallback
+   - Implements `liquidMethodMissing(key)` for dynamic property access
+   - Implements `[Symbol.iterator]()` for loop iteration support
+   - Type-safe with TypeScript generics
+
+2. **LiquidJS Integration** (`app/components/preview/hooks/useLiquidRenderer.ts`)
+   - Extracts `settingsResourceDrops` from mockData
+   - Instantiates `SectionSettingsDrop` with primitives + resources
+   - Passes as `section.settings` in Liquid context
+   - Enables nested property chains in templates
+
+3. **Test Coverage** (`app/components/preview/drops/__tests__/SectionSettingsDrop.test.ts`)
+   - 13 comprehensive test suites
+   - Validates primitive settings, resource drops, precedence, iteration, empty states
+   - Tests multiple resource support (multiple products + collections)
+
+**Data Flow Example**:
+```
+Schema Definition: { "name": "featured_product", "type": "product" }
+       ↓
+User selects product via picker → productId stored
+       ↓
+ProductDrop created from selected product data
+       ↓
+settingsResourceDrops = { featured_product: ProductDrop }
+       ↓
+SectionSettingsDrop created with settings + resourceDrops
+       ↓
+Template can now use: {{ section.settings.featured_product.title }}
+```
+
+**Benefits**:
+- Closes the gap between resource picker → template context
+- Enables complex property chains (nested object access)
+- Supports both primitive and resource-type settings
+- Maintains backward compatibility with primitive-only settings
+- Type-safe with comprehensive test coverage
+
 ---
 
 ### 2. Business Logic Layer
@@ -1214,10 +1275,11 @@ const text = result.response.text();
 
 ---
 
-**Document Version**: 1.4
-**Last Updated**: 2025-12-09
-**Architecture Status**: Phase 3 Complete (96%), Production Ready for Testing
+**Document Version**: 1.5
+**Last Updated**: 2025-12-12
+**Architecture Status**: Phase 1 Resource Context Integration Complete, Production Ready for Testing
 **Recent Changes** (December 2025):
+- **251212**: Phase 01 Resource Context Integration - SectionSettingsDrop for property chaining ({{ section.settings.featured_product.title }})
 - **251209**: Redirect after save with toast notifications (Section edit flow complete)
 - **251209**: s-select and s-text-field Web Components consolidation
 - **251202**: Subscription billing fixes - webhook processing, upgrade flow, GraphQL fallback

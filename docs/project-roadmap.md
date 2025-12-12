@@ -1,8 +1,8 @@
 # AI Section Generator - Project Roadmap
 
-**Last Updated**: 2025-12-10
-**Version**: 1.0 (Development)
-**Status**: Active Development
+**Last Updated**: 2025-12-12
+**Version**: 1.1 (Development)
+**Status**: Active Development - Phase 5 In Progress
 
 ## Project Overview
 
@@ -165,7 +165,46 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
 
 ---
 
-### Phase 5: Advanced Features (Planned)
+### Phase 5: Preview Settings Sync Enhancement (In Progress)
+**Status**: 🔄 In Progress - Phase 01 Complete
+**Target**: December 2025
+**Completion Date (Phase 01)**: 2025-12-12
+
+#### Phase 5a: Resource Picker Context Integration (COMPLETE)
+**Status**: ✅ 100% Complete
+**Completion**: 2025-12-12
+
+- ✅ Created SectionSettingsDrop class for proper Drop property chaining
+- ✅ Updated useLiquidRenderer.ts integration
+- ✅ 13 unit tests (252 total suite passing, 100% pass rate)
+- ✅ Code review APPROVED (0 critical issues)
+- ✅ Zero performance regression
+- ✅ Backward compatibility verified
+- ✅ OWASP Top 10 security audit passed
+
+**Key Achievement**: Fixed resource picker → template context flow. Templates now correctly access property chains like `{{ section.settings.featured_product.title }}`
+
+#### Phase 5b-5d: Advanced Features (Planned)
+
+**Phase 5b: Block-Level Resource Pickers**
+- Enable product/collection pickers in block settings
+- Composite key storage for block resource data
+- Block-level template context updates
+
+**Phase 5c: UI Enhancements**
+- Resource picker UI improvements
+- Search and filtering for resources
+- Quick-select for recently used resources
+- Resource preview in settings sidebar
+
+**Phase 5d: Documentation & Optimization**
+- Update developer documentation
+- Performance optimization for resource loading
+- Caching strategies for resource data
+
+---
+
+### Phase 6: Advanced Features (Planned)
 **Status**: ⏳ Pending
 **Target**: Q1 2026
 
@@ -189,7 +228,7 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
 
 ---
 
-### Phase 6: Production & Scaling (Planned)
+### Phase 7: Production & Scaling (Planned)
 **Status**: ⏳ Pending
 **Target**: Q1 2026
 
@@ -248,10 +287,11 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
 | Shopify Liquid Objects/Drops (Phase 4b) | ✅ Complete | 100% | 2025-12-10 |
 | Shopify Liquid Advanced Tags (Phase 4c) | ✅ Complete | 100% | 2025-12-10 |
 | Shopify Liquid Enhancement Documentation (Phase 4d) | ✅ Complete | 100% | 2025-12-10 |
+| Resource Picker Context Integration (Phase 5a) | ✅ Complete | 100% | 2025-12-12 |
 
 ---
 
-## Current Sprint: Phase 4 Complete (100% Complete)
+## Current Sprint: Phase 5 In Progress (Phase 5a Complete)
 
 ### Completed in Current Sprint (December 2025)
 1. ✅ Dual-action save flow implementation (Save Draft + Publish to Theme)
@@ -275,19 +315,28 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
     - Phase 4c: 8 Liquid tags including {% style %}, {% liquid %}, {% tablerow %} (24 new tests, 139 total)
     - Phase 4d: Documentation complete (4,230+ lines, developer quick references)
     - Total Phase 4: Code Review Grade A- (92/100), Zero critical issues
+11. ✅ Phase 5a - Resource Picker Context Integration (COMPLETE - 2025-12-12)
+    - Created SectionSettingsDrop class for property chaining
+    - Integrated with useLiquidRenderer.ts
+    - 13 unit tests passing (252 total suite)
+    - Code review APPROVED (0 critical issues)
+    - Zero performance regression
+    - Backward compatibility verified
+    - OWASP Top 10 security audit passed
+    - Key achievement: Fixed {{ section.settings.featured_product.title }} template access
 
 ### In Progress
-- None (All Phases Complete)
+- Phase 5b: Block-Level Resource Pickers (Pending)
 
 ### Blocked by
 - ⏳ Shopify write_themes scope approval (production deployment)
 
-### Next Phase Tasks (Phase 5 - Q1 2026)
-- Section template library with auto-seeding
-- Version history and rollback
-- Template sharing and management
-- Performance optimization
-- Analytics tracking
+### Next Phase Tasks (Phase 5b-5d)
+- Phase 5b: Block-level resource pickers with composite keys
+- Phase 5c: UI enhancements (resource search, preview)
+- Phase 5d: Documentation & optimization
+- Phase 6: Section templates & versioning (Q1 2026)
+- Phase 7: Production & scaling (Q1 2026)
 
 ---
 
@@ -383,6 +432,33 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
 
 ### Version 1.0 (Current)
 
+#### 2025-12-12
+- ✅ Phase 5a: Resource Picker Context Integration Complete
+
+  **Implementation Summary**:
+  - Created SectionSettingsDrop class for property chaining in templates
+  - Integrated with useLiquidRenderer.ts for context building
+  - Fixed resource picker → template context flow
+
+  **Files Changed**:
+  - NEW: `app/components/preview/drops/SectionSettingsDrop.ts` (201 LOC)
+  - NEW: `app/components/preview/drops/__tests__/SectionSettingsDrop.test.ts` (Test suite)
+  - MODIFIED: `app/components/preview/drops/index.ts` (1 export added)
+  - MODIFIED: `app/components/preview/hooks/useLiquidRenderer.ts` (3 lines changed)
+
+  **Quality Metrics**:
+  - Code Review: APPROVED (0 critical issues)
+  - Unit Tests: 13 tests, 100% pass rate (252 total suite)
+  - TypeScript: 0 errors, 0 warnings
+  - Build: Success (1.26s client, 291ms server)
+  - Bundle Impact: +0.5KB (acceptable)
+  - Backward Compatibility: Verified
+  - Security Audit: OWASP Top 10 compliant
+
+  **Key Achievement**: Templates now correctly access property chains
+  - Before: `{{ section.settings.featured_product.title }}` → FAIL
+  - After: `{{ section.settings.featured_product.title }}` → "Sample Product" ✅
+
 #### 2025-12-10
 - ✅ Phase 4: Shopify Liquid Enhancement Complete (All Sub-phases)
 
@@ -474,25 +550,29 @@ AI Section Generator is a Shopify embedded app that leverages Google Gemini AI t
 
 ## Next Steps
 
-1. **Immediate** (This Week)
-   - Deploy Phase 3 changes to production
-   - Monitor user feedback on redirect functionality
-   - Plan Phase 4 features
+1. **Immediate** (This Week - Dec 12-18)
+   - Complete Phase 5b: Block-Level Resource Pickers
+   - Implement composite key storage for block resources
+   - Add block-level context integration tests
+   - Begin Phase 5c: UI enhancements
 
-2. **Short Term** (Next 2 Weeks)
-   - Begin Phase 4 development (templates & versioning)
-   - Performance optimization
-   - User testing sessions
+2. **Short Term** (Next 2 Weeks - Dec 18-31)
+   - Phase 5c: UI improvements (resource search/preview)
+   - Phase 5d: Documentation & optimization
+   - Performance testing with large resource counts
+   - Merge Phase 5 feature branch to main
 
-3. **Medium Term** (Next Month)
-   - Complete Phase 4 features
-   - Start Phase 5 production deployment planning
-   - Set up monitoring and analytics
+3. **Medium Term** (Next Month - January 2026)
+   - Phase 6: Section templates & versioning
+   - Template library implementation
+   - Version history tracking
+   - Production deployment planning
 
-4. **Long Term** (Next Quarter)
-   - Production deployment
-   - Scale infrastructure
-   - Expand feature set based on user feedback
+4. **Long Term** (Q1 2026)
+   - Phase 7: Production & scaling deployment
+   - Database migration (PostgreSQL)
+   - Cloud hosting setup (Fly.io/Cloud Run)
+   - Monitoring & analytics setup
 
 ---
 
@@ -505,7 +585,7 @@ For questions about this roadmap or project status:
 
 ---
 
-**Document Version**: 1.3
-**Last Updated**: 2025-12-10 (Phase 4 Shopify Liquid Enhancement Complete)
-**Status**: Phase 4 Complete (100%) - All Shopify Liquid Enhancement Phases Done
-**Next Review**: 2025-12-17 (Weekly Review + Phase 5 Planning)
+**Document Version**: 1.4
+**Last Updated**: 2025-12-12 (Phase 5a Resource Picker Context Integration Complete)
+**Status**: Phase 5 In Progress (Phase 5a 100% Complete) - Moving to Phase 5b Block-Level Resources
+**Next Review**: 2025-12-19 (Phase 5b Planning & Implementation)

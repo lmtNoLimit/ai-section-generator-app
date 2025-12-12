@@ -2,7 +2,9 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Liquid } from 'liquidjs';
 import type { PreviewSettings } from '../types';
 import type { BlockInstance } from '../schema/SchemaTypes';
-import { BlockDrop } from '../drops';
+import { BlockDrop, SectionSettingsDrop } from '../drops';
+import type { ProductDrop } from '../drops/ProductDrop';
+import type { CollectionDrop } from '../drops/CollectionDrop';
 import { arrayFilters, stringFilters, mathFilters } from '../utils/liquidFilters';
 import { colorFilters } from '../utils/colorFilters';
 import { mediaFilters } from '../utils/mediaFilters';
@@ -230,21 +232,25 @@ export function useLiquidRenderer(): UseLiquidRendererResult {
       // Strip {% schema %}...{% endschema %} blocks (not renderable)
       const processedTemplate = template.replace(/\{%\s*schema\s*%\}[\s\S]*?\{%\s*endschema\s*%\}/gi, '');
 
-      // Build section settings by merging primitive values with resource drops
-      const settingsResourceDrops = mockData.settingsResourceDrops as Record<string, unknown> | undefined;
-      const mergedSettings = settingsResourceDrops
-        ? { ...settings, ...settingsResourceDrops }
-        : settings;
+      // Build section settings using SectionSettingsDrop for proper Drop property chaining
+      // This enables {{ section.settings.featured_product.title }} to work correctly
+      const settingsResourceDrops = mockData.settingsResourceDrops as
+        Record<string, ProductDrop | CollectionDrop> | undefined;
+
+      const sectionSettings = new SectionSettingsDrop(
+        settings,
+        settingsResourceDrops || {}
+      );
 
       // Build render context with section object including blocks
       const context = {
         ...mockData,
         section: {
           id: 'preview-section',
-          settings: mergedSettings,
+          settings: sectionSettings,
           blocks: blocks.map(block => new BlockDrop(block))
         },
-        settings: mergedSettings
+        settings: sectionSettings
       };
 
       // Render the full template (including {% style %} tags which output <style data-shopify-style>)

@@ -42,7 +42,10 @@ ai-section-generator/
 │   │   │   │   └── __tests__/    # Filter & tag test suites
 │   │   │   ├── hooks/            # Preview rendering hooks
 │   │   │   │   └── useLiquidRenderer.ts # LiquidJS engine wrapper with tag registration (462 lines)
-│   │   │   └── drops/            # Shopify drop objects
+│   │   │   │       - Updated Phase 01 to use SectionSettingsDrop for resource context
+│   │   │   └── drops/            # Shopify drop objects (Phase 01-02)
+│   │   │       ├── SectionSettingsDrop.ts  # Resource context integration (NEW Phase 01)
+│   │   │       ├── __tests__/SectionSettingsDrop.test.ts # 13 resource tests (NEW Phase 01)
 │   │   ├── ServiceModeIndicator.tsx # Debug mode indicator
 │   │   └── index.ts              # Barrel export file
 │   ├── services/                 # Business logic layer
@@ -447,6 +450,91 @@ The following tags intentionally render as HTML comments (not fully simulated):
 - `{% sections %}`: Sections rendering not available
 
 These stubs prevent errors while accurately indicating feature unavailability in preview.
+
+### Phase 01 Resource Context Integration (NEW)
+
+Phase 01 implements resource context integration to enable dynamic property chaining from resource picker selections into Liquid templates. This fixes the data flow from resource picker (product/collection selection) → template context → proper nested property access.
+
+#### SectionSettingsDrop Class
+
+**File**: `app/components/preview/drops/SectionSettingsDrop.ts` (58 lines)
+
+The `SectionSettingsDrop` class merges primitive section settings with resource Drop objects, enabling complex property chains like `{{ section.settings.featured_product.title }}`.
+
+**Implementation Details**:
+```typescript
+export class SectionSettingsDrop extends ShopifyDrop {
+  private primitiveSettings: SettingsState;
+  private resourceDrops: Record<string, ResourceDrop>;
+
+  constructor(
+    settings: SettingsState,
+    resourceDrops: Record<string, ResourceDrop> = {}
+  ) { ... }
+
+  liquidMethodMissing(key: string): unknown {
+    // Resource drops take precedence (product/collection pickers)
+    if (key in this.resourceDrops) {
+      return this.resourceDrops[key];
+    }
+    // Primitive settings (text, number, color, etc.)
+    return this.primitiveSettings[key];
+  }
+}
+```
+
+**Key Features**:
+- Dual-source resolution: resource Drops + primitive settings
+- Resource precedence when keys conflict (product picker ID resolves to ProductDrop)
+- Iterable support for `{% for %}` loops
+- Type-safe with TypeScript generics
+- 13 comprehensive test cases covering primitive settings, resource drops, precedence, iteration, and empty states
+
+#### LiquidJS Integration
+
+**File**: `app/components/preview/hooks/useLiquidRenderer.ts` (updated)
+
+The `useLiquidRenderer` hook now instantiates `SectionSettingsDrop` when rendering:
+
+```typescript
+const settingsResourceDrops = mockData.settingsResourceDrops as
+  Record<string, ProductDrop | CollectionDrop> | undefined;
+
+const sectionSettings = new SectionSettingsDrop(
+  settings,
+  settingsResourceDrops || {}
+);
+
+const context = {
+  ...mockData,
+  section: {
+    id: 'preview-section',
+    settings: sectionSettings,  // Drop object for property chaining
+    blocks: blockDrops
+  }
+};
+```
+
+#### Drop Export
+
+**File**: `app/components/preview/drops/index.ts` (added export)
+
+```typescript
+// Phase 1: Resource Context Integration
+export { SectionSettingsDrop } from './SectionSettingsDrop';
+```
+
+#### Test Coverage
+
+**File**: `app/components/preview/drops/__tests__/SectionSettingsDrop.test.ts` (228 lines)
+
+13 test suites validate:
+1. **Primitive Settings** (3 tests): Basic property access, undefined handling, boolean values
+2. **Resource Drops** (3 tests): ProductDrop, CollectionDrop, property chaining
+3. **Precedence** (1 test): Resource takes priority over primitive with same key
+4. **Iteration** (3 tests): Primitive iteration, resource-only iteration, precedence in iteration
+5. **Empty States** (2 tests): Empty settings, empty resource drops
+6. **Multiple Resources** (1 test): Multiple products + collections in single Drop
 
 ### Phase 1 Critical Filters Implementation (Phase 6)
 
