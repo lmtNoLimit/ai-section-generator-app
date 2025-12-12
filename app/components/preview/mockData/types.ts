@@ -161,6 +161,26 @@ export interface MockTheme {
   role: string;
 }
 
+/**
+ * Font data structure for Shopify font_picker settings
+ * Matches Shopify font object structure
+ */
+export interface MockFont {
+  family: string;           // e.g., 'Georgia'
+  fallback_families: string; // e.g., 'serif'
+  style: 'normal' | 'italic';
+  weight: number;           // e.g., 400, 700
+  src?: string;             // URL to font file (for Google Fonts)
+  format?: string;          // 'woff2', 'woff', etc.
+}
+
+/**
+ * Font with computed stack for CSS usage
+ */
+export interface FontWithStack extends MockFont {
+  stack: string;            // Full CSS font-family value
+}
+
 export interface MockDataContext {
   product?: MockProduct;
   products?: MockProduct[];

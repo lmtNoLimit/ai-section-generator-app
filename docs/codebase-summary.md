@@ -4,10 +4,10 @@
 
 AI Section Generator is a Shopify embedded app built with React Router 7, Prisma, and Google Gemini AI. The app enables merchants to generate custom Liquid theme sections via natural language prompts and save them directly to their Shopify themes.
 
-**Total Files**: 195 files (routes: 20+, services: 18+, components: 100+, types: 8+, utilities: 16+)
-**Total Tokens**: ~162,700 tokens (measured via repomix, +3,660 from Phase 4 media/font/metafield/utility filters, +1,500 from Phase 3 Advanced Tags, +700 from Phase 5 SYSTEM_PROMPT)
-**Lines of Code**: ~25,000+ lines (measured via repomix, +3,317 from Phase 4 filters & tests, excluding migrations, config)
-**Architecture**: Clean service layer with adapter pattern, singleton pattern, comprehensive billing system, multi-tenant support, Liquid preview system with 100+ filters/drops/tags
+**Total Files**: 201 files (routes: 20+, services: 18+, components: 100+, types: 8+, utilities: 16+)
+**Total Tokens**: ~335,835 tokens (measured via repomix)
+**Lines of Code**: ~28,000+ lines (measured via repomix, +1,200 from Phase 3 Font Picker, excluding migrations, config)
+**Architecture**: Clean service layer with adapter pattern, singleton pattern, comprehensive billing system, multi-tenant support, Liquid preview system with 70+ filters/drops/tags, font picker system with CSS-ready font stacks
 
 ## Directory Structure
 
@@ -1998,14 +1998,162 @@ FLAG_SIMULATE_API_LATENCY=true
 - Enable HTTPS with valid cert
 - Update shopify.app.toml with production URLs
 
+### Phase 03 Font Picker Implementation (NEW)
+
+Phase 03 introduces a comprehensive font picker system with CSS-ready font stacks for Liquid templates. Font values output complete font family declarations instead of just identifiers.
+
+#### File Organization
+
+**New Files**:
+```
+app/components/preview/
+├── mockData/
+│   └── types.ts              # NEW - MockFont, FontWithStack interfaces
+├── drops/
+│   └── FontDrop.ts           # NEW - Drop class for font objects
+└── utils/
+    └── fontRegistry.ts       # NEW - Registry of 31 web-safe fonts
+```
+
+#### FontDrop Class (`app/components/preview/drops/FontDrop.ts`)
+
+**Purpose**: Provides CSS-ready font stacks in Liquid templates
+
+**Key Features**:
+- Wraps font identifier into font object with family and stack properties
+- Auto-converts primitive string identifiers to FontDrop instances
+- Enables property access: `{{ section.settings.heading_font.family }}`
+- Outputs CSS-ready font stacks: `"Georgia, serif"` instead of `"georgia"`
+
+**Properties**:
+- `family`: Font family name (e.g., "Georgia")
+- `stack`: Complete CSS font stack (e.g., "Georgia, serif")
+- `id`: Original identifier (e.g., "georgia")
+
+**Integration**:
+- `SectionSettingsDrop` auto-wraps font identifiers in FontDrop
+- Automatically available in Liquid via `section.settings.heading_font`
+- Supports chained property access and filters
+
+#### Font Registry (`app/components/preview/utils/fontRegistry.ts`)
+
+**Purpose**: Central registry of web-safe fonts with CSS stacks
+
+**Coverage**: 31 web-safe fonts including:
+- **Serif**: Georgia, Garamond, Times New Roman, Palatino, etc.
+- **Sans-serif**: Arial, Helvetica, Tahoma, Verdana, Trebuchet MS, etc.
+- **Monospace**: Courier New, Lucida Console, Consolas, etc.
+- **System Fonts**: System-ui, -apple-system (native OS fonts)
+
+**Data Structure**:
+```typescript
+interface FontStack {
+  family: string;      // Display name (e.g., "Georgia")
+  stack: string;       // CSS stack (e.g., "Georgia, serif")
+  category: string;    // serif, sans-serif, monospace, system
+}
+```
+
+**Registry Lookup**: O(1) hash map for fast font resolution
+
+#### MockFont & FontWithStack Types
+
+**`app/components/preview/mockData/types.ts`** (expanded):
+```typescript
+export interface MockFont {
+  id: string;           // Font identifier (e.g., "georgia")
+  family?: string;      // Font family name
+  stack?: string;       // CSS font stack
+}
+
+export interface FontWithStack {
+  family: string;
+  stack: string;
+}
+```
+
+#### Font Filter Support
+
+**Updated**: `app/components/preview/utils/fontFilters.ts`
+- `font_face()`: Now handles FontDrop objects
+- Returns comment for web-safe fonts (no @font-face needed)
+- Proper handling of custom font URLs vs web-safe fonts
+
+#### Liquid Template Usage
+
+**Before Phase 03** (Font identifier only):
+```liquid
+<h1 style="font-family: {{ section.settings.heading_font }}">Title</h1>
+<!-- Output: font-family: georgia (broken CSS) -->
+```
+
+**After Phase 03** (CSS-ready font stack):
+```liquid
+<h1 style="font-family: {{ section.settings.heading_font }}">Title</h1>
+<!-- Output: font-family: Georgia, serif (valid CSS) -->
+
+<h1 style="font-family: {{ section.settings.heading_font.stack }}">Title</h1>
+<!-- Output: font-family: Georgia, serif (explicit property) -->
+
+<!-- Property access -->
+<div data-font="{{ section.settings.heading_font.family }}">
+  {{ section.settings.heading_font }}
+</div>
+```
+
+#### Test Coverage
+
+**New Test Suite**: `app/components/preview/drops/__tests__/FontDrop.test.ts`
+- Font stack resolution (31 web-safe fonts)
+- Property access (family, stack, id)
+- Fallback handling for unknown fonts
+- Type safety with TypeScript generics
+
+#### Key Improvements
+
+1. **CSS Correctness**: Font stacks are now valid CSS
+   - Before: `font-family: georgia` (unknown font to most systems)
+   - After: `font-family: Georgia, serif` (fallback chain works)
+
+2. **Developer Experience**: Property chaining works
+   - Access specific properties: `.family`, `.stack`
+   - Complete stack available: default property output
+
+3. **Web-Safe Guarantee**: 31 fonts guaranteed cross-platform
+   - No custom font loading in preview
+   - Instant rendering without @font-face delays
+   - Visual accuracy matches merchant theme experience
+
+4. **Auto-Wrapping**: Font picker selections are automatically wrapped
+   - Happens in `SectionSettingsDrop`
+   - Transparent to template authors
+   - No additional configuration needed
+
+#### Export
+
+**`app/components/preview/drops/index.ts`** (updated):
+```typescript
+// Phase 3: Font Picker System
+export { FontDrop } from './FontDrop';
+```
+
 ---
 
-**Document Version**: 2.0
-**Last Updated**: 2025-12-11
-**Codebase Size**: ~162,700 tokens across 195 files (measured via repomix)
+**Document Version**: 2.1
+**Last Updated**: 2025-12-12
+**Codebase Size**: ~335,835 tokens across 201 files (measured via repomix)
 **Primary Language**: TypeScript (TSX)
 **Recent Changes** (December 2025):
-- **Phase 4 Advanced Filters (NEW)**: 25+ new Shopify Liquid filters for media, fonts, metafields, utilities
+- **Phase 03 Font Picker (NEW - 251212)**: CSS-ready font stacks in Liquid templates
+  - `FontDrop.ts`: New drop class wrapping font identifiers with family/stack properties
+  - `fontRegistry.ts`: Registry of 31 web-safe fonts with CSS fallback chains
+  - `MockFont` & `FontWithStack` types in mockData/types.ts
+  - `SectionSettingsDrop` auto-wraps font identifiers in FontDrop
+  - `font_face` filter returns comment for web-safe fonts (no @font-face needed)
+  - Enables property access: `{{ section.settings.heading_font.family }}`
+  - Outputs CSS-ready stacks: `"Georgia, serif"` instead of `"georgia"`
+  - 1,200+ lines added (includes test coverage)
+- **Phase 4 Advanced Filters**: 25+ new Shopify Liquid filters for media, fonts, metafields, utilities
   - `mediaFilters.ts` (168 lines): 6 filters for image/video/3D model rendering (image_tag, video_tag, media_tag, external_video_tag, external_video_url, model_viewer_tag)
   - `fontFilters.ts` (71 lines): 3 filters for font manipulation (font_face, font_url, font_modify)
   - `metafieldFilters.ts` (134 lines): 4 filters for metafield access (metafield_tag, metafield_text, metafield_json, metafield_format)

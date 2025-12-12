@@ -1,10 +1,11 @@
 /**
  * FontPickerSetting Component
  * Renders font selection for typography settings
- * Shopify provides system + Google fonts - we offer common web-safe fonts
+ * Uses fontRegistry for consistent font data across UI and rendering
  */
 
 import type { SchemaSetting } from '../schema/SchemaTypes';
+import { getFontOptions, getFontData } from '../utils/fontRegistry';
 
 export interface FontPickerSettingProps {
   setting: SchemaSetting;
@@ -13,27 +14,15 @@ export interface FontPickerSettingProps {
   disabled?: boolean;
 }
 
-// Common web-safe fonts that approximate Shopify's font picker
-const FONT_OPTIONS = [
-  { value: 'system-ui', label: 'System UI', stack: 'system-ui, sans-serif' },
-  { value: 'arial', label: 'Arial', stack: 'Arial, sans-serif' },
-  { value: 'helvetica', label: 'Helvetica', stack: 'Helvetica, Arial, sans-serif' },
-  { value: 'georgia', label: 'Georgia', stack: 'Georgia, serif' },
-  { value: 'times', label: 'Times New Roman', stack: '"Times New Roman", serif' },
-  { value: 'courier', label: 'Courier New', stack: '"Courier New", monospace' },
-  { value: 'verdana', label: 'Verdana', stack: 'Verdana, sans-serif' },
-  { value: 'trebuchet', label: 'Trebuchet MS', stack: '"Trebuchet MS", sans-serif' },
-  { value: 'tahoma', label: 'Tahoma', stack: 'Tahoma, sans-serif' },
-  { value: 'palatino', label: 'Palatino', stack: '"Palatino Linotype", Palatino, serif' },
-];
-
 export function FontPickerSetting({ setting, value, onChange, disabled }: FontPickerSettingProps) {
+  const fontOptions = getFontOptions();
+
   const handleChange = (e: Event) => {
     const target = e.target as HTMLSelectElement;
     onChange(target.value);
   };
 
-  const selectedFont = FONT_OPTIONS.find(f => f.value === value) || FONT_OPTIONS[0];
+  const selectedFont = getFontData(value || 'system-ui');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -45,14 +34,14 @@ export function FontPickerSetting({ setting, value, onChange, disabled }: FontPi
         disabled={disabled || undefined}
         onChange={handleChange}
       >
-        {FONT_OPTIONS.map((font) => (
+        {fontOptions.map((font) => (
           <option key={font.value} value={font.value}>
             {font.label}
           </option>
         ))}
       </s-select>
 
-      {/* Font preview */}
+      {/* Font preview with actual font stack */}
       <div style={{
         padding: '12px',
         backgroundColor: '#f6f6f7',

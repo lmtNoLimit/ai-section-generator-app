@@ -1,6 +1,7 @@
 import { SectionSettingsDrop } from '../SectionSettingsDrop';
 import { ProductDrop } from '../ProductDrop';
 import { CollectionDrop } from '../CollectionDrop';
+import { FontDrop } from '../FontDrop';
 import type { MockProduct, MockCollection, MockImage } from '../../mockData/types';
 
 // Minimal mock image for testing
@@ -223,6 +224,60 @@ describe('SectionSettingsDrop', () => {
       expect((drop.liquidMethodMissing('secondary_product') as ProductDrop).title).toBe('Product 2');
       expect((drop.liquidMethodMissing('featured_collection') as CollectionDrop).title).toBe('Collection 1');
       expect(drop.liquidMethodMissing('heading')).toBe('Multi Resource Section');
+    });
+  });
+
+  describe('font settings', () => {
+    it('wraps font identifier in FontDrop', () => {
+      const drop = new SectionSettingsDrop(
+        { heading_font: 'georgia', body_font: 'arial' },
+        {}
+      );
+
+      const headingFont = drop.liquidMethodMissing('heading_font');
+      expect(headingFont).toBeInstanceOf(FontDrop);
+      expect((headingFont as FontDrop).family).toBe('Georgia');
+      expect((headingFont as FontDrop).stack).toBe('Georgia, serif');
+
+      const bodyFont = drop.liquidMethodMissing('body_font');
+      expect(bodyFont).toBeInstanceOf(FontDrop);
+      expect((bodyFont as FontDrop).family).toBe('Arial');
+    });
+
+    it('returns FontDrop toString for CSS usage', () => {
+      const drop = new SectionSettingsDrop({ heading_font: 'georgia' }, {});
+      const font = drop.liquidMethodMissing('heading_font') as FontDrop;
+      expect(font.toString()).toBe('Georgia, serif');
+    });
+
+    it('caches FontDrop instances', () => {
+      const drop = new SectionSettingsDrop({ heading_font: 'georgia' }, {});
+
+      const first = drop.liquidMethodMissing('heading_font');
+      const second = drop.liquidMethodMissing('heading_font');
+
+      expect(first).toBe(second); // Same instance
+    });
+
+    it('returns non-font strings as primitives', () => {
+      const drop = new SectionSettingsDrop(
+        { heading: 'Hello World', custom_font: 'not-a-font' },
+        {}
+      );
+
+      expect(drop.liquidMethodMissing('heading')).toBe('Hello World');
+      // Non-registered font identifier returns as-is (not FontDrop)
+      // Actually isFontIdentifier('not-a-font') returns false, so it stays primitive
+      expect(drop.liquidMethodMissing('custom_font')).toBe('not-a-font');
+    });
+
+    it('allows FontDrop property access (family, weight, stack)', () => {
+      const drop = new SectionSettingsDrop({ heading_font: 'times' }, {});
+      const font = drop.liquidMethodMissing('heading_font') as FontDrop;
+
+      expect(font.liquidMethodMissing('family')).toBe('Times New Roman');
+      expect(font.liquidMethodMissing('weight')).toBe(400);
+      expect(font.liquidMethodMissing('stack')).toBe('"Times New Roman", Times, serif');
     });
   });
 });

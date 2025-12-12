@@ -24,3 +24,5 @@ export { ThemeDrop, SettingsDrop } from './ThemeDrop';
 export { MediaDrop } from './MediaDrop';
 // Phase 1: Resource Context Integration
 export { SectionSettingsDrop } from './SectionSettingsDrop';
+// Phase 3: Font Picker Data Loading
+export { FontDrop } from './FontDrop';
