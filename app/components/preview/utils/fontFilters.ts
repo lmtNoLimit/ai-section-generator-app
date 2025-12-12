@@ -23,14 +23,6 @@ function isFontDrop(value: unknown): value is FontDrop {
   return value instanceof FontDrop;
 }
 
-/** Extract font data from FontDrop or plain object */
-function extractFontData(font: unknown): FontObject {
-  if (isFontDrop(font)) {
-    return font.getFontData();
-  }
-  return (font as FontObject) || {};
-}
-
 export const fontFilters = {
   /**
    * Generates @font-face CSS declaration

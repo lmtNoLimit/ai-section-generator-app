@@ -106,7 +106,7 @@ function registerPaginateTags(engine: Liquid): void {
 function registerSectionTags(engine: Liquid): void {
   engine.registerTag('section', {
     parse: function (tagToken: { args: string }) { this.args = tagToken.args; },
-    * render(_ctx: Context, emitter: Emitter) {
+    render(_ctx: Context, emitter: Emitter) {
       let sectionName = 'unknown';
       if (this.args) {
         const match = this.args.match(/['"]([^'"]+)['"]/);
@@ -118,7 +118,7 @@ function registerSectionTags(engine: Liquid): void {
 
   engine.registerTag('render', {
     parse: function (tagToken: { args: string }) { this.args = tagToken.args; },
-    * render(_ctx: Context, emitter: Emitter) {
+    render(_ctx: Context, emitter: Emitter) {
       let snippetName = 'unknown';
       if (this.args) {
         const match = this.args.match(/['"]([^'"]+)['"]/);
@@ -271,7 +271,7 @@ function registerIncludeTag(engine: Liquid): void {
     parse: function (tagToken: { args: string }) {
       this.args = tagToken.args;
     },
-    * render(_ctx: Context, emitter: Emitter) {
+    render(_ctx: Context, emitter: Emitter) {
       let snippetName = 'unknown';
       if (this.args) {
         const match = this.args.match(/['"]([^'"]+)['"]/);
@@ -399,7 +399,7 @@ function registerLayoutStubs(engine: Liquid): void {
   // {% layout 'name' %} or {% layout none %}
   engine.registerTag('layout', {
     parse: function (tagToken: { args: string }) { this.args = tagToken.args; },
-    * render(_ctx: Context, emitter: Emitter) {
+    render(_ctx: Context, emitter: Emitter) {
       let layoutName = 'theme';
       if (this.args) {
         const match = this.args.match(/['"]([^'"]+)['"]/);
@@ -442,7 +442,7 @@ function registerLayoutStubs(engine: Liquid): void {
   // {% sections 'group' %}
   engine.registerTag('sections', {
     parse: function (tagToken: { args: string }) { this.args = tagToken.args; },
-    * render(_ctx: Context, emitter: Emitter) {
+    render(_ctx: Context, emitter: Emitter) {
       let groupName = 'main';
       if (this.args) {
         const match = this.args.match(/['"]([^'"]+)['"]/);
