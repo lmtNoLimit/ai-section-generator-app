@@ -21,8 +21,13 @@ ai-section-generator/
 │   │   ├── app.generate.tsx      # AI section generator (CORE FEATURE)
 │   │   ├── app.additional.tsx    # Additional demo page
 │   │   ├── app.tsx               # App layout with navigation
+│   │   ├── app.sections.new.tsx  # Simplified ChatGPT-style creation (Phase 01)
+│   │   ├── app.sections.$id.tsx  # AI chat editor with auto-generation (Phase 01)
+│   │   ├── api.chat.stream.tsx   # SSE chat streaming endpoint (Phase 01)
 │   │   ├── auth.$.tsx            # Catch-all auth route
 │   │   └── webhooks.*.tsx        # Webhook handlers
+│   ├── styles/                   # Global & route CSS (Phase 01)
+│   │   └── new-section.css       # Centered prompt layout styling
 │   ├── components/               # UI component library (NEW in Phase 04)
 │   │   ├── shared/               # Reusable shared components
 │   │   │   ├── Button.tsx        # Button wrapper
@@ -34,6 +39,16 @@ ai-section-generator/
 │   │   │   ├── CodePreview.tsx   # Generated code display
 │   │   │   ├── SectionNameInput.tsx # Filename input
 │   │   │   └── GenerateActions.tsx  # Generate/Save buttons
+│   │   ├── chat/                 # Chat components (Phase 01 - NEW)
+│   │   │   ├── hooks/
+│   │   │   │   └── useChat.ts    # Chat state & streaming (includes triggerGeneration)
+│   │   │   ├── ChatPanel.tsx     # Chat container with auto-trigger logic
+│   │   │   ├── ChatInput.tsx     # Message input field
+│   │   │   ├── MessageList.tsx   # Message history display
+│   │   │   ├── ChatMessage.tsx   # Individual message renderer
+│   │   │   ├── ChatStyles.tsx    # Shared CSS
+│   │   │   ├── LoadingIndicator.tsx # Streaming animation
+│   │   │   └── __tests__/        # Chat component tests
 │   │   ├── preview/              # Section preview system (Phase 3-6)
 │   │   │   ├── schema/           # Schema parsing & defaults (Phase 02 EXPANDED)
 │   │   │   │   ├── parseSchema.ts     # Schema parser with all 31 Shopify types (293 lines, expanded Phase 02)
@@ -66,7 +81,17 @@ ai-section-generator/
 │   │   └── index.ts              # Barrel export file
 │   ├── services/                 # Business logic layer
 │   │   ├── ai.server.ts          # Google Gemini integration
-│   │   └── theme.server.ts       # Shopify theme operations
+│   │   ├── theme.server.ts       # Shopify theme operations
+│   │   ├── chat.server.ts        # Chat persistence (Phase 01)
+│   │   └── section.server.ts     # Section CRUD operations
+│   ├── utils/                    # Utility functions
+│   │   ├── input-sanitizer.ts    # XSS & injection prevention (Phase 01)
+│   │   ├── code-extractor.ts     # Extract code from AI responses
+│   │   └── context-builder.ts    # Build conversation context
+│   ├── types/                    # TypeScript type definitions
+│   │   ├── ai.types.ts           # AI service types
+│   │   ├── chat.types.ts         # Chat types (Phase 01)
+│   │   └── index.ts              # Type exports
 │   ├── shopify.server.ts         # Shopify app configuration
 │   ├── db.server.ts              # Prisma client instance
 │   ├── entry.server.tsx          # Server entry point
@@ -1088,65 +1113,252 @@ With Phase 4 completion, the preview system now supports:
 - All components fully typed with TypeScript interfaces
 - Components are now testable in isolation
 
-#### `/app/routes/app.sections.new.tsx` (427 lines)
-**Purpose**: Create new AI-generated section with two-action save flow
-**Key Features**:
-- Prompt input, section name, advanced options (tone, style, section type)
-- Generate button (AI generation without DB save)
-- Live code/preview toggle for generated Liquid
-- Side-by-side action buttons: "Save Draft" + "Publish to Theme"
-- Theme selector (required for publish, optional for draft)
-- Filename input (required for publish, optional for draft)
-- Save as Template modal
-- Success/error banners with recovery guidance
-- Auto-redirect to edit page after successful save
+#### `/app/routes/app.sections.new.tsx` (Simplified - Phase 01)
+**Purpose**: Simplified ChatGPT-style section creation with minimal prompt UI
+**Phase 01 Changes**:
+- Rewritten from complex form (427 lines) to minimal prompt-only interface
+- Single centered textarea + template suggestion chips
+- No inline code preview (moved to edit flow)
+- Form submission creates empty draft section → redirects to edit page for AI conversation
 
-**Actions**:
-1. **generate**: Calls `aiAdapter.generateSection()`, returns code only (no DB save)
-2. **saveDraft**: Creates section with status="draft" (no theme required)
-3. **save**: Publishes to theme (saves to Shopify + DB with status="saved")
-4. **saveAsTemplate**: Saves prompt/code as reusable template
+**Key Features**:
+- Centered prompt textarea (100px min height, 2000 char max)
+- Input validation (empty check, length limit)
+- Template chips for quick prompt suggestions (Hero, Product Grid, etc)
+- Keyboard hint (Cmd+Enter to submit)
+- Auto-redirect to section edit page (/app/sections/{id}) after creation
+- Async section creation with minimal metadata
+
+**Flow**:
+1. User enters prompt description
+2. Form submit creates empty section in DB (status="draft", code="")
+3. Server returns sectionId
+4. Client redirects to /app/sections/{sectionId}
+5. Edit page loads with conversation ready for AI generation
+
+**Data Structures**:
+```typescript
+interface ActionData {
+  sectionId?: string;
+  error?: string;
+}
+```
+
+**CSS Styling** (`app/styles/new-section.css` - NEW):
+- Responsive centered layout (max-width: 640px)
+- Mobile-optimized with stacked button layout
+- Polaris color variables (--p-text-*, --p-surface-*, --p-border-*)
+- Focus states for accessibility
+- Smooth transitions on interactive elements
+
+#### `/app/routes/app.sections.$id.tsx`
+**Purpose**: Unified AI-first editor with conversational iteration
+**Key Features**:
+- 3-panel resizable layout: Chat | Code/Preview | Settings
+- AI conversation panel for iterative refinement ("make it wider", "add a CTA")
+- Real-time streaming responses via SSE
+- Conversation history persistence per section
+- Dual-action save: "Save Draft" + "Publish to Theme"
+- Code/Preview toggle with live preview
+- Theme and filename selection
+- Keyboard shortcuts (Cmd+S save, Cmd+Enter send)
+- Mobile-responsive with tabbed panels
+- Auto-trigger AI generation on pending messages (Phase 01)
 
 **Data Flow**:
-1. **Loader**: Fetches merchant themes via `themeAdapter.getThemes()`
-2. **Action (generate)**: Returns { code, prompt, name?, tone?, style? }
-3. **Action (saveDraft)**: Creates section in DB, redirects to /app/sections/{id}
-4. **Action (save)**: Publishes to theme, creates section in DB, redirects
-5. **UI**: Displays code, shows appropriate feedback messages, redirects on success
+1. **Loader**: Fetches section, themes, and conversation history
+2. **Chat**: Streams AI responses via `/api/chat/stream`
+3. **saveDraft**: Updates section code, keeps as draft
+4. **publish**: Publishes to selected theme
 
-**Component Used**: `GeneratePreviewColumn` with dual-action buttons
+**Components Used**: `UnifiedEditorLayout`, `ChatPanelWrapper`, `CodePreviewPanel`, `EditorSettingsPanel`
 
-#### `/app/routes/app.sections.$id.tsx` (586 lines)
-**Purpose**: Edit existing section with regenerate + dual-save capabilities
-**Key Features**:
-- Display existing section metadata (created date, status badge, theme info)
-- Edit prompt to regenerate code
-- Regeneration notification banner ("New section created...")
-- Same dual-action save buttons as create page: "Save Draft" + "Publish to Theme"
-- Delete button with confirmation modal
-- Name editing (auto-saves on blur)
-- Theme selector (uses original theme if saved)
-- Save as Template modal
-- Status badge: "Draft" (neutral) or "Saved" (success)
+### Phase 01 Chat Implementation (NEW)
 
-**Actions**:
-1. **generate**: Regenerates code, returns updated code
-2. **saveDraft**: Updates section to status="draft" with new code
-3. **save**: Publishes updated code to theme
-4. **updateName**: Auto-saves section name on blur
-5. **delete**: Deletes section with confirmation
-6. **saveAsTemplate**: Saves as template
+Phase 01 introduces real-time AI conversation for section iteration with streaming responses and auto-generation triggers.
 
-**Data Flow**:
-1. **Loader**: Fetches section by ID + merchant themes
-2. **Action (generate)**: Regenerates without affecting existing section
-3. **Action (saveDraft)**: Updates section code, keeps as draft
-4. **Action (save)**: Updates section code + theme info, publishes to theme
-5. **UI**: Displays section info banner, allows editing and re-publishing
+#### Chat Service (`app/services/chat.server.ts`)
 
-**Component Used**: Same `GeneratePreviewColumn` as create page
+**Core Functions**:
+- `getOrCreateConversation(sectionId, shop)`: Get or create conversation tied to section
+- `getConversation(conversationId)`: Fetch conversation with all messages
+- `addUserMessage(conversationId, content)`: Persist user message to DB
+- `addAssistantMessage(conversationId, content, metadata?)`: Persist AI response
 
-**Error Boundary**: Custom error page for 404/missing sections
+**Data Persistence**:
+- Conversations tied to sections (1:1 relationship)
+- Messages stored with role (user/assistant), content, timestamp
+- Metadata support for extraction flags and code snippets
+- Ordered by creation timestamp for conversation flow
+
+#### Chat Streaming Endpoint (`app/routes/api.chat.stream.tsx` - Phase 01)
+
+**Endpoint**: `POST /api/chat/stream`
+**New Feature**: `continueGeneration` flag for auto-generation
+
+**Input Validation** (Phase 01 hardening):
+- `conversationId` (required): Conversation identifier
+- `content` (required): User message (max 10,000 chars)
+- `currentCode` (optional): Section code for context (max 100,000 chars)
+- `continueGeneration` (NEW): Set to "true" to auto-generate new code from prompt
+
+**Security**:
+- Authorization check: Verify conversation belongs to authenticated shop
+- Input sanitization: User content + Liquid code escaping
+- SQL injection prevention: Parameterized queries via Prisma
+
+**Streaming Response** (SSE format):
+```
+event: start
+data: {"type":"start"}
+
+event: content
+data: {"type":"content", "chunk":"<h1>Title</h1>"}
+
+event: metadata
+data: {"type":"metadata", "extracted_code":"...", "action":"continue_generation"}
+
+event: done
+data: {"type":"done", "final_message":"..."}
+```
+
+#### Chat Hook (`app/components/chat/hooks/useChat.ts` - Phase 01)
+
+**State Management**:
+```typescript
+interface ChatState {
+  messages: UIMessage[];
+  isStreaming: boolean;
+  streamingContent: string;
+  pendingMessageId: string | null;
+  error: string | null;
+}
+```
+
+**Core Functions**:
+- `sendMessage(content)`: Send user message + stream AI response
+- `triggerGeneration()`: NEW - Auto-trigger code generation (called on pending messages)
+- `stopStreaming()`: Cancel ongoing SSE stream
+- `loadMessages(messages)`: Load conversation history
+- `retryFailedMessage()`: Retry last failed message
+- `clearConversation()`: Delete all messages
+
+**New Auto-Generation Feature** (Phase 01):
+- `triggerGeneration()` function added to auto-start AI code generation
+- Called when messages have pending state without assistant response
+- Useful for /sections/new flow where AI generation follows immediately
+
+#### ChatPanel Component (`app/components/chat/ChatPanel.tsx` - Phase 01)
+
+**Auto-Trigger Logic** (NEW):
+```typescript
+// Auto-trigger AI generation if last message is user with no assistant response
+useEffect(() => {
+  const lastMessage = messages[messages.length - 1];
+
+  if (!hasTriggeredAutoGenRef.current &&
+      lastMessage?.role === 'user' &&
+      !messages.some(m => m.role === 'assistant')) {
+    triggerGeneration();
+    hasTriggeredAutoGenRef.current = true;
+  }
+}, [messages, triggerGeneration]);
+```
+
+**Behavior**:
+- Detects when section created with user prompt but no AI response
+- Automatically calls `triggerGeneration()` once
+- Prevents duplicate triggers with ref flag
+- Resets flag on conversation change
+
+**Props**:
+```typescript
+export interface ChatPanelProps {
+  conversationId: string;
+  initialMessages?: UIMessage[];
+  currentCode?: string;
+  onCodeUpdate?: (code: string) => void;
+}
+```
+
+#### Chat Types (`app/types/chat.types.ts`)
+
+**Message Types**:
+```typescript
+export interface UIMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  metadata?: ChatMetadata;
+  timestamp: Date;
+}
+
+export interface ChatMetadata {
+  extractedCode?: string;
+  action?: 'continue_generation' | 'complete';
+  codeStartLine?: number;
+  codeEndLine?: number;
+}
+```
+
+#### Input Utilities (`app/utils/input-sanitizer.ts` - Phase 01 enhancement)
+
+**New Sanitization**:
+- `sanitizeUserInput(text)`: XSS prevention + profanity filtering
+- `sanitizeLiquidCode(code)`: Liquid code escaping for safe storage
+- Support for HTML entity encoding in user messages
+
+**Validation Constants**:
+- `MAX_PROMPT_LENGTH = 2000` chars (per prompt)
+- `MAX_CONTENT_LENGTH = 10000` chars (per chat message)
+- `MAX_CODE_LENGTH = 100000` chars (for Liquid sections)
+
+### Chat Components Directory (`app/components/chat/` - NEW)
+
+**Structure**:
+```
+app/components/chat/
+├── hooks/
+│   └── useChat.ts              # Chat state & streaming
+├── ChatPanel.tsx               # Main container
+├── ChatInput.tsx               # Message input field
+├── MessageList.tsx             # Message history display
+├── ChatMessage.tsx             # Individual message renderer
+├── ChatStyles.tsx              # Shared CSS
+├── LoadingIndicator.tsx        # Streaming animation
+└── __tests__/                  # Chat component tests (future)
+```
+
+**Message Rendering**:
+- User messages: Right-aligned with blue background
+- Assistant messages: Left-aligned with gray background
+- Streaming indicator: Animated dots during generation
+- Code blocks: Syntax highlighting for extracted Liquid
+- Timestamps: Optional message timestamps
+- Error states: Red banner with retry button
+
+### Phase 01 Improvements Summary
+
+**Simplified Flow**:
+1. `/sections/new` → Single prompt → Create draft section → Redirect
+2. `/sections/{id}` → Auto-trigger AI → Stream response → Chat continues
+
+**Auto-Generation**:
+- ChatPanel detects pending messages
+- Calls `triggerGeneration()` automatically
+- Removes need for explicit "Generate" button in edit flow
+- UX matches ChatGPT pattern: submit prompt → AI responds
+
+**Streaming**:
+- Real-time SSE streaming from Gemini API
+- Incremental chunk display (no waiting for full response)
+- User can see AI thinking in real-time
+
+**Security Enhancements**:
+- Input validation on content length
+- Authorization check per message
+- Liquid code sanitization
+- User input escaping
 
 #### `/app/routes/app._index.tsx` (1,637 tokens, 255 lines)
 **Purpose**: Template demo page (Shopify app starter)
@@ -1666,7 +1878,7 @@ User saves section to database AND publishes to selected Shopify theme with "sav
 ```
 User: Enter filename + Select theme + Click "Publish to Theme"
   ↓
-[app.sections.new.tsx or app.sections.$id.tsx] action (action=save)
+[app.sections.new.tsx or app.sections.$id.tsx] action (action=publish)
   ↓
 [services/theme.server.ts] createSection(request, themeId, fileName, content)
   ↓
@@ -2139,38 +2351,56 @@ export { FontDrop } from './FontDrop';
 
 ---
 
-**Document Version**: 2.1
-**Last Updated**: 2025-12-12
+**Document Version**: 2.2
+**Last Updated**: 2025-12-14
 **Codebase Size**: ~335,835 tokens across 201 files (measured via repomix)
 **Primary Language**: TypeScript (TSX)
 **Recent Changes** (December 2025):
-- **Phase 03 Font Picker (NEW - 251212)**: CSS-ready font stacks in Liquid templates
+- **Phase 01 Simplified /new Route + Chat Auto-Generation (NEW - 251214)**:
+  - `app/routes/app.sections.new.tsx`: Rewritten from 427-line complex form to minimal ChatGPT-style prompt UI
+    - Single centered textarea (2000 char max, 100px min height)
+    - Template suggestion chips for quick prompts
+    - Form submit creates empty draft section → redirects to edit page
+    - Input validation + sanitization (empty check, length limit)
+  - `app/styles/new-section.css` (151 lines - NEW): Centered prompt layout styling
+    - Responsive design (max-width: 640px)
+    - Mobile-optimized button layout
+    - Polaris color variable integration
+    - Focus states & smooth transitions
+  - `app/components/chat/` (NEW): Complete chat component system
+    - `useChat.ts`: Chat state management with new `triggerGeneration()` function
+    - `ChatPanel.tsx`: Auto-trigger AI generation on pending messages (no user interaction needed)
+    - `ChatInput.tsx`, `MessageList.tsx`, `ChatMessage.tsx`: Message UI components
+    - Auto-trigger logic: Detects user message without assistant response, auto-calls `triggerGeneration()`
+    - Prevents duplicate triggers using ref flag
+  - `app/services/chat.server.ts` (NEW): Chat persistence layer
+    - `getOrCreateConversation()`, `getConversation()`, `addUserMessage()`, `addAssistantMessage()`
+    - 1:1 relationship between conversations & sections
+  - `app/routes/api.chat.stream.tsx` - Phase 01 enhancement:
+    - New `continueGeneration` flag for auto-generation trigger
+    - Input validation hardening (content max 10K, code max 100K)
+    - Authorization checks per message
+    - Liquid code sanitization
+  - `app/utils/input-sanitizer.ts` (NEW): XSS prevention
+    - `sanitizeUserInput()`: HTML entity encoding + profanity filtering
+    - `sanitizeLiquidCode()`: Liquid code escaping for safe storage
+  - `app/types/chat.types.ts` (NEW): TypeScript definitions
+    - `UIMessage`, `ChatMetadata`, `StreamEvent` interfaces
+  - **UX Flow Change**: `/sections/new` → prompt → auto-redirect to `/sections/{id}` → auto-generate → chat
+  - **Files Added**: 12+ new files (chat components, utils, types, styles)
+  - **Security**: Comprehensive input validation + authorization + sanitization
+  - 500+ lines of new code (components, services, utilities, styles)
+- **Phase 03 Font Picker (251212)**: CSS-ready font stacks in Liquid templates
   - `FontDrop.ts`: New drop class wrapping font identifiers with family/stack properties
   - `fontRegistry.ts`: Registry of 31 web-safe fonts with CSS fallback chains
-  - `MockFont` & `FontWithStack` types in mockData/types.ts
-  - `SectionSettingsDrop` auto-wraps font identifiers in FontDrop
-  - `font_face` filter returns comment for web-safe fonts (no @font-face needed)
   - Enables property access: `{{ section.settings.heading_font.family }}`
   - Outputs CSS-ready stacks: `"Georgia, serif"` instead of `"georgia"`
   - 1,200+ lines added (includes test coverage)
 - **Phase 4 Advanced Filters**: 25+ new Shopify Liquid filters for media, fonts, metafields, utilities
-  - `mediaFilters.ts` (168 lines): 6 filters for image/video/3D model rendering (image_tag, video_tag, media_tag, external_video_tag, external_video_url, model_viewer_tag)
-  - `fontFilters.ts` (71 lines): 3 filters for font manipulation (font_face, font_url, font_modify)
-  - `metafieldFilters.ts` (134 lines): 4 filters for metafield access (metafield_tag, metafield_text, metafield_json, metafield_format)
-  - `utilityFilters.ts` (154 lines): 12 utility filters (default, default_errors, default_pagination, highlight, payment_type_img_url, payment_type_svg_tag, stylesheet_tag, script_tag, preload_tag, time_tag, weight_with_unit)
-  - `htmlEscape.ts` (25 lines): Shared HTML escaping utilities (escapeAttr, escapeHtml)
-  - `MediaDrop.ts`: New drop class for media object access in Liquid templates
-  - 7 comprehensive test files (1,100+ lines): mediaFilters.test.ts, fontFilters.test.ts, metafieldFilters.test.ts, utilityFilters.test.ts
-  - Integration with `useLiquidRenderer.ts`: All filters auto-registered during engine initialization
-  - Total Phase 4 additions: 3,317 lines of code + tests
-  - Total Liquid filter support: 70+ filters (11 array + 16 string + 8 math + 12 color + 6 media + 3 font + 4 metafield + 12 utility)
-- **Phase 3 Advanced Tags**: 9 Shopify-specific Liquid tags (form, paginate, section, render, comment, style, javascript, liquid, include, tablerow, layout stubs) with 24-test suite
-  - `liquidTags.ts` (454 lines): Tag registration module with LiquidJS generator-based implementations
-  - Full tablerow implementation with cols/limit/offset options & tablerowloop context
-- **Phase 7 (Phase 2)**: 7 new Shopify Liquid Drop classes (forloop, request, routes, cart, customer, paginate, theme) with integrated context builder
+  - 70+ total filter support (11 array + 16 string + 8 math + 12 color + 6 media + 3 font + 4 metafield + 12 utility)
+- **Phase 3 Advanced Tags**: 9 Shopify-specific Liquid tags with 24-test suite
+- **Phase 7 (Phase 2)**: 7 new Shopify Liquid Drop classes with integrated context builder
 - **Phase 6**: 47 Shopify Liquid filters with DoS prevention & security hardening
-- **Phase 5**: SYSTEM_PROMPT rewrite (65→157 lines) with comprehensive input type catalog, validation rules
-- **251209**: Redirect after save feature with toast notifications
-- **251202**: Billing system fixes - webhook type safety, GraphQL fallback
+- **Phase 5**: SYSTEM_PROMPT rewrite (65→157 lines) with comprehensive input type catalog
 - **Phase 04**: Component-based architecture (9 reusable UI components)
 - **Phase 03**: Feature flag system, adapter pattern, mock services, dual-action save flow

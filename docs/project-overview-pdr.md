@@ -132,7 +132,7 @@ app/
 ├── routes/                    # React Router file-based routing
 │   ├── app._index.tsx        # Home page (template demo)
 │   ├── app.sections.new.tsx  # Create section with dual-action save
-│   ├── app.sections.$id.tsx  # Edit section with regenerate + save
+│   ├── app.sections.$id.tsx  # Edit section with AI conversation panel
 │   ├── app.generate.tsx      # Legacy AI section generator (deprecated)
 │   ├── app.additional.tsx    # Demo page
 │   ├── app.tsx               # Layout with nav
@@ -197,6 +197,22 @@ Historical record of generated sections:
 - `createdAt`: Timestamp
 
 ## Current Status
+
+### Completed (Phase 01 - 100% - Simplified /new Route + Chat Auto-Generation)
+- ✅ Simplified `/sections/new` route - ChatGPT-style prompt-only UI
+  - Minimal centered prompt textarea (2000 char max)
+  - Template suggestion chips
+  - Auto-redirect to section edit page
+  - Input validation + sanitization
+- ✅ Chat auto-generation trigger (`triggerGeneration()`)
+  - Auto-detect pending messages without assistant response
+  - Automatic AI generation on page load
+  - Prevents duplicate triggers via ref flag
+- ✅ New CSS styling for centered prompt layout (`app/styles/new-section.css`)
+- ✅ Chat streaming endpoint hardening (`continueGeneration` flag)
+  - Input validation (content length, code length)
+  - Authorization checks per message
+  - Liquid code sanitization
 
 ### Completed (Phase 3 - 96% Complete)
 - ✅ Shopify app setup with OAuth authentication

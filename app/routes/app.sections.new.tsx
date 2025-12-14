@@ -1,410 +1,174 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type KeyboardEvent, type ChangeEvent } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useActionData, useLoaderData, useNavigation, useSubmit, useSearchParams, useNavigate } from "react-router";
+import { useActionData, useNavigation, useSubmit, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
-import { aiAdapter } from "../services/adapters/ai-adapter";
-import { themeAdapter } from "../services/adapters/theme-adapter";
 import { sectionService } from "../services/section.server";
-import { templateService } from "../services/template.server";
-import { canGenerate, trackGeneration } from "../services/usage-tracking.server";
-import type { GenerateActionData, SaveActionData, Theme } from "../types";
+import { chatService } from "../services/chat.server";
+import { sanitizeUserInput } from "../utils/input-sanitizer";
+import "../styles/new-section.css";
 
-import { GenerateLayout } from "../components/generate/GenerateLayout";
-import { GenerateInputColumn } from "../components/generate/GenerateInputColumn";
-import { GeneratePreviewColumn } from "../components/generate/GeneratePreviewColumn";
-import { SaveTemplateModal } from "../components/generate/SaveTemplateModal";
-import type { AdvancedOptionsState } from "../components/generate/AdvancedOptions";
+const MAX_PROMPT_LENGTH = 2000;
+
+/**
+ * Simplified /sections/new route - ChatGPT-style prompt-only UI
+ * Creates section + conversation on submit, redirects to /$id for AI chat
+ */
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
-  const themes = await themeAdapter.getThemes(request);
-  return { themes };
+  return {};
 }
 
-export async function action({ request }: ActionFunctionArgs) {
-  const { session, admin } = await authenticate.admin(request);
-  const shop = session.shop;
+interface ActionData {
+  sectionId?: string;
+  error?: string;
+}
+
+export async function action({ request }: ActionFunctionArgs): Promise<ActionData> {
+  const { session } = await authenticate.admin(request);
   const formData = await request.formData();
-  const actionType = formData.get("action");
+  const rawPrompt = formData.get("prompt") as string;
 
-  if (actionType === "generate") {
-    const prompt = formData.get("prompt") as string;
-    const name = formData.get("name") as string | null;
-    const tone = formData.get("tone") as string | null;
-    const style = formData.get("style") as string | null;
+  if (!rawPrompt?.trim()) {
+    return { error: "Please describe the section you want to create" };
+  }
 
-    // Check quota before generation
-    const quotaCheck = await canGenerate(shop);
+  // Validate length
+  if (rawPrompt.length > MAX_PROMPT_LENGTH) {
+    return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH} characters)` };
+  }
 
-    if (!quotaCheck.allowed) {
-      return {
-        error: quotaCheck.reason || "Generation limit reached",
-        quota: quotaCheck.quota,
-      };
-    }
+  // Sanitize input
+  const { sanitized: prompt } = sanitizeUserInput(rawPrompt.trim());
 
-    const code = await aiAdapter.generateSection(prompt);
-
-    // Return code only - section saved to DB only when user clicks Save Draft or Publish
-    return {
-      code,
+  try {
+    // Create section with minimal data (draft status, empty code until AI generates)
+    const section = await sectionService.create({
+      shop: session.shop,
       prompt,
-      name: name || undefined,
-      tone: tone || undefined,
-      style: style || undefined,
-      quota: quotaCheck.quota,
-    } satisfies GenerateActionData;
+      code: "", // Empty until AI generates in /$id
+      status: "draft",
+    });
+
+    // Create conversation + first user message
+    const conversation = await chatService.getOrCreateConversation(section.id, session.shop);
+    await chatService.addUserMessage(conversation.id, prompt);
+
+    return { sectionId: section.id };
+  } catch (error) {
+    console.error("Failed to create section:", error);
+    return { error: "Failed to create section. Please try again." };
   }
-
-  if (actionType === "saveDraft") {
-    const prompt = formData.get("prompt") as string;
-    const content = formData.get("content") as string;
-    const sectionName = formData.get("sectionName") as string | null;
-    const tone = formData.get("tone") as string | null;
-    const style = formData.get("style") as string | null;
-
-    try {
-      // Create section in DB with draft status
-      const sectionEntry = await sectionService.create({
-        shop,
-        prompt,
-        code: content,
-        name: sectionName || undefined,
-        tone: tone || undefined,
-        style: style || undefined,
-        status: "draft",
-      });
-
-      // Track usage
-      trackGeneration(admin, shop, sectionEntry.id, prompt).catch((error) => {
-        console.error("Failed to track generation:", error);
-      });
-
-      return {
-        success: true,
-        message: "Draft saved successfully!",
-        sectionId: sectionEntry.id,
-      } satisfies SaveActionData;
-    } catch (error) {
-      console.error("Failed to save draft:", error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Failed to save draft. Please try again."
-      } satisfies SaveActionData;
-    }
-  }
-
-  if (actionType === "save") {
-    const themeId = formData.get("themeId") as string;
-    const fileName = formData.get("fileName") as string;
-    const content = formData.get("content") as string;
-    const prompt = formData.get("prompt") as string;
-    const sectionName = formData.get("sectionName") as string | null;
-    const themeName = formData.get("themeName") as string | null;
-    const tone = formData.get("tone") as string | null;
-    const style = formData.get("style") as string | null;
-
-    try {
-      // Save to theme first
-      const result = await themeAdapter.createSection(request, themeId, fileName, content, sectionName || undefined);
-
-      // Create section in DB with saved status
-      const sectionEntry = await sectionService.create({
-        shop,
-        prompt,
-        code: content,
-        name: sectionName || undefined,
-        tone: tone || undefined,
-        style: style || undefined,
-        themeId,
-        themeName: themeName || undefined,
-        fileName,
-      });
-
-      // Track usage
-      trackGeneration(admin, shop, sectionEntry.id, prompt).catch((error) => {
-        console.error("Failed to track generation:", error);
-      });
-
-      return {
-        success: true,
-        message: `Section published to ${result?.filename || fileName}!`,
-        sectionId: sectionEntry.id,
-      } satisfies SaveActionData;
-    } catch (error) {
-      console.error("Failed to save section:", error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Failed to save section. Please try again."
-      } satisfies SaveActionData;
-    }
-  }
-
-  if (actionType === "saveAsTemplate") {
-    const title = formData.get("title") as string;
-    const description = formData.get("description") as string;
-    const category = formData.get("category") as string;
-    const icon = formData.get("icon") as string;
-    const prompt = formData.get("prompt") as string;
-    const code = formData.get("code") as string | null;
-
-    try {
-      await templateService.create({
-        shop,
-        title,
-        description,
-        category,
-        icon,
-        prompt,
-        code: code || undefined,
-      });
-
-      return {
-        success: true,
-        message: "Template saved successfully!",
-        templateSaved: true
-      };
-    } catch (error) {
-      console.error("Failed to save template:", error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Failed to save template. Please try again."
-      };
-    }
-  }
-
-  return null;
 }
 
-export default function CreateSectionPage() {
-  const { themes } = useLoaderData<typeof loader>();
+const TEMPLATE_CHIPS = [
+  { label: "Hero Section", prompt: "A hero section with a large background image, centered heading, subheading, and a call-to-action button" },
+  { label: "Product Grid", prompt: "A responsive product grid with 3 columns showing product image, title, and price" },
+  { label: "Testimonials", prompt: "A testimonial carousel with customer quotes, names, and star ratings" },
+  { label: "Newsletter", prompt: "A newsletter signup section with email input and subscribe button" },
+];
+
+export default function NewSectionPage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const submit = useSubmit();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const submit = useSubmit();
+  const [prompt, setPrompt] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Get params from URL (from template navigation)
-  const urlPrompt = searchParams.get("prompt") || "";
-  const urlCode = searchParams.get("code") || "";
-  const urlName = searchParams.get("name") || "";
-  const hasAutoGenerated = useRef(false);
-  const hasLoadedCode = useRef(false);
+  const isSubmitting = navigation.state === "submitting";
 
-  const [prompt, setPrompt] = useState(urlPrompt || actionData?.prompt || "");
-  const [sectionName, setSectionName] = useState(urlName || "");
-  const [generatedCode, setGeneratedCode] = useState(urlCode || actionData?.code || "");
-
-  // Advanced options state (for future AI integration)
-  const [advancedOptions, setAdvancedOptions] = useState<AdvancedOptionsState>({
-    tone: 'professional',
-    style: 'minimal',
-    includeSchema: true
-  });
-
-  // Find the active (main) theme to set as default
-  const activeTheme = themes.find((theme: Theme) => theme.role === "MAIN");
-  const [selectedTheme, setSelectedTheme] = useState(activeTheme?.id || themes[0]?.id || "");
-
-  const [fileName, setFileName] = useState(urlName ? urlName.toLowerCase().replace(/\s+/g, '-') : "ai-section");
-  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
-
-  const isLoading = navigation.state === "submitting";
-  const isGenerating = isLoading && navigation.formData?.get("action") === "generate";
-  const isSaving = isLoading && (navigation.formData?.get("action") === "save" || navigation.formData?.get("action") === "saveDraft");
-  const isSavingDraft = isLoading && navigation.formData?.get("action") === "saveDraft";
-  const isPublishing = isLoading && navigation.formData?.get("action") === "save";
-
-  // Update state when action data changes
+  // Redirect on success
   useEffect(() => {
-    if (actionData?.code && actionData.code !== generatedCode) {
-      setGeneratedCode(actionData.code);
-    }
-  }, [actionData?.code, generatedCode]);
-
-  // Load pre-built code from URL (Use As-Is flow)
-  useEffect(() => {
-    if (urlCode && !hasLoadedCode.current) {
-      hasLoadedCode.current = true;
-      // Code is already set via useState initial value
-      // Just clear URL params to prevent issues on reload
-      setSearchParams({}, { replace: true });
-    }
-  }, [urlCode, setSearchParams]);
-
-  // Auto-generate when coming from template with prompt URL param
-  useEffect(() => {
-    if (urlPrompt && !hasAutoGenerated.current && navigation.state === "idle" && !urlCode) {
-      hasAutoGenerated.current = true;
-      // Set prompt state if not already set
-      if (prompt !== urlPrompt) {
-        setPrompt(urlPrompt);
-      }
-      // Clear the URL param to prevent re-generation on reload
-      setSearchParams({}, { replace: true });
-      // Trigger generation
-      const formData = new FormData();
-      formData.append("action", "generate");
-      formData.append("prompt", urlPrompt);
-      formData.append("name", "");
-      formData.append("tone", advancedOptions.tone);
-      formData.append("style", advancedOptions.style);
-      submit(formData, { method: "post" });
-    }
-  }, [urlPrompt, urlCode, navigation.state, prompt, advancedOptions, submit, setSearchParams]);
-
-  // Get theme name for success message and save handler
-  const selectedThemeName = themes.find((t: Theme) => t.id === selectedTheme)?.name || 'theme';
-
-  // Handlers
-  const handleGenerate = () => {
-    if (!prompt.trim()) return;
-    const formData = new FormData();
-    formData.append("action", "generate");
-    formData.append("prompt", prompt);
-    formData.append("name", sectionName);
-    formData.append("tone", advancedOptions.tone);
-    formData.append("style", advancedOptions.style);
-    submit(formData, { method: "post" });
-  };
-
-  const handleSaveDraft = () => {
-    const formData = new FormData();
-    formData.append("action", "saveDraft");
-    formData.append("prompt", prompt);
-    formData.append("content", generatedCode);
-    formData.append("sectionName", sectionName);
-    formData.append("tone", advancedOptions.tone);
-    formData.append("style", advancedOptions.style);
-    submit(formData, { method: "post" });
-  };
-
-  const handlePublish = () => {
-    const formData = new FormData();
-    formData.append("action", "save");
-    formData.append("themeId", selectedTheme);
-    formData.append("fileName", fileName);
-    formData.append("content", generatedCode);
-    formData.append("prompt", prompt);
-    formData.append("themeName", selectedThemeName);
-    formData.append("sectionName", sectionName);
-    formData.append("tone", advancedOptions.tone);
-    formData.append("style", advancedOptions.style);
-    submit(formData, { method: "post" });
-  };
-
-  const canSave = Boolean(generatedCode);
-  const canPublish = Boolean(generatedCode && fileName && selectedTheme);
-
-  const handleSaveAsTemplate = (data: {
-    title: string;
-    description: string;
-    category: string;
-    icon: string;
-    prompt: string;
-  }) => {
-    const formData = new FormData();
-    formData.append("action", "saveAsTemplate");
-    formData.append("title", data.title);
-    formData.append("description", data.description);
-    formData.append("category", data.category);
-    formData.append("icon", data.icon);
-    formData.append("prompt", data.prompt);
-    if (generatedCode) {
-      formData.append("code", generatedCode);
-    }
-    submit(formData, { method: "post" });
-    setShowSaveTemplateModal(false);
-  };
-
-  // Close modal on successful template save
-  useEffect(() => {
-    if (actionData?.templateSaved) {
-      setShowSaveTemplateModal(false);
-    }
-  }, [actionData?.templateSaved]);
-
-  // Redirect to edit page after successful section save
-  useEffect(() => {
-    if (actionData?.success && actionData?.sectionId && !actionData?.templateSaved) {
-      shopify.toast.show("Section saved");
+    if (actionData?.sectionId) {
       navigate(`/app/sections/${actionData.sectionId}`);
     }
-  }, [actionData?.success, actionData?.sectionId, actionData?.templateSaved, navigate]);
+  }, [actionData, navigate]);
+
+  // Focus textarea on mount
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  const handleSubmit = () => {
+    if (!prompt.trim() || isSubmitting) return;
+    const formData = new FormData();
+    formData.append("prompt", prompt);
+    submit(formData, { method: "post" });
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    setPrompt(e.target.value);
+  };
+
+  const handleChipClick = (chipPrompt: string) => {
+    setPrompt(chipPrompt);
+    textareaRef.current?.focus();
+  };
 
   return (
-    <>
-      <s-page heading="Create Section" inlineSize="large">
-        <s-stack gap="large" direction="block">
-          {/* Enhanced feedback banners */}
+    <s-page inlineSize="base">
+      <div className="new-section-container">
+        <div className="new-section-header">
+          <h1>Create a Section</h1>
+          <p>Describe the section you want to create. Be specific about layout, content, and style.</p>
+        </div>
 
-          {/* Template saved banner */}
-          {actionData?.templateSaved && (
-            <s-banner tone="success" dismissible>
-              Template saved successfully! View your templates in the Templates Library.
-            </s-banner>
-          )}
+        {actionData?.error && (
+          <s-banner tone="critical" dismissible>
+            {actionData.error}
+          </s-banner>
+        )}
 
-          {/* Note: Section save success banner removed - user is redirected to edit page */}
-
-          {/* Error banner with recovery guidance */}
-          {actionData?.success === false && (
-            <s-banner tone="critical">
-              {actionData.message}
-              {actionData.message?.toLowerCase().includes('generate') && (
-                <span> Try simplifying your prompt or choose a pre-built template.</span>
-              )}
-              {actionData.message?.toLowerCase().includes('save') && (
-                <span> Verify that the selected theme exists and you have permission to modify it.</span>
-              )}
-            </s-banner>
-          )}
-
-          {/* Two-column layout */}
-          <GenerateLayout
-            inputColumn={
-              <GenerateInputColumn
-                prompt={prompt}
-                onPromptChange={setPrompt}
-                sectionName={sectionName}
-                onSectionNameChange={setSectionName}
-                advancedOptions={advancedOptions}
-                onAdvancedOptionsChange={setAdvancedOptions}
-                disabled={isGenerating || isSaving}
-                onGenerate={handleGenerate}
-                isGenerating={isGenerating}
-              />
-            }
-            previewColumn={
-              <GeneratePreviewColumn
-                generatedCode={generatedCode}
-                themes={themes}
-                selectedTheme={selectedTheme}
-                onThemeChange={setSelectedTheme}
-                fileName={fileName}
-                onFileNameChange={setFileName}
-                onSaveDraft={handleSaveDraft}
-                onPublish={handlePublish}
-                onSaveAsTemplate={() => setShowSaveTemplateModal(true)}
-                isSavingDraft={isSavingDraft}
-                isPublishing={isPublishing}
-                isGenerating={isGenerating}
-                canSave={canSave}
-                canPublish={canPublish}
-              />
-            }
+        <div className="prompt-input-wrapper">
+          <textarea
+            ref={textareaRef}
+            value={prompt}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            rows={4}
+            placeholder="A hero section with video background, centered text overlay, and a prominent call-to-action button..."
+            disabled={isSubmitting}
+            className="prompt-textarea"
+            aria-label="Section description"
           />
-        </s-stack>
-      </s-page>
+          <div className="prompt-actions">
+            <span className="keyboard-hint">⌘ + Enter to submit</span>
+            <s-button
+              variant="primary"
+              onClick={handleSubmit}
+              loading={isSubmitting}
+              disabled={!prompt.trim()}
+            >
+              Create Section
+            </s-button>
+          </div>
+        </div>
 
-      {/* Save as Template Modal */}
-      {showSaveTemplateModal && (
-        <SaveTemplateModal
-          defaultPrompt={prompt}
-          onSave={handleSaveAsTemplate}
-          onClose={() => setShowSaveTemplateModal(false)}
-        />
-      )}
-    </>
+        <div className="template-chips">
+          <p className="chips-label">Quick start templates:</p>
+          <div className="chips-container">
+            {TEMPLATE_CHIPS.map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                className="template-chip"
+                onClick={() => handleChipClick(chip.prompt)}
+                disabled={isSubmitting}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </s-page>
   );
 }
