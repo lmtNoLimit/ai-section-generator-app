@@ -1,7 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AIServiceInterface } from "../types";
+import type { StreamingOptions, ConversationContext } from "../types/ai.types";
+import { buildConversationPrompt, getChatSystemPrompt } from "../utils/context-builder";
 
-const SYSTEM_PROMPT = `You are an expert Shopify theme developer. Generate production-ready Liquid sections.
+export const SYSTEM_PROMPT = `You are an expert Shopify theme developer. Generate production-ready Liquid sections.
 
 OUTPUT: Return ONLY raw Liquid code. No markdown fences, no explanations, no comments.
 
@@ -207,6 +209,98 @@ export class AIService implements AIServiceInterface {
       return codeBlockMatch[1].trim();
     }
     return text;
+  }
+
+  /**
+   * Generate section with real-time streaming
+   * Returns AsyncGenerator for SSE integration
+   */
+  async *generateSectionStream(
+    prompt: string,
+    options?: StreamingOptions
+  ): AsyncGenerator<string, void, unknown> {
+    if (!this.genAI) {
+      // Fallback: yield mock response in chunks
+      const mockResponse = this.getMockSection(prompt);
+      const chunks = mockResponse.match(/.{1,50}/g) || [];
+      for (const chunk of chunks) {
+        yield chunk;
+        await new Promise(r => setTimeout(r, 20));
+      }
+      return;
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        systemInstruction: SYSTEM_PROMPT
+      });
+
+      const result = await model.generateContentStream(prompt);
+
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        if (text) {
+          yield text;
+          options?.onToken?.(text);
+        }
+
+        // Check for abort
+        if (options?.signal?.aborted) {
+          break;
+        }
+      }
+    } catch (error) {
+      console.error("Gemini streaming error:", error);
+      options?.onError?.(error instanceof Error ? error : new Error(String(error)));
+
+      // Fallback to mock on error
+      yield this.getMockSection(prompt);
+    }
+  }
+
+  /**
+   * Generate section with conversation context
+   * Used by chat endpoint for iterative refinement
+   */
+  async *generateWithContext(
+    userMessage: string,
+    context: ConversationContext,
+    options?: StreamingOptions
+  ): AsyncGenerator<string, void, unknown> {
+    const fullPrompt = buildConversationPrompt(userMessage, context);
+
+    if (!this.genAI) {
+      yield* this.generateSectionStream(fullPrompt, options);
+      return;
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        systemInstruction: getChatSystemPrompt(SYSTEM_PROMPT)
+      });
+
+      const result = await model.generateContentStream(fullPrompt);
+
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        if (text) {
+          yield text;
+          options?.onToken?.(text);
+        }
+
+        if (options?.signal?.aborted) {
+          break;
+        }
+      }
+    } catch (error) {
+      console.error("Gemini context streaming error:", error);
+      options?.onError?.(error instanceof Error ? error : new Error(String(error)));
+
+      // Provide helpful error response
+      yield "I encountered an error processing your request. Please try again or simplify your request.";
+    }
   }
 
   getMockSection(prompt: string): string {

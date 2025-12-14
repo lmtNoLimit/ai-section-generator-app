@@ -185,3 +185,60 @@ model FailedUsageCharge {
   @@index([createdAt])
   @@index([retryCount])
 }
+
+// AI Conversation for iterative section refinement
+model Conversation {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  sectionId     String    @unique @db.ObjectId // 1:1 with Section
+  shop          String
+
+  // AI Context
+  systemPrompt  String?   // Custom system prompt override (null = use default)
+  modelId       String    @default("gemini-2.5-flash") // AI model used
+
+  // Metadata
+  title         String?   // Auto-generated from first message
+  messageCount  Int       @default(0)
+  totalTokens   Int       @default(0) // Cumulative token usage
+
+  // Status
+  isArchived    Boolean   @default(false)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  messages      Message[]
+
+  @@index([shop])
+  @@index([createdAt])
+}
+
+// Individual chat message
+model Message {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId  String   @db.ObjectId
+
+  // Message content
+  role            String   // "user" | "assistant" | "system"
+  content         String   // Message text (can include Liquid code blocks)
+
+  // Code extraction
+  codeSnapshot    String?  // Extracted Liquid code from this message (if any)
+
+  // Metadata
+  tokenCount      Int?     // Tokens in this message
+  modelId         String?  // Model that generated this (for assistant messages)
+
+  // UI-only fields (not sent to AI)
+  isError         Boolean  @default(false) // Was this an error response?
+  errorMessage    String?  // Error details if isError
+
+  createdAt       DateTime @default(now())
+
+  // Relations
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+}

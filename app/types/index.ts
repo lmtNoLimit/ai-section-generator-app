@@ -24,3 +24,23 @@ export type {
   GenerateActionData,
   SaveActionData,
 } from './service.types';
+
+// Chat Types
+export type {
+  MessageRole,
+  UIMessage,
+  ModelMessage,
+  ConversationState,
+  SendMessageRequest,
+  SendMessageResponse,
+  StreamEventType,
+  StreamEvent,
+  ConversationMeta,
+} from './chat.types';
+
+// AI Streaming Types
+export type {
+  StreamingOptions,
+  ConversationContext,
+  CodeExtractionResult,
+} from './ai.types';

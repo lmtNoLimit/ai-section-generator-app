@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, type KeyboardEvent, type ChangeEvent } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useActionData, useNavigation, useSubmit, useNavigate } from "react-router";
+import { useActionData, useNavigation, useSubmit, useNavigate, useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { sectionService } from "../services/section.server";
 import { chatService } from "../services/chat.server";
+import { templateService, type FeaturedTemplate } from "../services/template.server";
 import { sanitizeUserInput } from "../utils/input-sanitizer";
 import "../styles/new-section.css";
 
@@ -14,9 +15,22 @@ const MAX_PROMPT_LENGTH = 2000;
  * Creates section + conversation on submit, redirects to /$id for AI chat
  */
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  await authenticate.admin(request);
-  return {};
+interface LoaderData {
+  templates: FeaturedTemplate[];
+}
+
+export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
+  const { session } = await authenticate.admin(request);
+
+  // Fetch featured templates (shop-specific + defaults fallback)
+  // Graceful degradation: return empty array on DB error
+  try {
+    const templates = await templateService.getFeatured(session.shop, 4);
+    return { templates };
+  } catch (error) {
+    console.error("Failed to fetch featured templates:", error);
+    return { templates: [] };
+  }
 }
 
 interface ActionData {
@@ -61,14 +75,8 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
   }
 }
 
-const TEMPLATE_CHIPS = [
-  { label: "Hero Section", prompt: "A hero section with a large background image, centered heading, subheading, and a call-to-action button" },
-  { label: "Product Grid", prompt: "A responsive product grid with 3 columns showing product image, title, and price" },
-  { label: "Testimonials", prompt: "A testimonial carousel with customer quotes, names, and star ratings" },
-  { label: "Newsletter", prompt: "A newsletter signup section with email input and subscribe button" },
-];
-
 export default function NewSectionPage() {
+  const { templates } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const navigate = useNavigate();
@@ -152,22 +160,30 @@ export default function NewSectionPage() {
           </div>
         </div>
 
-        <div className="template-chips">
-          <p className="chips-label">Quick start templates:</p>
-          <div className="chips-container">
-            {TEMPLATE_CHIPS.map((chip) => (
-              <button
-                key={chip.label}
-                type="button"
-                className="template-chip"
-                onClick={() => handleChipClick(chip.prompt)}
-                disabled={isSubmitting}
-              >
-                {chip.label}
-              </button>
-            ))}
+        {templates.length > 0 && (
+          <div className="template-chips" aria-label="Suggested templates">
+            <p className="chips-label">Try one of these:</p>
+            <div className="chips-container">
+              {templates.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  className="template-chip"
+                  onClick={() => handleChipClick(template.prompt)}
+                  disabled={isSubmitting}
+                  aria-label={`Use ${template.title} template`}
+                >
+                  {template.icon && (
+                    <span className="template-chip-icon" aria-hidden="true">
+                      {template.icon}
+                    </span>
+                  )}
+                  <span className="template-chip-title">{template.title}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </s-page>
   );

@@ -21,6 +21,13 @@ export interface UpdateTemplateInput {
   isFavorite?: boolean;
 }
 
+export interface FeaturedTemplate {
+  id: string;
+  title: string;
+  prompt: string;
+  icon: string | null;
+}
+
 /**
  * Template service for managing section templates
  */
@@ -138,5 +145,53 @@ export const templateService = {
         isFavorite: false,
       },
     });
+  },
+
+  /**
+   * Get featured templates for quick-start chips
+   * Prioritizes shop-specific templates, falls back to defaults
+   */
+  async getFeatured(shop: string, limit: number = 4): Promise<FeaturedTemplate[]> {
+    // Try shop-specific templates first (favorites or most recent)
+    const shopTemplates = await prisma.sectionTemplate.findMany({
+      where: { shop },
+      select: { id: true, title: true, prompt: true, icon: true },
+      orderBy: [{ isFavorite: "desc" }, { createdAt: "desc" }],
+      take: limit,
+    });
+
+    if (shopTemplates.length >= limit) {
+      return shopTemplates;
+    }
+
+    // Fill remaining slots with default templates
+    const defaultTemplates: FeaturedTemplate[] = [
+      {
+        id: "default-hero",
+        title: "Hero Section",
+        prompt: "A hero section with a large background image, centered heading, subheading, and a call-to-action button",
+        icon: "🖼",
+      },
+      {
+        id: "default-products",
+        title: "Product Grid",
+        prompt: "A responsive product grid with 3 columns showing product image, title, and price",
+        icon: "🛒",
+      },
+      {
+        id: "default-testimonials",
+        title: "Testimonials",
+        prompt: "A testimonial carousel with customer quotes, names, and star ratings",
+        icon: "💬",
+      },
+      {
+        id: "default-newsletter",
+        title: "Newsletter",
+        prompt: "A newsletter signup section with email input and subscribe button",
+        icon: "📧",
+      },
+    ];
+
+    return [...shopTemplates, ...defaultTemplates].slice(0, limit);
   },
 };

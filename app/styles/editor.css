@@ -1,0 +1,249 @@
+/* Unified Editor Layout */
+.unified-editor {
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-panel {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-panel--chat {
+  background: var(--p-color-bg-surface);
+  border-right: 1px solid var(--p-color-border);
+}
+
+.editor-panel--main {
+  background: var(--p-color-bg-surface-secondary);
+}
+
+.editor-panel--settings {
+  background: var(--p-color-bg-surface);
+  border-left: 1px solid var(--p-color-border);
+}
+
+/* Resize Handle */
+.editor-resize-handle {
+  width: 4px;
+  background: transparent;
+  transition: background 0.2s;
+  cursor: col-resize;
+}
+
+.editor-resize-handle:hover,
+.editor-resize-handle:active {
+  background: var(--p-color-border-brand);
+}
+
+.editor-resize-handle:focus-visible {
+  outline: 2px solid var(--p-color-border-brand);
+  outline-offset: -2px;
+}
+
+/* Editor Header */
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--p-space-400);
+  background: var(--p-color-bg-surface);
+  border-bottom: 1px solid var(--p-color-border);
+}
+
+.editor-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-300);
+}
+
+.editor-header__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--p-border-radius-200);
+  color: var(--p-color-text-subdued);
+  text-decoration: none;
+}
+
+.editor-header__back:hover {
+  background: var(--p-color-bg-surface-secondary);
+  color: var(--p-color-text);
+}
+
+.editor-header__name {
+  background: none;
+  border: none;
+  font-size: var(--p-font-size-400);
+  font-weight: var(--p-font-weight-semibold);
+  cursor: pointer;
+  padding: var(--p-space-100) var(--p-space-200);
+  border-radius: var(--p-border-radius-100);
+  color: var(--p-color-text);
+}
+
+.editor-header__name:hover {
+  background: var(--p-color-bg-surface-secondary);
+}
+
+.editor-header__name-input {
+  font-size: var(--p-font-size-400);
+  font-weight: var(--p-font-weight-semibold);
+  border: 1px solid var(--p-color-border-brand);
+  border-radius: var(--p-border-radius-100);
+  padding: var(--p-space-100) var(--p-space-200);
+  outline: none;
+}
+
+.editor-header__name-input:focus {
+  box-shadow: 0 0 0 2px var(--p-color-border-brand);
+}
+
+.editor-header__dirty {
+  color: var(--p-color-text-brand);
+  margin-left: var(--p-space-100);
+}
+
+.editor-header__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--p-space-050) var(--p-space-200);
+  background: var(--p-color-bg-fill-success);
+  color: var(--p-color-text-on-color);
+  font-size: var(--p-font-size-200);
+  font-weight: var(--p-font-weight-medium);
+  border-radius: var(--p-border-radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.editor-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-200);
+}
+
+/* Chat Panel Wrapper */
+.chat-panel-wrapper {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-panel-wrapper__header {
+  padding: var(--p-space-400);
+  border-bottom: 1px solid var(--p-color-border);
+}
+
+.chat-panel-wrapper__header h2 {
+  margin: 0;
+  font-size: var(--p-font-size-350);
+  font-weight: var(--p-font-weight-semibold);
+  color: var(--p-color-text);
+}
+
+.chat-panel-wrapper__header p {
+  margin: var(--p-space-100) 0 0;
+  font-size: var(--p-font-size-300);
+  color: var(--p-color-text-subdued);
+}
+
+/* Code Preview Panel */
+.code-preview-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.code-preview-panel__tabs {
+  display: flex;
+  gap: var(--p-space-100);
+  padding: var(--p-space-300);
+  background: var(--p-color-bg-surface);
+  border-bottom: 1px solid var(--p-color-border);
+}
+
+.code-preview-panel__tab {
+  background: none;
+  border: none;
+  padding: var(--p-space-200) var(--p-space-400);
+  border-radius: var(--p-border-radius-200);
+  cursor: pointer;
+  font-size: var(--p-font-size-325);
+  color: var(--p-color-text-subdued);
+  transition: all 0.15s ease;
+}
+
+.code-preview-panel__tab:hover {
+  background: var(--p-color-bg-surface-secondary);
+}
+
+.code-preview-panel__tab--active {
+  background: var(--p-color-bg-fill-brand);
+  color: var(--p-color-text-on-color);
+}
+
+.code-preview-panel__tab--active:hover {
+  background: var(--p-color-bg-fill-brand);
+}
+
+.code-preview-panel__content {
+  flex: 1;
+  overflow: auto;
+  padding: var(--p-space-400);
+}
+
+/* Settings Panel */
+.settings-panel {
+  padding: var(--p-space-400);
+}
+
+.settings-panel__title {
+  margin: 0 0 var(--p-space-400);
+  font-size: var(--p-font-size-350);
+  font-weight: var(--p-font-weight-semibold);
+  color: var(--p-color-text);
+}
+
+.settings-panel__section {
+  margin-bottom: var(--p-space-400);
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Responsive: Tablet - collapse settings by default */
+@media (max-width: 1024px) {
+  .unified-editor {
+    height: calc(100vh - 100px);
+  }
+}
+
+/* Responsive: Mobile - stack panels */
+@media (max-width: 768px) {
+  .editor-header {
+    flex-direction: column;
+    gap: var(--p-space-200);
+    align-items: stretch;
+  }
+
+  .editor-header__left,
+  .editor-header__right {
+    justify-content: center;
+  }
+}

@@ -315,12 +315,12 @@ export default function SectionsPage() {
                             Fav
                           </s-badge>
                         )}
-                        <s-text
+                        <s-link
                           id={`link-${item.id}`}
-                          // href={`/app/sections/${item.id}`}
+                          href={`/app/sections/${item.id}`}
                         >
                           {item.name || truncateText(item.prompt, 50)}
-                        </s-text>
+                        </s-link>
                       </s-stack>
                     </s-table-cell>
                     <s-table-cell>

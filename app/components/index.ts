@@ -42,3 +42,23 @@ export type { PromptExamplesProps } from './generate/PromptExamples';
 export type { AdvancedOptionsProps, AdvancedOptionsState } from './generate/AdvancedOptions';
 export type { LoadingStateProps } from './generate/LoadingState';
 export type { EmptyStateProps } from './generate/EmptyState';
+
+// Chat feature components
+export { ChatPanel } from './chat/ChatPanel';
+export { MessageList } from './chat/MessageList';
+export { MessageItem } from './chat/MessageItem';
+export { ChatInput } from './chat/ChatInput';
+export { CodeBlock } from './chat/CodeBlock';
+export { TypingIndicator } from './chat/TypingIndicator';
+export { useChat } from './chat/hooks/useChat';
+export { useAutoScroll } from './chat/hooks/useAutoScroll';
+export { ChatStyles } from './chat/ChatStyles';
+
+// Chat types
+export type { ChatPanelProps } from './chat/ChatPanel';
+export type { MessageListProps } from './chat/MessageList';
+export type { MessageItemProps } from './chat/MessageItem';
+export type { ChatInputProps } from './chat/ChatInput';
+export type { CodeBlockProps } from './chat/CodeBlock';
+export type { UseChatOptions, ChatState, ChatAction } from './chat/hooks/useChat';
+export type { UseAutoScrollOptions } from './chat/hooks/useAutoScroll';

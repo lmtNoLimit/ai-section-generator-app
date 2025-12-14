@@ -1,546 +1,285 @@
-import { useState, useEffect } from "react";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { useEffect, useCallback } from 'react';
+import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import {
   useActionData,
   useLoaderData,
   useNavigation,
   useSubmit,
-  useNavigate,
   data,
-} from "react-router";
-import { authenticate } from "../shopify.server";
-import { aiAdapter } from "../services/adapters/ai-adapter";
-import { themeAdapter } from "../services/adapters/theme-adapter";
-import { sectionService } from "../services/section.server";
-import { templateService } from "../services/template.server";
-import prisma from "../db.server";
-import {
-  canGenerate,
-  trackGeneration,
-} from "../services/usage-tracking.server";
-import type { GenerateActionData, SaveActionData, Theme } from "../types";
+} from 'react-router';
+import { authenticate } from '../shopify.server';
+import { themeAdapter } from '../services/adapters/theme-adapter';
+import { sectionService } from '../services/section.server';
+import { chatService } from '../services/chat.server';
+import prisma from '../db.server';
 
-import { GenerateLayout } from "../components/generate/GenerateLayout";
-import { GenerateInputColumn } from "../components/generate/GenerateInputColumn";
-import { GeneratePreviewColumn } from "../components/generate/GeneratePreviewColumn";
-import { SaveTemplateModal } from "../components/generate/SaveTemplateModal";
-import type { AdvancedOptionsState } from "../components/generate/AdvancedOptions";
-import { DeleteConfirmModal } from "../components/sections/DeleteConfirmModal";
+import {
+  UnifiedEditorLayout,
+  EditorHeader,
+  ChatPanelWrapper,
+  CodePreviewPanel,
+  EditorSettingsPanel,
+  useEditorState,
+} from '../components/editor';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+
+import type { SaveActionData, Theme, UIMessage } from '../types';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
-  const { id } = params;
+  const sectionId = params.id;
 
-  if (!id) {
-    throw data({ message: "Section ID is required" }, { status: 400 });
+  if (!sectionId) {
+    throw data({ message: 'Section ID required' }, { status: 400 });
   }
 
-  const generation = await sectionService.getById(id, shop);
-
-  if (!generation) {
-    throw data({ message: "Section not found" }, { status: 404 });
+  // Load section
+  const section = await sectionService.getById(sectionId, shop);
+  if (!section) {
+    throw data({ message: 'Section not found' }, { status: 404 });
   }
 
+  // Load themes
   const themes = await themeAdapter.getThemes(request);
 
-  return { generation, themes };
+  // Load or create conversation
+  const conversation = await chatService.getOrCreateConversation(sectionId, shop);
+  const messages = await chatService.getMessages(conversation.id);
+
+  return {
+    section,
+    themes,
+    conversation: {
+      id: conversation.id,
+      messages,
+    },
+  };
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  const { session, admin } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const shop = session.shop;
-  const { id } = params;
+  const sectionId = params.id!;
+
   const formData = await request.formData();
-  const actionType = formData.get("action");
+  const actionType = formData.get('action');
 
-  if (actionType === "generate") {
-    const prompt = formData.get("prompt") as string;
-    const name = formData.get("name") as string | null;
-    const tone = formData.get("tone") as string | null;
-    const style = formData.get("style") as string | null;
-
-    // Check quota before generation
-    const quotaCheck = await canGenerate(shop);
-
-    if (!quotaCheck.allowed) {
-      return {
-        error: quotaCheck.reason || "Generation limit reached",
-        quota: quotaCheck.quota,
-      };
-    }
-
-    const code = await aiAdapter.generateSection(prompt);
-
-    // Update existing section with new code (edit page regenerate updates in-place)
-    if (id) {
-      await sectionService.update(id, shop, {
-        name: name || undefined,
-      });
-
-      // Track usage
-      trackGeneration(admin, shop, id, prompt).catch((error) => {
-        console.error("Failed to track generation:", error);
-      });
-    }
-
-    return {
-      code,
-      prompt,
-      name: name || undefined,
-      tone: tone || undefined,
-      style: style || undefined,
-      quota: quotaCheck.quota,
-      regenerated: true,
-    } satisfies GenerateActionData & { regenerated?: boolean };
-  }
-
-  if (actionType === "save") {
-    const themeId = formData.get("themeId") as string;
-    const fileName = formData.get("fileName") as string;
-    const content = formData.get("content") as string;
-    const prompt = formData.get("prompt") as string;
-    const sectionName = formData.get("sectionName") as string | null;
-    const themeName = formData.get("themeName") as string | null;
+  if (actionType === 'saveDraft') {
+    const code = formData.get('code') as string;
+    const name = formData.get('name') as string;
 
     try {
-      const result = await themeAdapter.createSection(
-        request,
+      await sectionService.update(sectionId, shop, {
+        name,
+        status: 'draft',
+      });
+
+      await prisma.section.update({
+        where: { id: sectionId },
+        data: { code },
+      });
+
+      return { success: true, message: 'Draft saved!' } satisfies SaveActionData;
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to save draft.',
+      } satisfies SaveActionData;
+    }
+  }
+
+  if (actionType === 'publish') {
+    const code = formData.get('code') as string;
+    const name = formData.get('name') as string;
+    const themeId = formData.get('themeId') as string;
+    const fileName = formData.get('fileName') as string;
+    const themeName = formData.get('themeName') as string;
+
+    try {
+      // Save to theme
+      await themeAdapter.createSection(request, themeId, fileName, code, name);
+
+      // Update section
+      await sectionService.update(sectionId, shop, {
+        name,
+        status: 'saved',
         themeId,
+        themeName,
         fileName,
-        content,
-        sectionName || undefined
-      );
+      });
 
-      // Update existing section entry with new code and save info
-      if (id) {
-        await sectionService.update(id, shop, {
-          themeId,
-          themeName: themeName || undefined,
-          fileName,
-          status: "saved",
-          name: sectionName || undefined,
-        });
-
-        // Also update the code if it was regenerated
-        // We need to update the code separately since update() doesn't handle it
-        await prisma.section.update({
-          where: { id },
-          data: {
-            code: content,
-            prompt: prompt,
-          },
-        });
-      }
-
-      return {
-        success: true,
-        message: `Section saved successfully to ${result?.filename || fileName}!`,
-        sectionId: id,
-      } satisfies SaveActionData;
-    } catch (error) {
-      console.error("Failed to save section:", error);
-      return {
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to save section. Please try again.",
-      } satisfies SaveActionData;
-    }
-  }
-
-  if (actionType === "saveDraft") {
-    const content = formData.get("content") as string;
-    const prompt = formData.get("prompt") as string;
-    const sectionName = formData.get("sectionName") as string | null;
-
-    try {
-      // Update existing section with new code (keep as draft)
-      if (id) {
-        await sectionService.update(id, shop, {
-          name: sectionName || undefined,
-          status: "draft",
-        });
-
-        await prisma.section.update({
-          where: { id },
-          data: {
-            code: content,
-            prompt: prompt,
-          },
-        });
-      }
-
-      return {
-        success: true,
-        message: "Draft saved!",
-        sectionId: id,
-      } satisfies SaveActionData;
-    } catch (error) {
-      console.error("Failed to save draft:", error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Failed to save draft.",
-      } satisfies SaveActionData;
-    }
-  }
-
-  if (actionType === "saveAsTemplate") {
-    const title = formData.get("title") as string;
-    const description = formData.get("description") as string;
-    const category = formData.get("category") as string;
-    const icon = formData.get("icon") as string;
-    const prompt = formData.get("prompt") as string;
-    const code = formData.get("code") as string | null;
-
-    try {
-      await templateService.create({
-        shop,
-        title,
-        description,
-        category,
-        icon,
-        prompt,
-        code: code || undefined,
+      await prisma.section.update({
+        where: { id: sectionId },
+        data: { code },
       });
 
       return {
         success: true,
-        message: "Template saved successfully!",
-        templateSaved: true,
-      };
+        message: `Published to ${fileName}!`,
+      } satisfies SaveActionData;
     } catch (error) {
-      console.error("Failed to save template:", error);
+      console.error('Failed to publish:', error);
       return {
         success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to save template. Please try again.",
-      };
+        message: error instanceof Error ? error.message : 'Failed to publish.',
+      } satisfies SaveActionData;
     }
   }
 
-  if (actionType === "updateName") {
-    const name = formData.get("name") as string;
-    if (!id) {
-      return { success: false, message: "Section ID is required" };
-    }
-
-    await sectionService.update(id, shop, { name });
-    return {
-      success: true,
-      nameUpdated: true,
-      message: "Section name updated",
-    };
+  if (actionType === 'updateName') {
+    const name = formData.get('name') as string;
+    await sectionService.update(sectionId, shop, { name });
+    return { success: true };
   }
 
-  if (actionType === "delete") {
-    if (!id) {
-      return { success: false, message: "Section ID is required" };
-    }
-
-    const deleted = await sectionService.delete(id, shop);
-
-    if (!deleted) {
-      return { success: false, message: "Failed to delete section" };
-    }
-
-    return {
-      success: true,
-      deleted: true,
-      message: "Section deleted successfully",
-    };
-  }
-
-  return null;
+  return data({ error: 'Unknown action' }, { status: 400 });
 }
 
-function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-export default function SectionEditPage() {
-  const { generation, themes } = useLoaderData<typeof loader>();
+export default function UnifiedEditorPage() {
+  const { section, themes, conversation } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submit = useSubmit();
-  const navigate = useNavigate();
 
-  // Initialize state from loaded generation
-  const [prompt, setPrompt] = useState(generation.prompt);
-  const [sectionName, setSectionName] = useState(generation.name || "");
-  const [generatedCode, setGeneratedCode] = useState(generation.code);
-
-  // Advanced options state
-  const [advancedOptions, setAdvancedOptions] = useState<AdvancedOptionsState>({
-    tone: (generation.tone as AdvancedOptionsState["tone"]) || "professional",
-    style: (generation.style as AdvancedOptionsState["style"]) || "minimal",
-    includeSchema: true,
+  const {
+    sectionCode,
+    sectionName,
+    setSectionName,
+    handleCodeUpdate,
+    lastCodeSource,
+    revertToOriginal,
+    canRevert,
+    conversationId,
+    initialMessages,
+    selectedTheme,
+    setSelectedTheme,
+    selectedThemeName,
+    fileName,
+    setFileName,
+    isDirty,
+    canPublish,
+  } = useEditorState({
+    section,
+    themes: themes as Theme[],
+    conversation: conversation as { id: string; messages: UIMessage[] },
   });
 
-  // Theme selection - use original theme if available, else active theme, else first theme
-  const originalTheme = themes.find((t: Theme) => t.id === generation.themeId);
-  const activeTheme = themes.find((theme: Theme) => theme.role === "MAIN");
-  const [selectedTheme, setSelectedTheme] = useState(
-    originalTheme?.id || activeTheme?.id || themes[0]?.id || "",
-  );
+  const isLoading = navigation.state === 'submitting';
+  const isSavingDraft = isLoading && navigation.formData?.get('action') === 'saveDraft';
+  const isPublishing = isLoading && navigation.formData?.get('action') === 'publish';
 
-  const [fileName, setFileName] = useState(generation.fileName || "ai-section");
-  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  // Save handlers
+  const handleSaveDraft = useCallback(() => {
+    if (isLoading) return;
+    const formData = new FormData();
+    formData.append('action', 'saveDraft');
+    formData.append('code', sectionCode);
+    formData.append('name', sectionName);
+    submit(formData, { method: 'post' });
+  }, [isLoading, sectionCode, sectionName, submit]);
 
-  // Modal ID for commandFor pattern
-  const DELETE_MODAL_ID = "delete-section-modal";
+  const handlePublish = useCallback(() => {
+    if (isLoading || !canPublish) return;
+    const formData = new FormData();
+    formData.append('action', 'publish');
+    formData.append('code', sectionCode);
+    formData.append('name', sectionName);
+    formData.append('themeId', selectedTheme);
+    formData.append('fileName', fileName);
+    formData.append('themeName', selectedThemeName);
+    submit(formData, { method: 'post' });
+  }, [isLoading, canPublish, sectionCode, sectionName, selectedTheme, fileName, selectedThemeName, submit]);
 
-  const isLoading = navigation.state === "submitting";
-  const isGenerating =
-    isLoading && navigation.formData?.get("action") === "generate";
-  const isSavingDraft = isLoading && navigation.formData?.get("action") === "saveDraft";
-  const isPublishing = isLoading && navigation.formData?.get("action") === "save";
-  const isSaving = isSavingDraft || isPublishing;
-  const isDeleting =
-    isLoading && navigation.formData?.get("action") === "delete";
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    shortcuts: [
+      {
+        key: 's',
+        ctrl: true,
+        action: handleSaveDraft,
+        description: 'Save draft',
+      },
+      {
+        key: 's',
+        ctrl: true,
+        shift: true,
+        action: handlePublish,
+        description: 'Publish to theme',
+        enabled: canPublish,
+      },
+    ],
+  });
 
-  // Update state when action data changes (after regeneration)
+  const handleNameChange = (name: string) => {
+    setSectionName(name);
+    const formData = new FormData();
+    formData.append('action', 'updateName');
+    formData.append('name', name);
+    submit(formData, { method: 'post' });
+  };
+
+  // Show toast on success
   useEffect(() => {
-    if (actionData?.code && actionData.code !== generatedCode) {
-      setGeneratedCode(actionData.code);
+    if (actionData && 'success' in actionData && actionData.success && 'message' in actionData && actionData.message) {
+      shopify.toast.show(actionData.message);
     }
-  }, [actionData?.code, generatedCode]);
-
-  // Handle delete success - show toast and navigate back to sections list
-  useEffect(() => {
-    if (actionData?.deleted) {
-      shopify.toast.show(actionData.message || "Section deleted successfully");
-      navigate("/app/sections");
-    }
-  }, [actionData?.deleted, actionData?.message, navigate]);
-
-  // Close modal on successful template save
-  useEffect(() => {
-    if (actionData?.templateSaved) {
-      setShowSaveTemplateModal(false);
-    }
-  }, [actionData?.templateSaved]);
-
-  // Show toast on successful save (draft or publish)
-  useEffect(() => {
-    if (actionData?.success && !actionData?.templateSaved && !actionData?.deleted && !actionData?.nameUpdated) {
-      shopify.toast.show("Section saved");
-    }
-  }, [actionData?.success, actionData?.templateSaved, actionData?.deleted, actionData?.nameUpdated]);
-
-  // Get theme name for success message
-  const selectedThemeName =
-    themes.find((t: Theme) => t.id === selectedTheme)?.name || "theme";
-
-  // Handlers
-  const handleGenerate = () => {
-    if (!prompt.trim()) return;
-    const formData = new FormData();
-    formData.append("action", "generate");
-    formData.append("prompt", prompt);
-    formData.append("name", sectionName);
-    formData.append("tone", advancedOptions.tone);
-    formData.append("style", advancedOptions.style);
-    submit(formData, { method: "post" });
-  };
-
-  // Save name on blur
-  const handleNameBlur = () => {
-    if (sectionName !== (generation.name || "")) {
-      const formData = new FormData();
-      formData.append("action", "updateName");
-      formData.append("name", sectionName);
-      submit(formData, { method: "post" });
-    }
-  };
-
-  const handleSaveDraft = () => {
-    const formData = new FormData();
-    formData.append("action", "saveDraft");
-    formData.append("content", generatedCode);
-    formData.append("prompt", prompt);
-    formData.append("sectionName", sectionName);
-    submit(formData, { method: "post" });
-  };
-
-  const handlePublish = () => {
-    const formData = new FormData();
-    formData.append("action", "save");
-    formData.append("themeId", selectedTheme);
-    formData.append("fileName", fileName);
-    formData.append("content", generatedCode);
-    formData.append("prompt", prompt);
-    formData.append("themeName", selectedThemeName);
-    formData.append("sectionName", sectionName);
-    submit(formData, { method: "post" });
-  };
-
-  const handleDelete = () => {
-    const formData = new FormData();
-    formData.append("action", "delete");
-    submit(formData, { method: "post" });
-  };
-
-  const canSave = Boolean(generatedCode);
-  const canPublish = Boolean(generatedCode && fileName && selectedTheme);
-
-  const handleSaveAsTemplate = (templateData: {
-    title: string;
-    description: string;
-    category: string;
-    icon: string;
-    prompt: string;
-  }) => {
-    const formData = new FormData();
-    formData.append("action", "saveAsTemplate");
-    formData.append("title", templateData.title);
-    formData.append("description", templateData.description);
-    formData.append("category", templateData.category);
-    formData.append("icon", templateData.icon);
-    formData.append("prompt", templateData.prompt);
-    if (generatedCode) {
-      formData.append("code", generatedCode);
-    }
-    submit(formData, { method: "post" });
-    setShowSaveTemplateModal(false);
-  };
+  }, [actionData]);
 
   return (
-    <>
-      <s-page heading="Edit Section" inlineSize="large">
-        <s-stack gap="large" direction="block">
-          {/* Breadcrumb */}
-          <s-stack direction="inline" gap="small" alignItems="center">
-            <a
-              href="/app/sections"
-              style={{ color: "var(--p-color-text-secondary)" }}
-            >
-              Sections
-            </a>
-            <s-text color="subdued">/</s-text>
-            <s-text>
-              {prompt.length > 40 ? prompt.substring(0, 40) + "..." : prompt}
-            </s-text>
-          </s-stack>
-
-          {/* Section Info Banner */}
-          <s-banner tone="info">
-            <s-stack direction="inline" gap="base" alignItems="center">
-              <s-badge
-                tone={generation.status === "saved" ? "success" : "neutral"}
-              >
-                {generation.status === "saved" ? "Saved" : "Draft"}
-              </s-badge>
-              <s-text color="subdued">
-                Created: {formatDate(generation.createdAt)}
-              </s-text>
-              {generation.themeName && (
-                <s-text color="subdued">Theme: {generation.themeName}</s-text>
-              )}
-            </s-stack>
-          </s-banner>
-
-          {/* Regeneration info callout */}
-          {actionData?.regenerated && (
-            <s-banner tone="success" dismissible>
-              New section created! The previous version is still available in
-              your sections list.
-            </s-banner>
-          )}
-
-          {/* Template saved banner */}
-          {actionData?.templateSaved && (
-            <s-banner tone="success" dismissible>
-              Template saved successfully! View your templates in the Templates
-              Library.
-            </s-banner>
-          )}
-
-          {/* Note: Section save success banner removed - toast notification used instead */}
-
-          {/* Error banner */}
-          {actionData?.success === false && (
-            <s-banner tone="critical">{actionData.message}</s-banner>
-          )}
-
-          {/* Two-column layout */}
-          <GenerateLayout
-            inputColumn={
-              <GenerateInputColumn
-                prompt={prompt}
-                onPromptChange={setPrompt}
-                sectionName={sectionName}
-                onSectionNameChange={setSectionName}
-                onSectionNameBlur={handleNameBlur}
-                advancedOptions={advancedOptions}
-                onAdvancedOptionsChange={setAdvancedOptions}
-                disabled={isGenerating || isSaving}
-                onGenerate={handleGenerate}
-                isGenerating={isGenerating}
-              />
-            }
-            previewColumn={
-              <GeneratePreviewColumn
-                generatedCode={generatedCode}
-                themes={themes}
-                selectedTheme={selectedTheme}
-                onThemeChange={setSelectedTheme}
-                fileName={fileName}
-                onFileNameChange={setFileName}
-                onSaveDraft={handleSaveDraft}
-                onPublish={handlePublish}
-                onSaveAsTemplate={() => setShowSaveTemplateModal(true)}
-                isSavingDraft={isSavingDraft}
-                isPublishing={isPublishing}
-                isGenerating={isGenerating}
-                canSave={canSave}
-                canPublish={canPublish}
-              />
-            }
-          />
-
-          {/* Delete button at bottom */}
-          <s-stack direction="inline" justifyContent="end">
-            <s-button
-              tone="critical"
-              command="--show"
-              commandFor={DELETE_MODAL_ID}
-              disabled={isDeleting}
-              variant="primary"
-            >
-              Delete Section
-            </s-button>
-          </s-stack>
-        </s-stack>
-      </s-page>
-
-      {/* Save as Template Modal */}
-      {showSaveTemplateModal && (
-        <SaveTemplateModal
-          defaultPrompt={prompt}
-          onSave={handleSaveAsTemplate}
-          onClose={() => setShowSaveTemplateModal(false)}
-        />
-      )}
-
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        id={DELETE_MODAL_ID}
-        isBulk={false}
-        count={1}
-        isDeleting={isDeleting}
-        onConfirm={handleDelete}
+    <s-page inlineSize="large">
+      <EditorHeader
+        sectionName={sectionName}
+        onNameChange={handleNameChange}
+        isDirty={isDirty}
+        onSaveDraft={handleSaveDraft}
+        onPublish={handlePublish}
+        isSavingDraft={isSavingDraft}
+        isPublishing={isPublishing}
+        canPublish={canPublish}
+        themeName={selectedThemeName}
+        canRevert={canRevert}
+        onRevert={revertToOriginal}
+        lastCodeSource={lastCodeSource}
       />
-    </>
+
+      <UnifiedEditorLayout
+        chatPanel={
+          conversationId ? (
+            <ChatPanelWrapper
+              conversationId={conversationId}
+              initialMessages={initialMessages}
+              currentCode={sectionCode}
+              onCodeUpdate={handleCodeUpdate}
+            />
+          ) : (
+            <div className="chat-panel-wrapper">
+              <div className="chat-panel-wrapper__header">
+                <h2>AI Assistant</h2>
+                <p>Loading conversation...</p>
+              </div>
+            </div>
+          )
+        }
+        codePreviewPanel={
+          <CodePreviewPanel
+            code={sectionCode}
+            fileName={fileName}
+          />
+        }
+        settingsPanel={
+          <EditorSettingsPanel
+            themes={themes as Theme[]}
+            selectedTheme={selectedTheme}
+            onThemeChange={setSelectedTheme}
+            fileName={fileName}
+            onFileNameChange={setFileName}
+            disabled={isLoading}
+          />
+        }
+      />
+    </s-page>
   );
 }
 
@@ -558,7 +297,7 @@ export function ErrorBoundary() {
             </s-paragraph>
             <s-button
               variant="primary"
-              onClick={() => (window.location.href = "/app/sections")}
+              onClick={() => (window.location.href = '/app/sections')}
             >
               Back to Sections
             </s-button>
