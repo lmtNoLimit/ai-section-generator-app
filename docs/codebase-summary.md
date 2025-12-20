@@ -2,12 +2,19 @@
 
 ## Overview
 
-AI Section Generator is a Shopify embedded app built with React Router 7, Prisma, and Google Gemini AI. The app enables merchants to generate custom Liquid theme sections via natural language prompts and save them directly to their Shopify themes.
+AI Section Generator (Blocksmith) is a production-ready Shopify embedded app that leverages Google Gemini 2.5 Flash to generate Shopify Liquid theme sections from natural language prompts. The app features a modern React Router 7 SSR architecture with comprehensive AI chat integration, preview rendering, and multi-tenant billing.
 
-**Total Files**: 201 files (routes: 20+, services: 18+, components: 100+, types: 8+, utilities: 16+)
-**Total Tokens**: ~335,835 tokens (measured via repomix)
-**Lines of Code**: ~28,000+ lines (measured via repomix, +1,200 from Phase 3 Font Picker, excluding migrations, config)
-**Architecture**: Clean service layer with adapter pattern, singleton pattern, comprehensive billing system, multi-tenant support, Liquid preview system with 70+ filters/drops/tags, font picker system with CSS-ready font stacks
+**Total Files**: 251 files
+**Total Tokens**: 231,226 tokens (via repomix 2025-12-20)
+**Code Languages**: TypeScript (strict mode), Prisma, CSS Modules, JSON
+**Architecture**: Service-oriented with adapter pattern, singleton pattern, multi-tenant isolation, comprehensive Liquid preview engine
+
+### Quick Stats
+- Routes: 20+ file-based
+- Services: 16+ server modules
+- Components: 100+ files across 11 feature domains
+- Database Models: 10 Prisma models with MongoDB
+- Test Files: 25+ test suites
 
 ## Directory Structure
 
