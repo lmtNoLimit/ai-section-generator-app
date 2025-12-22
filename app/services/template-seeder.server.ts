@@ -38,7 +38,6 @@ export const templateSeeder = {
       icon: template.icon,
       prompt: template.prompt,
       code: template.code || null, // Include pre-built code if available
-      isFavorite: false,
     }));
 
     await prisma.sectionTemplate.createMany({
@@ -67,7 +66,6 @@ export const templateSeeder = {
       icon: template.icon,
       prompt: template.prompt,
       code: template.code || null, // Include pre-built code if available
-      isFavorite: false,
     }));
 
     await prisma.sectionTemplate.createMany({

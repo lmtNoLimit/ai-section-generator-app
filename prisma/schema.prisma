@@ -48,8 +48,7 @@ model Section {
   style String? // minimal, bold, elegant
 
   // Status
-  status     String  @default("generated") // generated, saved, error
-  isFavorite Boolean @default(false)
+  status String @default("generated") // generated, saved, error
 
   createdAt DateTime @default(now())
 
@@ -68,7 +67,6 @@ model SectionTemplate {
   icon        String // Emoji or icon identifier
   prompt      String // Original generation prompt
   code        String? // Liquid code (optional - can be prompt-only)
-  isFavorite  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

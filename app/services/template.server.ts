@@ -18,7 +18,6 @@ export interface UpdateTemplateInput {
   icon?: string;
   prompt?: string;
   code?: string;
-  isFavorite?: boolean;
 }
 
 export interface FeaturedTemplate {
@@ -70,15 +69,14 @@ export const templateService = {
    */
   async getByShop(
     shop: string,
-    options: { category?: string; favoritesOnly?: boolean } = {}
+    options: { category?: string } = {}
   ): Promise<SectionTemplate[]> {
-    const { category, favoritesOnly } = options;
+    const { category } = options;
 
     return prisma.sectionTemplate.findMany({
       where: {
         shop,
         ...(category && { category }),
-        ...(favoritesOnly && { isFavorite: true }),
       },
       orderBy: { createdAt: "desc" },
     });
@@ -90,22 +88,6 @@ export const templateService = {
   async getById(id: string, shop: string): Promise<SectionTemplate | null> {
     return prisma.sectionTemplate.findFirst({
       where: { id, shop },
-    });
-  },
-
-  /**
-   * Toggle favorite status
-   */
-  async toggleFavorite(id: string, shop: string): Promise<SectionTemplate | null> {
-    const existing = await prisma.sectionTemplate.findFirst({
-      where: { id, shop },
-    });
-
-    if (!existing) return null;
-
-    return prisma.sectionTemplate.update({
-      where: { id },
-      data: { isFavorite: !existing.isFavorite },
     });
   },
 
@@ -142,7 +124,6 @@ export const templateService = {
         icon: existing.icon,
         prompt: existing.prompt,
         code: existing.code,
-        isFavorite: false,
       },
     });
   },
@@ -152,11 +133,11 @@ export const templateService = {
    * Prioritizes shop-specific templates, falls back to defaults
    */
   async getFeatured(shop: string, limit: number = 4): Promise<FeaturedTemplate[]> {
-    // Try shop-specific templates first (favorites or most recent)
+    // Try shop-specific templates first (most recent)
     const shopTemplates = await prisma.sectionTemplate.findMany({
       where: { shop },
       select: { id: true, title: true, prompt: true, icon: true },
-      orderBy: [{ isFavorite: "desc" }, { createdAt: "desc" }],
+      orderBy: { createdAt: "desc" },
       take: limit,
     });
 

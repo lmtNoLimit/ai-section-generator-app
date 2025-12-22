@@ -5,7 +5,6 @@ export interface TemplateCardProps {
   onUseAsIs: () => void;      // Use pre-built code (instant)
   onCustomize: () => void;    // Use prompt for AI generation
   onEdit: () => void;
-  onToggleFavorite: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
 }
@@ -19,7 +18,6 @@ export function TemplateCard({
   onUseAsIs,
   onCustomize,
   onEdit: _onEdit,           // Reserved for future user templates
-  onToggleFavorite,
   onDuplicate: _onDuplicate, // Reserved for future user templates
   onDelete: _onDelete        // Reserved for future user templates
 }: TemplateCardProps) {
@@ -34,28 +32,19 @@ export function TemplateCard({
     >
       <s-stack gap="base" direction="block">
         {/* Header with icon, title, and badges */}
-        <s-stack gap="small" justifyContent="space-between" alignItems="start" direction="inline">
-          <s-stack gap="small" direction="inline" alignItems="center">
-            <span style={{ fontSize: '28px', lineHeight: 1 }}>{template.icon}</span>
-            <s-stack gap="none" direction="block">
-              <s-text type="strong">{template.title}</s-text>
-              <s-stack gap="small" direction="inline">
-                <s-badge tone="neutral">{template.category}</s-badge>
-                {hasCode ? (
-                  <s-badge tone="success">Ready to Use</s-badge>
-                ) : (
-                  <s-badge tone="info">AI Only</s-badge>
-                )}
-              </s-stack>
+        <s-stack gap="small" direction="inline" alignItems="center">
+          <span style={{ fontSize: '28px', lineHeight: 1 }}>{template.icon}</span>
+          <s-stack gap="none" direction="block">
+            <s-text type="strong">{template.title}</s-text>
+            <s-stack gap="small" direction="inline">
+              <s-badge tone="neutral">{template.category}</s-badge>
+              {hasCode ? (
+                <s-badge tone="success">Ready to Use</s-badge>
+              ) : (
+                <s-badge tone="info">AI Only</s-badge>
+              )}
             </s-stack>
           </s-stack>
-          <s-button
-            variant="tertiary"
-            onClick={onToggleFavorite}
-            accessibilityLabel={template.isFavorite ? "Remove from favorites" : "Add to favorites"}
-          >
-            <span style={{ fontSize: '16px' }}>{template.isFavorite ? '⭐' : '☆'}</span>
-          </s-button>
         </s-stack>
 
         {/* Description */}

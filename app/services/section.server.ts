@@ -63,7 +63,6 @@ export interface UpdateSectionInput {
   themeName?: string;
   fileName?: string;
   status?: string;
-  isFavorite?: boolean;
 }
 
 /**
@@ -121,23 +120,21 @@ export const sectionService = {
       page?: number;
       limit?: number;
       status?: string;
-      favoritesOnly?: boolean;
       search?: string;
       sort?: "newest" | "oldest";
     } = {}
   ): Promise<{ items: Section[]; total: number; page: number; totalPages: number }> {
-    const { page = 1, limit = 20, status, favoritesOnly, search, sort = "newest" } = options;
+    const { page = 1, limit = 20, status, search, sort = "newest" } = options;
     const skip = (page - 1) * limit;
 
     const where = {
       shop,
       ...(status && { status }),
-      ...(favoritesOnly && { isFavorite: true }),
       ...(search && {
         prompt: {
           contains: search,
-          mode: "insensitive" as const
-        }
+          mode: "insensitive" as const,
+        },
       }),
     };
 
@@ -165,22 +162,6 @@ export const sectionService = {
   async getById(id: string, shop: string): Promise<Section | null> {
     return prisma.section.findFirst({
       where: { id, shop },
-    });
-  },
-
-  /**
-   * Toggle favorite status
-   */
-  async toggleFavorite(id: string, shop: string): Promise<Section | null> {
-    const existing = await prisma.section.findFirst({
-      where: { id, shop },
-    });
-
-    if (!existing) return null;
-
-    return prisma.section.update({
-      where: { id },
-      data: { isFavorite: !existing.isFavorite },
     });
   },
 

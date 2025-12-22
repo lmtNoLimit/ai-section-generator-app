@@ -6,7 +6,6 @@ export interface TemplateGridProps {
   onUseAsIs: (template: SectionTemplate) => void;
   onCustomize: (template: SectionTemplate) => void;
   onEdit: (template: SectionTemplate) => void;
-  onToggleFavorite: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
 }
@@ -19,7 +18,6 @@ export function TemplateGrid({
   onUseAsIs,
   onCustomize,
   onEdit,
-  onToggleFavorite,
   onDuplicate,
   onDelete
 }: TemplateGridProps) {
@@ -35,7 +33,6 @@ export function TemplateGrid({
           onUseAsIs={() => onUseAsIs(template)}
           onCustomize={() => onCustomize(template)}
           onEdit={() => onEdit(template)}
-          onToggleFavorite={() => onToggleFavorite(template.id)}
           onDuplicate={() => onDuplicate(template.id)}
           onDelete={() => onDelete(template.id)}
         />

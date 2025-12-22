@@ -19,11 +19,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const url = new URL(request.url);
   const category = url.searchParams.get("category") || undefined;
-  const favoritesOnly = url.searchParams.get("favorites") === "true";
 
   const templates = await templateService.getByShop(shop, {
     category,
-    favoritesOnly,
   });
 
   return { templates, wasSeeded };
@@ -75,12 +73,6 @@ export async function action({ request }: ActionFunctionArgs) {
     return { success: true, action: "update" };
   }
 
-  if (actionType === "toggleFavorite") {
-    const id = formData.get("id") as string;
-    await templateService.toggleFavorite(id, shop);
-    return { success: true, action: "toggleFavorite" };
-  }
-
   if (actionType === "duplicate") {
     const id = formData.get("id") as string;
     await templateService.duplicate(id, shop);
@@ -115,10 +107,7 @@ const CATEGORIES = [
   { value: "footer", label: "Footer" },
 ];
 
-const FILTER_OPTIONS = [
-  ...CATEGORIES,
-  { value: "favorites", label: "Favorites" },
-];
+const FILTER_OPTIONS = CATEGORIES;
 
 
 export default function TemplatesPage() {
@@ -132,24 +121,13 @@ export default function TemplatesPage() {
   const [editingTemplate, setEditingTemplate] = useState<typeof templates[0] | null>(null);
 
   const currentCategory = searchParams.get("category") || "";
-  const favoritesOnly = searchParams.get("favorites") === "true";
-
-  // Determine current filter value
-  const currentFilterValue = favoritesOnly ? "favorites" : currentCategory;
 
   const handleFilterChange = (value: string) => {
     const params = new URLSearchParams(searchParams);
-
-    if (value === "favorites") {
-      params.delete("category");
-      params.set("favorites", "true");
+    if (value) {
+      params.set("category", value);
     } else {
-      params.delete("favorites");
-      if (value) {
-        params.set("category", value);
-      } else {
-        params.delete("category");
-      }
+      params.delete("category");
     }
     setSearchParams(params);
   };
@@ -166,12 +144,6 @@ export default function TemplatesPage() {
     navigate(`/app/sections/new?prompt=${encodeURIComponent(template.prompt)}`);
   };
 
-  const handleToggleFavorite = (id: string) => {
-    const formData = new FormData();
-    formData.append("action", "toggleFavorite");
-    formData.append("id", id);
-    submit(formData, { method: "post" });
-  };
 
   const handleDuplicate = (id: string) => {
     const formData = new FormData();
@@ -275,7 +247,7 @@ export default function TemplatesPage() {
               {/* Filters */}
               <FilterButtonGroup
                 options={FILTER_OPTIONS}
-                value={currentFilterValue}
+                value={currentCategory}
                 onChange={handleFilterChange}
               />
 
@@ -286,7 +258,6 @@ export default function TemplatesPage() {
                   onUseAsIs={handleUseAsIs}
                   onCustomize={handleCustomize}
                   onEdit={handleEdit}
-                  onToggleFavorite={handleToggleFavorite}
                   onDuplicate={handleDuplicate}
                   onDelete={handleDelete}
                 />
