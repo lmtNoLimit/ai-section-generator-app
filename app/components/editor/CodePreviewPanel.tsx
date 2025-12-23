@@ -23,7 +23,7 @@ const styles = {
     minHeight: 0,
     display: 'flex',
     flexDirection: 'column' as const,
-    overflow: 'hidden',
+    // Removed overflow:hidden - let innerContent handle scrolling
     background: 'var(--p-color-bg-surface-secondary)',
     padding: '16px',
   },

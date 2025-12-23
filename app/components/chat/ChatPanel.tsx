@@ -102,7 +102,7 @@ export function ChatPanel({
     minHeight: 0,
     display: "flex",
     flexDirection: "column" as const,
-    overflow: "hidden",
+    // Removed overflow:hidden - let MessageList handle its own scrolling
   };
 
   const inputStyle = {

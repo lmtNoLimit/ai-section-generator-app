@@ -8,6 +8,14 @@ interface ChatPanelWrapperProps {
   onCodeUpdate: (code: string) => void;
 }
 
+// Flex container style for proper height propagation
+const wrapperStyle = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  height: '100%',
+  minHeight: 0,
+};
+
 /**
  * Wrapper for ChatPanel - minimal wrapper as ChatPanel has its own header
  */
@@ -18,7 +26,7 @@ export function ChatPanelWrapper({
   onCodeUpdate,
 }: ChatPanelWrapperProps) {
   return (
-    <div className="chat-panel-wrapper">
+    <div className="chat-panel-wrapper" style={wrapperStyle}>
       <ChatPanel
         conversationId={conversationId}
         initialMessages={initialMessages}
