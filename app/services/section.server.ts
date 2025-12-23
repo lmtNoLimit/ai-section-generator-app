@@ -188,4 +188,12 @@ export const sectionService = {
       orderBy: { createdAt: "desc" },
     });
   },
+
+  /**
+   * Get total count of sections for a shop (no filters)
+   * Used to determine if EmptyState vs EmptySearchResult should show
+   */
+  async getTotalCount(shop: string): Promise<number> {
+    return prisma.section.count({ where: { shop } });
+  },
 };

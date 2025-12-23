@@ -1,42 +1,12 @@
 interface SectionsEmptyStateProps {
-  hasFilters: boolean;
-  onClearFilters: () => void;
   onCreateNew: () => void;
 }
 
 /**
- * Empty state component for sections page following Shopify Index pattern
+ * Empty state component for sections page when no sections exist at all.
+ * Shows the initial onboarding experience to create the first section.
  */
-export function SectionsEmptyState({
-  hasFilters,
-  onClearFilters,
-  onCreateNew
-}: SectionsEmptyStateProps) {
-  if (hasFilters) {
-    return (
-      <s-section accessibilityLabel="Empty state section">
-        <s-grid gap="base" justifyItems="center" paddingBlock="large-400">
-          <s-grid justifyItems="center" maxInlineSize="450px" gap="base">
-            <s-stack alignItems="center">
-              <s-heading>No matching sections</s-heading>
-              <s-paragraph>
-                No sections match your current filters. Try adjusting or clearing your filters.
-              </s-paragraph>
-            </s-stack>
-            <s-button-group>
-              <s-button slot="secondary-actions" onClick={onClearFilters}>
-                Clear filters
-              </s-button>
-              <s-button slot="primary-action" variant="primary" onClick={onCreateNew}>
-                Create new section
-              </s-button>
-            </s-button-group>
-          </s-grid>
-        </s-grid>
-      </s-section>
-    );
-  }
-
+export function SectionsEmptyState({ onCreateNew }: SectionsEmptyStateProps) {
   return (
     <s-section accessibilityLabel="Empty state section">
       <s-grid gap="base" justifyItems="center" paddingBlock="large-400">

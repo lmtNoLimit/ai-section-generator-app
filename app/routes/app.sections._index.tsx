@@ -20,6 +20,7 @@ type IndexTableHeading = IndexTableProps["headings"][number];
 import { authenticate } from "../shopify.server";
 import { sectionService } from "../services/section.server";
 import { SectionsEmptyState } from "../components/sections/SectionsEmptyState";
+import { EmptySearchResult } from "../components/common/EmptySearchResult";
 import { DeleteConfirmModal } from "../components/sections/DeleteConfirmModal";
 
 // View type for tab switching
@@ -60,15 +61,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Status is derived from the selected tab/view
   const status = viewStatusMap[view];
 
-  const history = await sectionService.getByShop(shop, {
-    page,
-    limit: 20,
-    status,
-    search,
-    sort: sort as "newest" | "oldest",
-  });
+  // Fetch both filtered results and total count (for empty state logic)
+  const [history, allTotal] = await Promise.all([
+    sectionService.getByShop(shop, {
+      page,
+      limit: 20,
+      status,
+      search,
+      sort: sort as "newest" | "oldest",
+    }),
+    sectionService.getTotalCount(shop),
+  ]);
 
-  return { history, shop, currentView: view };
+  return { history, shop, currentView: view, allTotal };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -187,8 +192,15 @@ function debounce<T extends (...args: Parameters<T>) => void>(
   return debouncedFn;
 }
 
+// Map view types to user-friendly tab names for empty state messages
+const viewDisplayNames: Record<ViewType, string> = {
+  all: "sections",
+  draft: "draft sections",
+  active: "active sections",
+};
+
 export default function SectionsPage() {
-  const { history, currentView } = useLoaderData<typeof loader>();
+  const { history, currentView, allTotal } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigate = useNavigate();
@@ -410,11 +422,12 @@ export default function SectionsPage() {
   ];
 
   // Pagination config
-  const paginationProps = {
+  const paginationProps: IndexTableProps["pagination"] = {
     hasNext: currentPage < history.totalPages,
     hasPrevious: currentPage > 1,
     onNext: handleNextPage,
     onPrevious: handlePreviousPage,
+    label: `Page ${currentPage} of ${history.totalPages}`,
   };
 
   // Row markup for IndexTable (using s-* web components inside cells)
@@ -450,16 +463,39 @@ export default function SectionsPage() {
     </IndexTable.Row>
   ));
 
-  // Check if any filters are active
-  const hasActiveFilters =
-    queryValue !== "" || sortSelected[0] !== "createdAt desc";
+  // Determine which empty state to show:
+  // 1. If allTotal === 0 → true empty state (no sections at all)
+  // 2. If allTotal > 0 but history.total === 0 → empty search/filter result
+  const showTrueEmptyState = allTotal === 0;
+
+  // Generate dynamic empty search result message based on context
+  const getEmptySearchTitle = () => {
+    if (queryValue) {
+      return `No ${viewDisplayNames[currentView]} found`;
+    }
+    return `No ${viewDisplayNames[currentView]}`;
+  };
+
+  const getEmptySearchDescription = () => {
+    if (queryValue) {
+      return `Try adjusting your search or filters to find what you're looking for.`;
+    }
+    if (currentView === "draft") {
+      return "Sections you create will appear here until they're saved to a theme.";
+    }
+    if (currentView === "active") {
+      return "Sections saved to themes will appear here.";
+    }
+    return "";
+  };
 
   // Empty state component for IndexTable
-  const emptyStateMarkup = (
-    <SectionsEmptyState
-      hasFilters={hasActiveFilters}
-      onClearFilters={handleClearAll}
-      onCreateNew={() => navigate("/app/sections/new")}
+  const emptyStateMarkup = showTrueEmptyState ? (
+    <SectionsEmptyState onCreateNew={() => navigate("/app/sections/new")} />
+  ) : (
+    <EmptySearchResult
+      title={getEmptySearchTitle()}
+      description={getEmptySearchDescription()}
     />
   );
 
