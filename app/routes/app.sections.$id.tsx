@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import {
   useActionData,
@@ -15,7 +15,6 @@ import prisma from '../db.server';
 
 import {
   UnifiedEditorLayout,
-  EditorHeader,
   ChatPanelWrapper,
   CodePreviewPanel,
   EditorSettingsPanel,
@@ -218,6 +217,25 @@ export default function UnifiedEditorPage() {
     conversation: conversation as { id: string; messages: UIMessage[] },
   });
 
+  // Inline name editing state
+  const [editedName, setEditedName] = useState(sectionName);
+  // Web component refs - using any because s-* components don't have proper TS types
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const renameModalRef = useRef<any>(null);
+  const renameModalTriggerRef = useRef<any>(null);
+  const nameInputRef = useRef<any>(null);
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  // Sync editedName when sectionName changes
+  useEffect(() => {
+    setEditedName(sectionName);
+  }, [sectionName]);
+
+  // Open rename modal programmatically
+  const openRenameModal = useCallback(() => {
+    renameModalTriggerRef.current?.click();
+  }, []);
+
   const isLoading = navigation.state === 'submitting';
   const isSavingDraft = isLoading && navigation.formData?.get('action') === 'saveDraft';
   const isPublishing = isLoading && navigation.formData?.get('action') === 'publish';
@@ -264,13 +282,36 @@ export default function UnifiedEditorPage() {
     ],
   });
 
-  const handleNameChange = (name: string) => {
+  const handleNameChange = useCallback((name: string) => {
     setSectionName(name);
     const formData = new FormData();
     formData.append('action', 'updateName');
     formData.append('name', name);
     submit(formData, { method: 'post' });
-  };
+  }, [setSectionName, submit]);
+
+  const handleNameSubmit = useCallback(() => {
+    const trimmedName = editedName.trim();
+    if (trimmedName && trimmedName !== sectionName) {
+      handleNameChange(trimmedName);
+    } else {
+      setEditedName(sectionName);
+    }
+    // Close modal using method
+    renameModalRef.current?.hideOverlay?.();
+  }, [editedName, sectionName, handleNameChange]);
+
+  const handleNameInputChange = useCallback((e: Event) => {
+    const target = e.target as HTMLElement & { value?: string };
+    if (target?.value !== undefined) {
+      setEditedName(target.value);
+    }
+  }, []);
+
+  const handleCancelRename = useCallback(() => {
+    setEditedName(sectionName);
+    renameModalRef.current?.hideOverlay?.();
+  }, [sectionName]);
 
   // Show toast on success and handle redirects
   useEffect(() => {
@@ -284,22 +325,92 @@ export default function UnifiedEditorPage() {
     }
   }, [actionData]);
 
+  // Display title with dirty indicator and AI badge
+  const displayTitle = `${sectionName}${isDirty ? ' *' : ''}`;
+
   return (
-    <s-page inlineSize="large">
-      <EditorHeader
-        sectionName={sectionName}
-        onNameChange={handleNameChange}
-        isDirty={isDirty}
-        onSaveDraft={handleSaveDraft}
-        onPublish={handlePublish}
-        isSavingDraft={isSavingDraft}
-        isPublishing={isPublishing}
-        canPublish={canPublish}
-        themeName={selectedThemeName}
-        canRevert={canRevert}
-        onRevert={revertToOriginal}
-        lastCodeSource={lastCodeSource}
-      />
+    <s-page heading={displayTitle} inlineSize="large">
+      {/* Breadcrumb - back to sections */}
+      <s-link slot="breadcrumb-actions" href="/app/sections">
+        Sections
+      </s-link>
+
+      {/* Primary action - Publish */}
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        onClick={handlePublish}
+        loading={isPublishing || undefined}
+        disabled={!canPublish || isLoading || undefined}
+      >
+        Publish to {selectedThemeName}
+      </s-button>
+
+      {/* Secondary actions */}
+      <s-button
+        slot="secondary-actions"
+        onClick={handleSaveDraft}
+        loading={isSavingDraft || undefined}
+        disabled={isLoading || undefined}
+      >
+        Save Draft
+      </s-button>
+
+      {canRevert && (
+        <s-button
+          slot="secondary-actions"
+          onClick={revertToOriginal}
+          disabled={isLoading || undefined}
+        >
+          Revert
+        </s-button>
+      )}
+
+      {/* More actions menu */}
+      <s-button slot="secondary-actions" commandFor="editor-more-actions">
+        More actions
+      </s-button>
+      <s-menu id="editor-more-actions">
+        <s-button onClick={openRenameModal}>Rename</s-button>
+        {lastCodeSource === 'chat' && (
+          <s-badge tone="info">AI updated</s-badge>
+        )}
+      </s-menu>
+
+      {/* Hidden trigger for rename modal */}
+      <div style={{ display: 'none' }}>
+        <s-button
+          ref={renameModalTriggerRef}
+          commandFor="rename-modal"
+          command="--show"
+        />
+      </div>
+
+      {/* Rename Modal */}
+      <s-modal ref={renameModalRef} id="rename-modal" heading="Rename section">
+        <s-text-field
+          ref={nameInputRef}
+          label="Section name"
+          value={editedName}
+          onInput={handleNameInputChange}
+        />
+
+        <s-button
+          slot="secondary-actions"
+          commandFor="rename-modal"
+          command="--hide"
+          onClick={handleCancelRename}
+        >
+          Cancel
+        </s-button>
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          onClick={handleNameSubmit}
+        >
+          Save
+        </s-button>
+      </s-modal>
 
       <UnifiedEditorLayout
         chatPanel={

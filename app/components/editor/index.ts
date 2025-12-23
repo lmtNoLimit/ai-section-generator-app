@@ -8,7 +8,6 @@ export { UnifiedEditorLayout } from './UnifiedEditorLayout';
 export { MobileLayout } from './MobileLayout';
 
 // Sub-components
-export { EditorHeader } from './EditorHeader';
 export { ChatPanelWrapper } from './ChatPanelWrapper';
 export { CodePreviewPanel } from './CodePreviewPanel';
 export { EditorSettingsPanel } from './EditorSettingsPanel';

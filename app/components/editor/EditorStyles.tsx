@@ -134,77 +134,6 @@ const editorCSS = `
 }
 
 /* ========================================
-   Editor Header
-   ======================================== */
-.editor-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--editor-space-3) var(--editor-space-4);
-  background: var(--editor-surface);
-  border-bottom: 1px solid var(--editor-border);
-}
-
-.editor-header__left {
-  display: flex;
-  align-items: center;
-  gap: var(--editor-space-3);
-}
-
-.editor-header__back {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--editor-radius);
-  color: var(--editor-text-secondary);
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
-
-.editor-header__back:hover {
-  background: var(--editor-surface-secondary);
-  color: var(--editor-text);
-}
-
-.editor-header__name {
-  background: none;
-  border: none;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: var(--editor-space-1) var(--editor-space-2);
-  border-radius: var(--editor-radius-sm);
-  color: var(--editor-text);
-  transition: all 0.15s ease;
-}
-
-.editor-header__name:hover {
-  background: var(--editor-surface-secondary);
-}
-
-.editor-header__name-input {
-  font-size: 16px;
-  font-weight: 600;
-  border: 2px solid var(--editor-brand);
-  border-radius: var(--editor-radius-sm);
-  padding: var(--editor-space-1) var(--editor-space-2);
-  outline: none;
-}
-
-.editor-header__dirty {
-  color: var(--editor-brand);
-  margin-left: var(--editor-space-1);
-}
-
-.editor-header__right {
-  display: flex;
-  align-items: center;
-  gap: var(--editor-space-2);
-}
-
-/* ========================================
    Chat Panel Wrapper
    ======================================== */
 .chat-panel-wrapper {
@@ -351,17 +280,6 @@ const editorCSS = `
    Responsive: Mobile - Stack Panels
    ======================================== */
 @media (max-width: 768px) {
-  .editor-header {
-    flex-direction: column;
-    gap: var(--editor-space-2);
-    align-items: stretch;
-  }
-
-  .editor-header__left,
-  .editor-header__right {
-    justify-content: center;
-  }
-
   .unified-editor {
     display: none;
   }
