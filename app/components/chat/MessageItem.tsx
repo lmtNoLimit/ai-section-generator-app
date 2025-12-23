@@ -1,14 +1,23 @@
 /**
  * MessageItem component - Individual chat message display
  * Supports both user and assistant messages with code block parsing
+ * Shows version badge for AI messages with codeSnapshot
  */
 import { memo } from 'react';
 import type { UIMessage } from '../../types';
 import { CodeBlock } from './CodeBlock';
+import { VersionBadge } from './VersionBadge';
 
 export interface MessageItemProps {
   message: UIMessage;
   isStreaming?: boolean;
+  // Version display props
+  versionNumber?: number;
+  isSelected?: boolean;
+  isLatest?: boolean;
+  isActive?: boolean; // This version is current active draft
+  onVersionSelect?: () => void;
+  onVersionApply?: () => void;
 }
 
 interface ContentPart {
@@ -94,18 +103,34 @@ function parseMessageContent(content: string): ContentPart[] {
 
 /**
  * Memoized MessageItem with custom comparison
- * Only re-renders when content or streaming state changes
+ * Only re-renders when content, streaming, or version state changes
  */
 export const MessageItem = memo(function MessageItem({
   message,
   isStreaming = false,
+  versionNumber,
+  isSelected = false,
+  isLatest = false,
+  isActive = false,
+  onVersionSelect,
+  onVersionApply,
 }: MessageItemProps) {
   const isUser = message.role === 'user';
   const parts = parseMessageContent(message.content);
 
+  // Show version badge for AI messages with code
+  const showVersionBadge = !isUser && message.codeSnapshot && versionNumber;
+
+  // Build class names
+  const classNames = [
+    'chat-message',
+    `chat-message--${message.role}`,
+    isSelected ? 'chat-message--selected' : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <div
-      className={`chat-message chat-message--${message.role}`}
+      className={classNames}
       role="article"
       aria-label={`${isUser ? 'You' : 'AI Assistant'} said`}
     >
@@ -113,6 +138,19 @@ export const MessageItem = memo(function MessageItem({
         {isUser ? '👤' : '🤖'}
       </div>
       <div className="chat-message__content">
+        {/* Version badge header */}
+        {showVersionBadge && (
+          <div className="chat-message__version">
+            <VersionBadge
+              versionNumber={versionNumber}
+              isSelected={isSelected}
+              isLatest={isLatest}
+              onClick={onVersionSelect || (() => {})}
+            />
+          </div>
+        )}
+
+        {/* Message content parts */}
         {parts.map((part, index) => (
           part.type === 'code' ? (
             <CodeBlock
@@ -129,6 +167,26 @@ export const MessageItem = memo(function MessageItem({
             </p>
           )
         ))}
+
+        {/* Version actions: Active badge or Use this version button */}
+        {showVersionBadge && (
+          <div className="chat-message__actions">
+            {isActive ? (
+              <s-badge tone="success">Active draft</s-badge>
+            ) : (
+              onVersionApply && (
+                <s-button
+                  variant="tertiary"
+                  onClick={onVersionApply}
+                >
+                  Use this version
+                </s-button>
+              )
+            )}
+          </div>
+        )}
+
+        {/* Error display */}
         {message.isError && (
           <div className="chat-message__error">
             {message.errorMessage || 'An error occurred'}
@@ -138,10 +196,14 @@ export const MessageItem = memo(function MessageItem({
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Only re-render if content or streaming state changes
+  // Re-render if content, streaming, or version state changes
   return (
     prevProps.message.id === nextProps.message.id &&
     prevProps.message.content === nextProps.message.content &&
-    prevProps.isStreaming === nextProps.isStreaming
+    prevProps.isStreaming === nextProps.isStreaming &&
+    prevProps.versionNumber === nextProps.versionNumber &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isLatest === nextProps.isLatest &&
+    prevProps.isActive === nextProps.isActive
   );
 });

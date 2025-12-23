@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Section } from '@prisma/client';
 import type { Theme, UIMessage } from '../../../types';
+import { useVersionState } from './useVersionState';
 
 export type CodeSource = 'initial' | 'chat';
 
@@ -68,6 +69,22 @@ export function useEditorState({
   // Validation
   const canPublish = Boolean(sectionCode && fileName && selectedTheme);
 
+  // Version state for preview/history
+  const {
+    versions,
+    selectedVersionId,
+    selectedVersion,
+    activeVersionId,
+    previewCode,
+    latestVersion,
+    selectVersion,
+    applyVersion,
+  } = useVersionState({
+    messages: conversation?.messages || [],
+    initialCode: sectionCode,
+    onCodeChange: handleCodeUpdate,
+  });
+
   return {
     // Section
     sectionId: section.id,
@@ -98,5 +115,15 @@ export function useEditorState({
     // Original section data
     section,
     themes,
+
+    // Version state
+    versions,
+    selectedVersionId,
+    selectedVersion,
+    activeVersionId,
+    previewCode,
+    latestVersion,
+    selectVersion,
+    applyVersion,
   };
 }

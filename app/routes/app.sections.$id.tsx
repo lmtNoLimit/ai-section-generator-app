@@ -211,6 +211,13 @@ export default function UnifiedEditorPage() {
     setFileName,
     isDirty,
     canPublish,
+    // Version state
+    versions,
+    selectedVersionId,
+    activeVersionId,
+    previewCode,
+    selectVersion,
+    applyVersion,
   } = useEditorState({
     section,
     themes: themes as Theme[],
@@ -224,7 +231,12 @@ export default function UnifiedEditorPage() {
   const renameModalRef = useRef<any>(null);
   const renameModalTriggerRef = useRef<any>(null);
   const nameInputRef = useRef<any>(null);
+  const confirmVersionModalRef = useRef<any>(null);
+  const confirmVersionTriggerRef = useRef<any>(null);
   /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  // State for version apply confirmation
+  const [pendingVersionApply, setPendingVersionApply] = useState<string | null>(null);
 
   // Sync editedName when sectionName changes
   useEffect(() => {
@@ -261,6 +273,35 @@ export default function UnifiedEditorPage() {
     formData.append('themeName', selectedThemeName);
     submit(formData, { method: 'post' });
   }, [isLoading, canPublish, sectionCode, sectionName, selectedTheme, fileName, selectedThemeName, submit]);
+
+  // Handle version apply with confirmation if draft is dirty
+  const handleVersionApply = useCallback((versionId: string) => {
+    if (isDirty) {
+      // Show confirmation modal
+      setPendingVersionApply(versionId);
+      confirmVersionTriggerRef.current?.click();
+    } else {
+      // Apply directly
+      applyVersion(versionId);
+      shopify.toast.show('Version applied to draft');
+    }
+  }, [isDirty, applyVersion]);
+
+  // Confirm version apply
+  const confirmVersionApply = useCallback(() => {
+    if (pendingVersionApply) {
+      applyVersion(pendingVersionApply);
+      shopify.toast.show('Version applied to draft');
+      setPendingVersionApply(null);
+      confirmVersionModalRef.current?.hideOverlay?.();
+    }
+  }, [pendingVersionApply, applyVersion]);
+
+  // Cancel version apply
+  const cancelVersionApply = useCallback(() => {
+    setPendingVersionApply(null);
+    confirmVersionModalRef.current?.hideOverlay?.();
+  }, []);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -412,6 +453,43 @@ export default function UnifiedEditorPage() {
         </s-button>
       </s-modal>
 
+      {/* Hidden trigger for confirm version modal */}
+      <div style={{ display: 'none' }}>
+        <s-button
+          ref={confirmVersionTriggerRef}
+          commandFor="confirm-version-modal"
+          command="--show"
+        />
+      </div>
+
+      {/* Confirm Version Apply Modal */}
+      <s-modal
+        ref={confirmVersionModalRef}
+        id="confirm-version-modal"
+        heading="Apply this version?"
+      >
+        <s-text>
+          You have unsaved changes to your draft. Applying this version will
+          replace your current work.
+        </s-text>
+
+        <s-button
+          slot="secondary-actions"
+          commandFor="confirm-version-modal"
+          command="--hide"
+          onClick={cancelVersionApply}
+        >
+          Cancel
+        </s-button>
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          onClick={confirmVersionApply}
+        >
+          Apply version
+        </s-button>
+      </s-modal>
+
       <PolarisEditorLayout
         chatPanel={
           conversationId ? (
@@ -420,6 +498,11 @@ export default function UnifiedEditorPage() {
               initialMessages={initialMessages}
               currentCode={sectionCode}
               onCodeUpdate={handleCodeUpdate}
+              versions={versions}
+              selectedVersionId={selectedVersionId}
+              activeVersionId={activeVersionId}
+              onVersionSelect={selectVersion}
+              onVersionApply={handleVersionApply}
             />
           ) : (
             <s-box padding="base">
@@ -432,8 +515,11 @@ export default function UnifiedEditorPage() {
         }
         codePreviewPanel={
           <CodePreviewPanel
-            code={sectionCode}
+            code={previewCode}
             fileName={fileName}
+            isViewingHistory={selectedVersionId !== null}
+            versionNumber={versions.find((v) => v.id === selectedVersionId)?.versionNumber}
+            onReturnToCurrent={() => selectVersion(null)}
           />
         }
         settingsPanel={

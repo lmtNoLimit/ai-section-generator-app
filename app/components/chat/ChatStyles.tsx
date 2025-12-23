@@ -499,6 +499,100 @@ const chatCSS = `
 .chat-error button:hover {
   background: rgba(215, 44, 13, 0.1);
 }
+
+/* ========================================
+   Version Badge
+   ======================================== */
+.version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--chat-bg-secondary);
+  border: 1px solid var(--chat-border);
+  color: var(--chat-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.version-badge:hover {
+  background: var(--chat-bg);
+  border-color: var(--chat-brand);
+  color: var(--chat-text);
+}
+
+.version-badge--selected {
+  background: rgba(0, 128, 96, 0.1);
+  border-color: var(--chat-brand);
+  color: var(--chat-brand);
+}
+
+.version-badge__number {
+  font-weight: 600;
+}
+
+.version-badge__latest {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* ========================================
+   Selected Message State
+   ======================================== */
+.chat-message--selected {
+  background: rgba(0, 128, 96, 0.05);
+  border-left: 3px solid var(--chat-brand);
+  margin-left: -3px;
+  padding-left: 3px;
+}
+
+/* ========================================
+   Version Header in Message
+   ======================================== */
+.chat-message__version {
+  margin-bottom: var(--chat-space-2);
+}
+
+/* ========================================
+   Message Actions (Use this version)
+   ======================================== */
+.chat-message__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: var(--chat-space-2);
+  padding-top: var(--chat-space-2);
+  border-top: 1px solid var(--chat-border);
+}
+
+/* ========================================
+   Version Timeline Dropdown
+   ======================================== */
+.version-timeline {
+  min-width: 140px;
+}
+
+.version-timeline select {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: var(--chat-radius);
+  border: 1px solid var(--chat-border);
+  background: var(--chat-bg);
+  color: var(--chat-text);
+  cursor: pointer;
+}
+
+.version-timeline select:hover {
+  border-color: var(--chat-brand);
+}
+
+.version-timeline select:focus {
+  outline: none;
+  border-color: var(--chat-brand);
+  box-shadow: 0 0 0 1px var(--chat-brand);
+}
 `;
 
 export function ChatStyles() {

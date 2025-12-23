@@ -22,6 +22,13 @@ export type { CodeBlockProps } from './CodeBlock';
 
 export { TypingIndicator } from './TypingIndicator';
 
+// Version components
+export { VersionBadge } from './VersionBadge';
+export type { VersionBadgeProps } from './VersionBadge';
+
+export { VersionTimeline } from './VersionTimeline';
+export type { VersionTimelineProps } from './VersionTimeline';
+
 // Hooks
 export { useChat } from './hooks/useChat';
 export type { UseChatOptions, ChatState, ChatAction } from './hooks/useChat';

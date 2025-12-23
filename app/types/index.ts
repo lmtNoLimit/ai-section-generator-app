@@ -36,6 +36,7 @@ export type {
   StreamEventType,
   StreamEvent,
   ConversationMeta,
+  CodeVersion,
 } from './chat.types';
 
 // AI Streaming Types

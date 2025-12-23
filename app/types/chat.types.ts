@@ -58,6 +58,15 @@ export interface StreamEvent {
   };
 }
 
+// Code version derived from messages with codeSnapshot
+export interface CodeVersion {
+  id: string; // message ID
+  versionNumber: number; // 1-indexed
+  code: string; // codeSnapshot content
+  createdAt: Date;
+  messageContent: string; // AI response text (truncated for display)
+}
+
 // Conversation metadata (without messages)
 export interface ConversationMeta {
   id: string;

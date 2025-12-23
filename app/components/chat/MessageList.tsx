@@ -1,22 +1,33 @@
 /**
  * MessageList component - Scrollable message container
- * Handles auto-scroll and empty state
+ * Handles auto-scroll, empty state, and version display
  */
 import { useAutoScroll } from './hooks/useAutoScroll';
 import { MessageItem } from './MessageItem';
 import { TypingIndicator } from './TypingIndicator';
-import type { UIMessage } from '../../types';
+import type { UIMessage, CodeVersion } from '../../types';
 
 export interface MessageListProps {
   messages: UIMessage[];
   isStreaming: boolean;
   streamingContent: string;
+  // Version props
+  versions?: CodeVersion[];
+  selectedVersionId?: string | null;
+  activeVersionId?: string | null;
+  onVersionSelect?: (versionId: string) => void;
+  onVersionApply?: (versionId: string) => void;
 }
 
 export function MessageList({
   messages,
   isStreaming,
   streamingContent,
+  versions = [],
+  selectedVersionId,
+  activeVersionId,
+  onVersionSelect,
+  onVersionApply,
 }: MessageListProps) {
   const { containerRef, handleScroll } = useAutoScroll<HTMLDivElement>({
     enabled: true,
@@ -42,12 +53,24 @@ export function MessageList({
         </div>
       ) : (
         <>
-          {messages.map((message) => (
-            <MessageItem
-              key={message.id}
-              message={message}
-            />
-          ))}
+          {messages.map((message) => {
+            // Find version info for this message
+            const version = versions.find((v) => v.id === message.id);
+            const isLatestVersion = version && versions.indexOf(version) === versions.length - 1;
+
+            return (
+              <MessageItem
+                key={message.id}
+                message={message}
+                versionNumber={version?.versionNumber}
+                isSelected={selectedVersionId === message.id}
+                isLatest={isLatestVersion || false}
+                isActive={activeVersionId === message.id}
+                onVersionSelect={() => onVersionSelect?.(message.id)}
+                onVersionApply={() => onVersionApply?.(message.id)}
+              />
+            );
+          })}
 
           {/* Streaming message */}
           {isStreaming && streamingContent && (

@@ -1,19 +1,27 @@
 /**
  * ChatPanel component - Main chat container
  * Uses Polaris components for structure with minimal custom styling for messages
+ * Supports version display and selection
  */
 import { useEffect, useCallback, useRef } from 'react';
 import { useChat } from './hooks/useChat';
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
 import { ChatStyles } from './ChatStyles';
-import type { UIMessage } from '../../types';
+import { VersionTimeline } from './VersionTimeline';
+import type { UIMessage, CodeVersion } from '../../types';
 
 export interface ChatPanelProps {
   conversationId: string;
   initialMessages?: UIMessage[];
   currentCode?: string;
   onCodeUpdate?: (code: string) => void;
+  // Version props
+  versions?: CodeVersion[];
+  selectedVersionId?: string | null;
+  activeVersionId?: string | null;
+  onVersionSelect?: (versionId: string | null) => void;
+  onVersionApply?: (versionId: string) => void;
 }
 
 export function ChatPanel({
@@ -21,6 +29,11 @@ export function ChatPanel({
   initialMessages = [],
   currentCode,
   onCodeUpdate,
+  versions = [],
+  selectedVersionId,
+  activeVersionId,
+  onVersionSelect,
+  onVersionApply,
 }: ChatPanelProps) {
   const {
     messages,
@@ -124,6 +137,13 @@ export function ChatPanel({
           <s-stack direction="inline" justifyContent="space-between" alignItems="center">
             <s-stack direction="inline" gap="small" alignItems="center">
               <s-text type="strong">✨ AI Assistant</s-text>
+              {versions.length > 0 && (
+                <VersionTimeline
+                  versions={versions}
+                  selectedVersionId={selectedVersionId ?? null}
+                  onSelect={onVersionSelect || (() => {})}
+                />
+              )}
             </s-stack>
             {messages.length > 0 && (
               <s-button
@@ -160,6 +180,11 @@ export function ChatPanel({
           messages={messages}
           isStreaming={isStreaming}
           streamingContent={streamingContent}
+          versions={versions}
+          selectedVersionId={selectedVersionId}
+          activeVersionId={activeVersionId}
+          onVersionSelect={onVersionSelect}
+          onVersionApply={onVersionApply}
         />
       </div>
 

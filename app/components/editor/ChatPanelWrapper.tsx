@@ -1,11 +1,17 @@
 import { ChatPanel } from '../chat';
-import type { UIMessage } from '../../types';
+import type { UIMessage, CodeVersion } from '../../types';
 
 interface ChatPanelWrapperProps {
   conversationId: string;
   initialMessages: UIMessage[];
   currentCode: string;
   onCodeUpdate: (code: string) => void;
+  // Version props
+  versions?: CodeVersion[];
+  selectedVersionId?: string | null;
+  activeVersionId?: string | null;
+  onVersionSelect?: (versionId: string | null) => void;
+  onVersionApply?: (versionId: string) => void;
 }
 
 // Flex container style for proper height propagation
@@ -18,12 +24,18 @@ const wrapperStyle = {
 
 /**
  * Wrapper for ChatPanel - minimal wrapper as ChatPanel has its own header
+ * Passes through version props for version display in messages
  */
 export function ChatPanelWrapper({
   conversationId,
   initialMessages,
   currentCode,
   onCodeUpdate,
+  versions,
+  selectedVersionId,
+  activeVersionId,
+  onVersionSelect,
+  onVersionApply,
 }: ChatPanelWrapperProps) {
   return (
     <div className="chat-panel-wrapper" style={wrapperStyle}>
@@ -32,6 +44,11 @@ export function ChatPanelWrapper({
         initialMessages={initialMessages}
         currentCode={currentCode}
         onCodeUpdate={onCodeUpdate}
+        versions={versions}
+        selectedVersionId={selectedVersionId}
+        activeVersionId={activeVersionId}
+        onVersionSelect={onVersionSelect}
+        onVersionApply={onVersionApply}
       />
     </div>
   );

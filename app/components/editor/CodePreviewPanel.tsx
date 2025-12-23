@@ -5,6 +5,9 @@ import { SectionPreview, PreviewErrorBoundary } from '../preview';
 interface CodePreviewPanelProps {
   code: string;
   fileName: string;
+  isViewingHistory?: boolean;
+  versionNumber?: number;
+  onReturnToCurrent?: () => void;
 }
 
 // Flex-based layout for proper scrolling
@@ -38,7 +41,13 @@ const styles = {
  * Tabbed panel for code editor and live preview
  * Uses Polaris s-button-group for segmented control
  */
-export function CodePreviewPanel({ code, fileName }: CodePreviewPanelProps) {
+export function CodePreviewPanel({
+  code,
+  fileName,
+  isViewingHistory,
+  versionNumber,
+  onReturnToCurrent,
+}: CodePreviewPanelProps) {
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [copied, setCopied] = useState(false);
 
@@ -81,21 +90,38 @@ export function CodePreviewPanel({ code, fileName }: CodePreviewPanelProps) {
               </s-button>
             </s-button-group>
 
-            {/* Copy button (only in code view) */}
-            {activeTab === 'code' && code && (
-              <s-button
-                onClick={handleCopyCode}
-                variant="secondary"
-              >
-                {copied ? '✓ Copied' : 'Copy All'}
-              </s-button>
-            )}
+            {/* Version indicator when viewing history */}
+            <s-stack direction="inline" gap="small" alignItems="center">
+              {isViewingHistory && versionNumber && (
+                <>
+                  <s-badge tone="info">Viewing v{versionNumber}</s-badge>
+                  <s-button variant="tertiary" onClick={onReturnToCurrent}>
+                    Return to current
+                  </s-button>
+                </>
+              )}
+              {/* Copy button (only in code view, not when viewing history) */}
+              {activeTab === 'code' && code && !isViewingHistory && (
+                <s-button onClick={handleCopyCode} variant="secondary">
+                  {copied ? '✓ Copied' : 'Copy All'}
+                </s-button>
+              )}
+            </s-stack>
           </s-stack>
         </s-box>
       </div>
 
-      {/* Content area */}
-      <div style={styles.content}>
+      {/* Content area - dashed border when viewing history */}
+      <div
+        style={{
+          ...styles.content,
+          ...(isViewingHistory && {
+            border: '2px dashed var(--p-color-border-info)',
+            borderRadius: '8px',
+            margin: '8px',
+          }),
+        }}
+      >
         <div style={styles.innerContent}>
           {activeTab === 'preview' ? (
             <PreviewErrorBoundary onRetry={() => setActiveTab('preview')}>
