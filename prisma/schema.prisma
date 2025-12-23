@@ -48,7 +48,7 @@ model Section {
   style String? // minimal, bold, elegant
 
   // Status
-  status String @default("generated") // generated, saved, error
+  status String @default("draft") // draft, active, inactive, archive
 
   createdAt DateTime @default(now())
 

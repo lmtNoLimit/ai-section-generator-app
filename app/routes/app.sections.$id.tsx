@@ -24,6 +24,7 @@ import {
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 import type { SaveActionData, Theme, UIMessage } from '../types';
+import { SECTION_STATUS } from '../types/section-status';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
@@ -72,7 +73,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     try {
       await sectionService.update(sectionId, shop, {
         name,
-        status: 'draft',
+        status: SECTION_STATUS.DRAFT,
       });
 
       await prisma.section.update({
@@ -104,7 +105,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       // Update section
       await sectionService.update(sectionId, shop, {
         name,
-        status: 'saved',
+        status: SECTION_STATUS.ACTIVE,
         themeId,
         themeName,
         fileName,
@@ -132,6 +133,57 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const name = formData.get('name') as string;
     await sectionService.update(sectionId, shop, { name });
     return { success: true };
+  }
+
+  if (actionType === 'archive') {
+    try {
+      await sectionService.archive(sectionId, shop);
+      return {
+        success: true,
+        message: 'Section archived.',
+        redirect: '/app/sections?view=archive',
+      } satisfies SaveActionData;
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to archive.',
+      } satisfies SaveActionData;
+    }
+  }
+
+  if (actionType === 'deactivate') {
+    try {
+      await sectionService.update(sectionId, shop, {
+        status: SECTION_STATUS.INACTIVE,
+      });
+      return {
+        success: true,
+        message: 'Section deactivated.',
+        redirect: '/app/sections?view=inactive',
+      } satisfies SaveActionData;
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to deactivate.',
+      } satisfies SaveActionData;
+    }
+  }
+
+  if (actionType === 'restore') {
+    try {
+      await sectionService.update(sectionId, shop, {
+        status: SECTION_STATUS.DRAFT,
+      });
+      return {
+        success: true,
+        message: 'Section restored to draft.',
+      } satisfies SaveActionData;
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to restore.',
+      } satisfies SaveActionData;
+    }
   }
 
   return data({ error: 'Unknown action' }, { status: 400 });
@@ -220,10 +272,15 @@ export default function UnifiedEditorPage() {
     submit(formData, { method: 'post' });
   };
 
-  // Show toast on success
+  // Show toast on success and handle redirects
   useEffect(() => {
-    if (actionData && 'success' in actionData && actionData.success && 'message' in actionData && actionData.message) {
-      shopify.toast.show(actionData.message);
+    if (actionData && 'success' in actionData && actionData.success) {
+      if ('message' in actionData && actionData.message) {
+        shopify.toast.show(actionData.message);
+      }
+      if ('redirect' in actionData && actionData.redirect) {
+        window.location.href = actionData.redirect;
+      }
     }
   }, [actionData]);
 

@@ -44,3 +44,16 @@ export type {
   ConversationContext,
   CodeExtractionResult,
 } from './ai.types';
+
+// Section Status Types
+export {
+  SECTION_STATUS,
+  VALID_STATUSES,
+  VALID_TRANSITIONS,
+  isValidStatus,
+  isValidTransition,
+  getStatusDisplayName,
+  getStatusBadgeTone,
+  getTransitionErrorMessage,
+} from './section-status';
+export type { SectionStatus } from './section-status';

@@ -1,5 +1,11 @@
 import prisma from "../db.server";
 import type { Section } from "@prisma/client";
+import {
+  SECTION_STATUS,
+  type SectionStatus,
+  isValidTransition,
+  getTransitionErrorMessage,
+} from "../types/section-status";
 
 /**
  * Extract the "name" field from Liquid schema block
@@ -51,7 +57,7 @@ export interface CreateSectionInput {
   name?: string;
   tone?: string;
   style?: string;
-  status?: string;
+  // status intentionally omitted - always starts as DRAFT
   themeId?: string;
   themeName?: string;
   fileName?: string;
@@ -59,10 +65,20 @@ export interface CreateSectionInput {
 
 export interface UpdateSectionInput {
   name?: string;
+  code?: string;
   themeId?: string;
   themeName?: string;
   fileName?: string;
-  status?: string;
+  status?: SectionStatus;
+}
+
+export interface GetByShopOptions {
+  page?: number;
+  limit?: number;
+  status?: SectionStatus;
+  search?: string;
+  sort?: "newest" | "oldest";
+  includeInactive?: boolean; // Default false - excludes inactive unless explicitly included
 }
 
 /**
@@ -70,7 +86,7 @@ export interface UpdateSectionInput {
  */
 export const sectionService = {
   /**
-   * Create a new section entry after generation
+   * Create a new section - always starts as DRAFT
    * Uses schema name from generated code if user doesn't provide a name
    */
   async create(input: CreateSectionInput): Promise<Section> {
@@ -86,7 +102,7 @@ export const sectionService = {
         code: input.code,
         tone: input.tone,
         style: input.style,
-        status: input.status || "draft",
+        status: SECTION_STATUS.DRAFT, // Always start as draft
         themeId: input.themeId,
         themeName: input.themeName,
         fileName: input.fileName,
@@ -95,15 +111,24 @@ export const sectionService = {
   },
 
   /**
-   * Update section entry (e.g., when saved to theme)
+   * Update section with status transition validation
    */
   async update(id: string, shop: string, input: UpdateSectionInput): Promise<Section | null> {
-    // Verify ownership before update
     const existing = await prisma.section.findFirst({
       where: { id, shop },
     });
 
     if (!existing) return null;
+
+    // Validate status transition if status is being changed
+    if (input.status && input.status !== existing.status) {
+      const currentStatus = existing.status as SectionStatus;
+      const newStatus = input.status;
+
+      if (!isValidTransition(currentStatus, newStatus)) {
+        throw new Error(getTransitionErrorMessage(currentStatus, newStatus));
+      }
+    }
 
     return prisma.section.update({
       where: { id },
@@ -112,31 +137,96 @@ export const sectionService = {
   },
 
   /**
+   * Archive a section (soft delete)
+   * Can archive from DRAFT or ACTIVE status
+   */
+  async archive(id: string, shop: string): Promise<Section | null> {
+    return this.update(id, shop, { status: SECTION_STATUS.ARCHIVE });
+  },
+
+  /**
+   * Restore an archived or inactive section back to DRAFT
+   */
+  async restore(id: string, shop: string): Promise<Section | null> {
+    const existing = await prisma.section.findFirst({
+      where: { id, shop },
+    });
+
+    if (!existing) return null;
+
+    const currentStatus = existing.status as SectionStatus;
+    if (currentStatus !== SECTION_STATUS.ARCHIVE && currentStatus !== SECTION_STATUS.INACTIVE) {
+      throw new Error(`Cannot restore: section is not archived or inactive (current status: ${currentStatus})`);
+    }
+
+    return prisma.section.update({
+      where: { id },
+      data: { status: SECTION_STATUS.DRAFT },
+    });
+  },
+
+  /**
+   * Publish section to theme (sets status to ACTIVE)
+   */
+  async publish(
+    id: string,
+    shop: string,
+    themeData: { themeId: string; themeName: string; fileName: string }
+  ): Promise<Section | null> {
+    return this.update(id, shop, {
+      status: SECTION_STATUS.ACTIVE,
+      ...themeData,
+    });
+  },
+
+  /**
+   * Unpublish section (sets status back to DRAFT, clears theme data)
+   */
+  async unpublish(id: string, shop: string): Promise<Section | null> {
+    return this.update(id, shop, {
+      status: SECTION_STATUS.DRAFT,
+      themeId: undefined,
+      themeName: undefined,
+      fileName: undefined,
+    });
+  },
+
+  /**
    * Get paginated sections for a shop
+   * Excludes INACTIVE by default unless includeInactive=true
    */
   async getByShop(
     shop: string,
-    options: {
-      page?: number;
-      limit?: number;
-      status?: string;
-      search?: string;
-      sort?: "newest" | "oldest";
-    } = {}
+    options: GetByShopOptions = {}
   ): Promise<{ items: Section[]; total: number; page: number; totalPages: number }> {
-    const { page = 1, limit = 20, status, search, sort = "newest" } = options;
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      search,
+      sort = "newest",
+      includeInactive = false,
+    } = options;
     const skip = (page - 1) * limit;
 
-    const where = {
-      shop,
-      ...(status && { status }),
-      ...(search && {
-        prompt: {
-          contains: search,
-          mode: "insensitive" as const,
-        },
-      }),
-    };
+    // Build where clause
+    const where: Record<string, unknown> = { shop };
+
+    // Status filter
+    if (status) {
+      where.status = status;
+    } else if (!includeInactive) {
+      // Exclude archive by default (soft-deleted sections)
+      where.status = { not: SECTION_STATUS.ARCHIVE };
+    }
+
+    // Search filter - search in both prompt and name
+    if (search) {
+      where.OR = [
+        { prompt: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, mode: "insensitive" } },
+      ];
+    }
 
     const [items, total] = await Promise.all([
       prisma.section.findMany({
@@ -181,19 +271,38 @@ export const sectionService = {
 
   /**
    * Get most recent section for a shop
+   * Excludes INACTIVE and ARCHIVE sections
    */
   async getMostRecent(shop: string): Promise<Section | null> {
     return prisma.section.findFirst({
-      where: { shop },
+      where: {
+        shop,
+        status: { notIn: [SECTION_STATUS.INACTIVE, SECTION_STATUS.ARCHIVE] },
+      },
       orderBy: { createdAt: "desc" },
     });
   },
 
   /**
-   * Get total count of sections for a shop (no filters)
+   * Get total count of non-archived sections for a shop
    * Used to determine if EmptyState vs EmptySearchResult should show
+   * Excludes ARCHIVE status (soft-deleted sections)
    */
   async getTotalCount(shop: string): Promise<number> {
-    return prisma.section.count({ where: { shop } });
+    return prisma.section.count({
+      where: {
+        shop,
+        status: { not: SECTION_STATUS.ARCHIVE },
+      },
+    });
+  },
+
+  /**
+   * Get count of archived sections for a shop
+   */
+  async getArchivedCount(shop: string): Promise<number> {
+    return prisma.section.count({
+      where: { shop, status: SECTION_STATUS.ARCHIVE },
+    });
   },
 };

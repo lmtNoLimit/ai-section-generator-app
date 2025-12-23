@@ -65,4 +65,5 @@ export interface SaveActionData {
   message: string;
   sectionId?: string;
   templateSaved?: boolean;
+  redirect?: string;
 }

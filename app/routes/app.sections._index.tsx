@@ -23,29 +23,38 @@ import { SectionsEmptyState } from "../components/sections/SectionsEmptyState";
 import { EmptySearchResult } from "../components/common/EmptySearchResult";
 import { DeleteConfirmModal } from "../components/sections/DeleteConfirmModal";
 
-// View type for tab switching
-type ViewType = "all" | "draft" | "active";
+// View type for tab switching - 5 tabs
+type ViewType = "all" | "draft" | "active" | "inactive" | "archive";
+
+import type { SectionStatus } from "../types/section-status";
+import { SECTION_STATUS, getStatusDisplayName, getStatusBadgeTone } from "../types/section-status";
 
 // Map view tabs to status filters
-const viewStatusMap: Record<ViewType, string | undefined> = {
+const viewStatusMap: Record<ViewType, SectionStatus | undefined> = {
   all: undefined,
-  draft: "generated",
-  active: "saved",
+  draft: SECTION_STATUS.DRAFT,
+  active: SECTION_STATUS.ACTIVE,
+  inactive: SECTION_STATUS.INACTIVE,
+  archive: SECTION_STATUS.ARCHIVE,
 };
 
-// Tab definitions for IndexFilters
+// Tab definitions for IndexFilters - 5 tabs
 const tabs: IndexFiltersProps["tabs"] = [
   { id: "all", content: "All" },
   { id: "draft", content: "Draft" },
   { id: "active", content: "Active" },
+  { id: "inactive", content: "Inactive" },
+  { id: "archive", content: "Archive" },
 ];
 
-// Map tab index to view type
-const tabIndexToView: ViewType[] = ["all", "draft", "active"];
+// Map tab index to view type - 5 tabs
+const tabIndexToView: ViewType[] = ["all", "draft", "active", "inactive", "archive"];
 const viewToTabIndex: Record<ViewType, number> = {
   all: 0,
   draft: 1,
   active: 2,
+  inactive: 3,
+  archive: 4,
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -115,6 +124,32 @@ export async function action({ request }: ActionFunctionArgs) {
       action: "bulkDelete",
       message: `${idsToDelete.length} section${idsToDelete.length > 1 ? "s" : ""} deleted successfully.`,
       deletedCount: idsToDelete.length,
+    };
+  }
+
+  if (actionType === "bulkArchive") {
+    const idsJson = formData.get("ids") as string;
+    let ids: string[];
+    try {
+      ids = JSON.parse(idsJson) as string[];
+      if (!Array.isArray(ids)) throw new Error("Invalid format");
+    } catch {
+      return {
+        success: false,
+        action: "bulkArchive",
+        message: "Invalid request",
+      };
+    }
+
+    // Archive in parallel, max 50 at a time
+    const idsToArchive = ids.slice(0, 50);
+    await Promise.all(idsToArchive.map((id) => sectionService.archive(id, shop)));
+
+    return {
+      success: true,
+      action: "bulkArchive",
+      message: `${idsToArchive.length} section${idsToArchive.length > 1 ? "s" : ""} archived.`,
+      archivedCount: idsToArchive.length,
     };
   }
 
@@ -197,6 +232,8 @@ const viewDisplayNames: Record<ViewType, string> = {
   all: "sections",
   draft: "draft sections",
   active: "active sections",
+  inactive: "inactive sections",
+  archive: "archived sections",
 };
 
 export default function SectionsPage() {
@@ -264,6 +301,17 @@ export default function SectionsPage() {
     setDeleteTarget("bulk");
     openDeleteModal();
   }, [selectedResources.length, openDeleteModal]);
+
+  const handleBulkArchiveClick = useCallback(() => {
+    if (selectedResources.length === 0) return;
+    const formData = new FormData();
+    formData.append("action", "bulkArchive");
+    formData.append("ids", JSON.stringify(selectedResources));
+    submit(formData, { method: "post" });
+    // Clear selection after bulk archive
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    handleSelectionChange("all" as any, false);
+  }, [selectedResources, submit, handleSelectionChange]);
 
   const handleConfirmDelete = useCallback(() => {
     if (deleteTarget === "single" && singleDeleteId) {
@@ -402,18 +450,19 @@ export default function SectionsPage() {
     setSearchParams(new URLSearchParams());
   }, [setSearchParams]);
 
-  // Show toast for delete success messages
+  // Show toast for action success messages
   useEffect(() => {
-    if (
-      actionData?.success &&
-      (actionData.action === "delete" || actionData.action === "bulkDelete")
-    ) {
-      shopify.toast.show(actionData.message || "Section deleted successfully");
+    if (actionData?.success && actionData.message) {
+      shopify.toast.show(actionData.message);
     }
   }, [actionData]);
 
   // Promoted bulk actions for IndexTable
   const promotedBulkActions = [
+    {
+      content: "Archive",
+      onAction: handleBulkArchiveClick,
+    },
     {
       content: "Delete",
       destructive: true,
@@ -444,11 +493,9 @@ export default function SectionsPage() {
         </s-clickable>
       </IndexTable.Cell>
       <IndexTable.Cell>
-        {item.status === "saved" ? (
-          <s-badge tone="success">Saved</s-badge>
-        ) : (
-          <s-badge tone="neutral">Draft</s-badge>
-        )}
+        <s-badge tone={getStatusBadgeTone(item.status as SectionStatus)}>
+          {getStatusDisplayName(item.status as SectionStatus)}
+        </s-badge>
       </IndexTable.Cell>
       <IndexTable.Cell>
         {item.themeName ? (
@@ -480,13 +527,18 @@ export default function SectionsPage() {
     if (queryValue) {
       return `Try adjusting your search or filters to find what you're looking for.`;
     }
-    if (currentView === "draft") {
-      return "Sections you create will appear here until they're saved to a theme.";
+    switch (currentView) {
+      case "draft":
+        return "Sections you create start here. Edit and publish to make them active.";
+      case "active":
+        return "Sections currently published to themes appear here.";
+      case "inactive":
+        return "Sections that were unpublished from themes appear here.";
+      case "archive":
+        return "Soft-deleted sections that can be restored appear here.";
+      default:
+        return "";
     }
-    if (currentView === "active") {
-      return "Sections saved to themes will appear here.";
-    }
-    return "";
   };
 
   // Empty state component for IndexTable

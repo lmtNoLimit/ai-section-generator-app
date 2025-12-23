@@ -56,12 +56,11 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
   const { sanitized: prompt } = sanitizeUserInput(rawPrompt.trim());
 
   try {
-    // Create section with minimal data (draft status, empty code until AI generates)
+    // Create section with minimal data (always starts as draft, empty code until AI generates)
     const section = await sectionService.create({
       shop: session.shop,
       prompt,
       code: "", // Empty until AI generates in /$id
-      status: "draft",
     });
 
     // Create conversation + first user message

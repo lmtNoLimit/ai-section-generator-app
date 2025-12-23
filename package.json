@@ -21,7 +21,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "migrate:status": "npx tsx scripts/migrations/251223-normalize-section-status.ts"
   },
   "type": "module",
   "engines": {
