@@ -485,6 +485,7 @@ export default function SectionsPage() {
       id={item.id}
       key={item.id}
       selected={selectedResources.includes(item.id)}
+      onClick={() => navigate(`/app/sections/${item.id}`)}
       position={index}
     >
       <IndexTable.Cell>
@@ -589,6 +590,7 @@ export default function SectionsPage() {
             selectedItemsCount={
               allResourcesSelected ? "All" : selectedResources.length
             }
+            selectable
             onSelectionChange={handleSelectionChange}
             headings={headings}
             promotedBulkActions={promotedBulkActions}

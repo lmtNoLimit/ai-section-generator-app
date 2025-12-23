@@ -1,17 +1,26 @@
-import { useState, useEffect, useRef, type KeyboardEvent, type ChangeEvent } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useActionData, useNavigation, useSubmit, useNavigate, useLoaderData } from "react-router";
+import {
+  useActionData,
+  useNavigation,
+  useSubmit,
+  useNavigate,
+  useLoaderData,
+} from "react-router";
 import { authenticate } from "../shopify.server";
 import { sectionService } from "../services/section.server";
 import { chatService } from "../services/chat.server";
-import { templateService, type FeaturedTemplate } from "../services/template.server";
+import {
+  templateService,
+  type FeaturedTemplate,
+} from "../services/template.server";
 import { sanitizeUserInput } from "../utils/input-sanitizer";
-import "../styles/new-section.css";
 
 const MAX_PROMPT_LENGTH = 2000;
 
 /**
- * Simplified /sections/new route - ChatGPT-style prompt-only UI
+ * /sections/new route - AI-powered section creation
+ * Two-column layout: Main prompt form + aside with tips
  * Creates section + conversation on submit, redirects to /$id for AI chat
  */
 
@@ -19,13 +28,14 @@ interface LoaderData {
   templates: FeaturedTemplate[];
 }
 
-export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
+export async function loader({
+  request,
+}: LoaderFunctionArgs): Promise<LoaderData> {
   const { session } = await authenticate.admin(request);
 
   // Fetch featured templates (shop-specific + defaults fallback)
-  // Graceful degradation: return empty array on DB error
   try {
-    const templates = await templateService.getFeatured(session.shop, 4);
+    const templates = await templateService.getFeatured(session.shop, 6);
     return { templates };
   } catch (error) {
     console.error("Failed to fetch featured templates:", error);
@@ -38,7 +48,9 @@ interface ActionData {
   error?: string;
 }
 
-export async function action({ request }: ActionFunctionArgs): Promise<ActionData> {
+export async function action({
+  request,
+}: ActionFunctionArgs): Promise<ActionData> {
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
   const rawPrompt = formData.get("prompt") as string;
@@ -49,7 +61,9 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
 
   // Validate length
   if (rawPrompt.length > MAX_PROMPT_LENGTH) {
-    return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH} characters)` };
+    return {
+      error: `Prompt is too long (max ${MAX_PROMPT_LENGTH} characters)`,
+    };
   }
 
   // Sanitize input
@@ -64,7 +78,10 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
     });
 
     // Create conversation + first user message
-    const conversation = await chatService.getOrCreateConversation(section.id, session.shop);
+    const conversation = await chatService.getOrCreateConversation(
+      section.id,
+      session.shop,
+    );
     await chatService.addUserMessage(conversation.id, prompt);
 
     return { sectionId: section.id };
@@ -81,7 +98,6 @@ export default function NewSectionPage() {
   const navigate = useNavigate();
   const submit = useSubmit();
   const [prompt, setPrompt] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -94,96 +110,174 @@ export default function NewSectionPage() {
 
   // Focus textarea on mount
   useEffect(() => {
-    textareaRef.current?.focus();
+    const textarea = document.getElementById(
+      "prompt-textarea",
+    ) as HTMLElement | null;
+    textarea?.focus();
   }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (!prompt.trim() || isSubmitting) return;
     const formData = new FormData();
     formData.append("prompt", prompt);
     submit(formData, { method: "post" });
-  };
+  }, [prompt, isSubmitting, submit]);
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
+  // Handle keyboard shortcut (Cmd/Ctrl + Enter)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    };
 
-  const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    setPrompt(e.target.value);
-  };
+    const textarea = document.getElementById("prompt-textarea");
+    textarea?.addEventListener("keydown", handleKeyDown);
+    return () => textarea?.removeEventListener("keydown", handleKeyDown);
+  }, [handleSubmit]);
 
-  const handleChipClick = (chipPrompt: string) => {
-    setPrompt(chipPrompt);
-    textareaRef.current?.focus();
+  const handleTemplateSelect = (templatePrompt: string) => {
+    setPrompt(templatePrompt);
+    const textarea = document.getElementById(
+      "prompt-textarea",
+    ) as HTMLElement | null;
+    textarea?.focus();
   };
 
   return (
-    <s-page inlineSize="base">
-      <div className="new-section-container">
-        <div className="new-section-header">
-          <h1>Create a Section</h1>
-          <p>Describe the section you want to create. Be specific about layout, content, and style.</p>
-        </div>
+    <s-page heading="Create section" inlineSize="base">
+      {/* Main Content */}
+      <s-section>
+        <s-stack gap="large-200">
+          {/* Error Banner */}
+          {actionData?.error && (
+            <s-banner tone="critical" dismissible>
+              {actionData.error}
+            </s-banner>
+          )}
 
-        {actionData?.error && (
-          <s-banner tone="critical" dismissible>
-            {actionData.error}
-          </s-banner>
-        )}
+          {/* Hero Section - Prompt Input */}
 
-        <div className="prompt-input-wrapper">
-          <textarea
-            ref={textareaRef}
-            value={prompt}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            rows={4}
-            placeholder="A hero section with video background, centered text overlay, and a prominent call-to-action button..."
-            disabled={isSubmitting}
-            className="prompt-textarea"
-            aria-label="Section description"
-          />
-          <div className="prompt-actions">
-            <span className="keyboard-hint">⌘ + Enter to submit</span>
-            <s-button
-              variant="primary"
-              onClick={handleSubmit}
-              loading={isSubmitting}
-              disabled={!prompt.trim()}
+          <s-stack gap="large">
+            <s-stack gap="small">
+              <s-heading accessibilityRole="heading">
+                What section do you want to create?
+              </s-heading>
+              <s-text color="subdued">
+                Describe your vision and our AI will generate a custom Shopify
+                section for your store.
+              </s-text>
+            </s-stack>
+
+            <s-text-area
+              id="prompt-textarea"
+              label="Describe your section"
+              labelAccessibilityVisibility="exclusive"
+              value={prompt}
+              placeholder="Example: A hero banner with a full-width background image, bold headline, subtext, and a call-to-action button that links to a collection..."
+              disabled={isSubmitting}
+              rows={5}
+              maxLength={MAX_PROMPT_LENGTH}
+              onInput={(e: Event) => {
+                const target = e.target as HTMLTextAreaElement;
+                setPrompt(target.value);
+              }}
+            />
+
+            <s-stack
+              direction="inline"
+              gap="base"
+              justifyContent="space-between"
+              alignItems="center"
             >
-              Create Section
-            </s-button>
-          </div>
-        </div>
+              <s-text color="subdued">
+                {prompt.length}/{MAX_PROMPT_LENGTH} • Press ⌘/Ctrl + Enter
+              </s-text>
+              <s-button
+                variant="primary"
+                onClick={handleSubmit}
+                loading={isSubmitting}
+                disabled={!prompt.trim()}
+              >
+                Generate Section
+              </s-button>
+            </s-stack>
+          </s-stack>
 
-        {templates.length > 0 && (
-          <div className="template-chips" aria-label="Suggested templates">
-            <p className="chips-label">Try one of these:</p>
-            <div className="chips-container">
-              {templates.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  className="template-chip"
-                  onClick={() => handleChipClick(template.prompt)}
-                  disabled={isSubmitting}
-                  aria-label={`Use ${template.title} template`}
-                >
-                  {template.icon && (
-                    <span className="template-chip-icon" aria-hidden="true">
-                      {template.icon}
-                    </span>
-                  )}
-                  <span className="template-chip-title">{template.title}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+          {/* Template Suggestions */}
+          {templates.length > 0 && (
+            <s-stack gap="base">
+              <s-stack gap="small-100">
+                <s-heading>Start with a template</s-heading>
+                <s-text color="subdued">
+                  Choose a starting point and customize it to your needs
+                </s-text>
+              </s-stack>
+
+              <s-stack direction="inline" gap="small">
+                {templates.map((template) => (
+                  <s-clickable-chip
+                    key={template.id}
+                    accessibilityLabel={`Use ${template.title} template`}
+                    disabled={isSubmitting}
+                    onClick={() => handleTemplateSelect(template.prompt)}
+                  >
+                    <s-icon slot="graphic" type="wand" />
+                    {template.title}
+                  </s-clickable-chip>
+                ))}
+              </s-stack>
+            </s-stack>
+          )}
+        </s-stack>
+      </s-section>
+
+      {/* Aside - Tips */}
+      <s-section slot="aside">
+        <s-stack gap="large">
+          <s-heading>Tips for better results</s-heading>
+
+          <s-stack gap="base">
+            <s-box padding="base" background="subdued" borderRadius="base">
+              <s-stack gap="small-100">
+                <s-text>Be specific</s-text>
+                <s-text color="subdued">
+                  Include details about layout, colors, and content placement
+                </s-text>
+              </s-stack>
+            </s-box>
+
+            <s-box padding="base" background="subdued" borderRadius="base">
+              <s-stack gap="small-100">
+                <s-text>Mention your brand</s-text>
+                <s-text color="subdued">
+                  Reference your brand style, tone, or existing design elements
+                </s-text>
+              </s-stack>
+            </s-box>
+
+            <s-box padding="base" background="subdued" borderRadius="base">
+              <s-stack gap="small-100">
+                <s-text>Define the goal</s-text>
+                <s-text color="subdued">
+                  What action should visitors take? Buy, subscribe, explore?
+                </s-text>
+              </s-stack>
+            </s-box>
+          </s-stack>
+
+          <s-divider />
+
+          <s-stack gap="small">
+            <s-text>What happens next?</s-text>
+            <s-text color="subdued">
+              After generating, you can preview your section, make edits with AI
+              assistance, and publish directly to your theme.
+            </s-text>
+          </s-stack>
+        </s-stack>
+      </s-section>
     </s-page>
   );
 }
