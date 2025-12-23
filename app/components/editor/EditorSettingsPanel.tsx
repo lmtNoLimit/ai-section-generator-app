@@ -14,7 +14,7 @@ interface EditorSettingsPanelProps {
 
 /**
  * Settings panel for save configuration
- * Theme selection, filename, and optional template save
+ * Uses Polaris components for structure
  */
 export function EditorSettingsPanel({
   themes,
@@ -26,37 +26,38 @@ export function EditorSettingsPanel({
   disabled = false,
 }: EditorSettingsPanelProps) {
   return (
-    <div className="settings-panel">
-      <h2 className="settings-panel__title">Save Settings</h2>
+    <s-stack gap="large">
+      <s-heading>Settings</s-heading>
 
-      <div className="settings-panel__section">
+      {/* Theme Selection */}
+      <s-stack gap="base">
         <ThemeSelector
           themes={themes}
           selectedThemeId={selectedTheme}
           onChange={onThemeChange}
           disabled={disabled}
         />
-      </div>
+      </s-stack>
 
-      <div className="settings-panel__section">
+      {/* File Name */}
+      <s-stack gap="base">
         <SectionNameInput
           value={fileName}
           onChange={onFileNameChange}
           disabled={disabled}
         />
-      </div>
+      </s-stack>
 
+      {/* Optional: Save as Template */}
       {onSaveAsTemplate && (
-        <div className="settings-panel__section">
-          <s-button
-            variant="tertiary"
-            onClick={onSaveAsTemplate}
-            disabled={disabled || undefined}
-          >
-            Save as Template
-          </s-button>
-        </div>
+        <s-button
+          variant="tertiary"
+          onClick={onSaveAsTemplate}
+          disabled={disabled || undefined}
+        >
+          Save as Template
+        </s-button>
       )}
-    </div>
+    </s-stack>
   );
 }

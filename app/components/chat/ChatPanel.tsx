@@ -1,6 +1,6 @@
 /**
  * ChatPanel component - Main chat container
- * Combines message list, input, and error handling
+ * Uses Polaris components for structure with minimal custom styling for messages
  */
 import { useEffect, useCallback, useRef } from 'react';
 import { useChat } from './hooks/useChat';
@@ -84,54 +84,93 @@ export function ChatPanel({
     }
   }, [messages.length, clearConversation]);
 
+  // Flex layout styles for proper scrolling
+  const containerStyle = {
+    display: "flex",
+    flexDirection: "column" as const,
+    height: "100%",
+    minHeight: 0,
+    background: "var(--p-color-bg-surface)",
+  };
+
+  const headerStyle = {
+    flexShrink: 0,
+  };
+
+  const contentStyle = {
+    flex: 1,
+    minHeight: 0,
+    display: "flex",
+    flexDirection: "column" as const,
+    overflow: "hidden",
+  };
+
+  const inputStyle = {
+    flexShrink: 0,
+  };
+
   return (
-    <div className="chat-panel">
-      {/* Inject styles */}
+    <div style={containerStyle}>
+      {/* Keep ChatStyles for message-level styling */}
       <ChatStyles />
 
-      {/* Header with clear button */}
-      <div className="chat-panel__header">
-        <span className="chat-panel__title">AI Assistant</span>
-        {messages.length > 0 && (
-          <button
-            onClick={handleClearConversation}
-            className="chat-panel__clear"
-            aria-label="Clear conversation"
-            disabled={isStreaming}
-          >
-            Clear
-          </button>
-        )}
+      {/* Header with Polaris components */}
+      <div style={headerStyle}>
+        <s-box
+          padding="base"
+          borderWidth="none none small none"
+          borderColor="subdued"
+        >
+          <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+            <s-stack direction="inline" gap="small" alignItems="center">
+              <s-text type="strong">✨ AI Assistant</s-text>
+            </s-stack>
+            {messages.length > 0 && (
+              <s-button
+                variant="tertiary"
+                onClick={handleClearConversation}
+                disabled={isStreaming || undefined}
+              >
+                Clear
+              </s-button>
+            )}
+          </s-stack>
+        </s-box>
       </div>
 
-      {/* Error banner with retry option */}
+      {/* Error banner with Polaris banner */}
       {error && (
-        <div className="chat-error" role="alert">
-          <span>{error}</span>
-          <div className="chat-error__actions">
-            {failedMessage?.error.retryable && (
-              <button onClick={retryFailedMessage} className="chat-error__retry">
-                Retry
-              </button>
-            )}
-            <button onClick={clearError} aria-label="Dismiss error">×</button>
-          </div>
-        </div>
+        <s-banner tone="critical" onDismiss={clearError}>
+          <s-text>{error}</s-text>
+          {failedMessage?.error.retryable && (
+            <s-button
+              slot="primary-action"
+              variant="primary"
+              onClick={retryFailedMessage}
+            >
+              Retry
+            </s-button>
+          )}
+        </s-banner>
       )}
 
-      {/* Message list */}
-      <MessageList
-        messages={messages}
-        isStreaming={isStreaming}
-        streamingContent={streamingContent}
-      />
+      {/* Message list - uses custom CSS for message styling */}
+      <div style={contentStyle}>
+        <MessageList
+          messages={messages}
+          isStreaming={isStreaming}
+          streamingContent={streamingContent}
+        />
+      </div>
 
       {/* Input */}
-      <ChatInput
-        onSend={sendMessage}
-        onStop={stopStreaming}
-        isStreaming={isStreaming}
-      />
+      <div style={inputStyle}>
+        <ChatInput
+          onSend={sendMessage}
+          onStop={stopStreaming}
+          isStreaming={isStreaming}
+        />
+      </div>
     </div>
   );
 }

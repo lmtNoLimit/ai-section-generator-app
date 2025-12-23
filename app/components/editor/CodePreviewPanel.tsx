@@ -7,9 +7,36 @@ interface CodePreviewPanelProps {
   fileName: string;
 }
 
+// Flex-based layout for proper scrolling
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    height: '100%',
+    minHeight: 0,
+  },
+  header: {
+    flexShrink: 0,
+  },
+  content: {
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    overflow: 'hidden',
+    background: 'var(--p-color-bg-surface-secondary)',
+    padding: '16px',
+  },
+  innerContent: {
+    flex: 1,
+    minHeight: 0,
+    overflow: 'auto',
+  },
+} as const;
+
 /**
  * Tabbed panel for code editor and live preview
- * Uses Polaris-inspired segmented control pattern
+ * Uses Polaris s-button-group for segmented control
  */
 export function CodePreviewPanel({ code, fileName }: CodePreviewPanelProps) {
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
@@ -26,52 +53,58 @@ export function CodePreviewPanel({ code, fileName }: CodePreviewPanelProps) {
   }, [code]);
 
   return (
-    <div className="code-preview-panel">
-      {/* Tab bar with segmented control */}
-      <div className="code-preview-panel__tabs">
-        <div className="code-preview-panel__tabs-left">
-          {/* Segmented control container */}
-          <div className="code-preview-panel__tab-group">
-            <button
-              type="button"
-              onClick={() => setActiveTab('preview')}
-              className={`code-preview-panel__tab ${activeTab === 'preview' ? 'code-preview-panel__tab--active' : ''}`}
-              aria-pressed={activeTab === 'preview'}
-            >
-              Preview
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('code')}
-              className={`code-preview-panel__tab ${activeTab === 'code' ? 'code-preview-panel__tab--active' : ''}`}
-              aria-pressed={activeTab === 'code'}
-            >
-              Code
-            </button>
-          </div>
-        </div>
+    <div style={styles.container}>
+      {/* Header with segmented control */}
+      <div style={styles.header}>
+        <s-box
+          padding="base"
+          borderWidth="none none small none"
+          borderColor="subdued"
+          background="base"
+        >
+          <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+            {/* Segmented control for Preview/Code */}
+            <s-button-group gap="none" accessibilityLabel="View mode">
+              <s-button
+                slot="secondary-actions"
+                variant={activeTab === 'preview' ? 'primary' : 'secondary'}
+                onClick={() => setActiveTab('preview')}
+              >
+                Preview
+              </s-button>
+              <s-button
+                slot="secondary-actions"
+                variant={activeTab === 'code' ? 'primary' : 'secondary'}
+                onClick={() => setActiveTab('code')}
+              >
+                Code
+              </s-button>
+            </s-button-group>
 
-        {activeTab === 'code' && code && (
-          <button
-            type="button"
-            onClick={handleCopyCode}
-            className="code-preview-panel__copy-all"
-            aria-label={copied ? 'Copied!' : 'Copy all code'}
-          >
-            {copied ? '✓ Copied' : 'Copy All'}
-          </button>
-        )}
+            {/* Copy button (only in code view) */}
+            {activeTab === 'code' && code && (
+              <s-button
+                onClick={handleCopyCode}
+                variant="secondary"
+              >
+                {copied ? '✓ Copied' : 'Copy All'}
+              </s-button>
+            )}
+          </s-stack>
+        </s-box>
       </div>
 
-      {/* Tab content */}
-      <div className="code-preview-panel__content">
-        {activeTab === 'preview' ? (
-          <PreviewErrorBoundary onRetry={() => setActiveTab('preview')}>
-            <SectionPreview liquidCode={code} />
-          </PreviewErrorBoundary>
-        ) : (
-          <CodePreview code={code} fileName={fileName} />
-        )}
+      {/* Content area */}
+      <div style={styles.content}>
+        <div style={styles.innerContent}>
+          {activeTab === 'preview' ? (
+            <PreviewErrorBoundary onRetry={() => setActiveTab('preview')}>
+              <SectionPreview liquidCode={code} />
+            </PreviewErrorBoundary>
+          ) : (
+            <CodePreview code={code} fileName={fileName} />
+          )}
+        </div>
       </div>
     </div>
   );

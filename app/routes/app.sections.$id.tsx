@@ -14,7 +14,7 @@ import { chatService } from '../services/chat.server';
 import prisma from '../db.server';
 
 import {
-  UnifiedEditorLayout,
+  PolarisEditorLayout,
   ChatPanelWrapper,
   CodePreviewPanel,
   EditorSettingsPanel,
@@ -343,7 +343,7 @@ export default function UnifiedEditorPage() {
         loading={isPublishing || undefined}
         disabled={!canPublish || isLoading || undefined}
       >
-        Publish to {selectedThemeName}
+        Publish
       </s-button>
 
       {/* Secondary actions */}
@@ -412,7 +412,7 @@ export default function UnifiedEditorPage() {
         </s-button>
       </s-modal>
 
-      <UnifiedEditorLayout
+      <PolarisEditorLayout
         chatPanel={
           conversationId ? (
             <ChatPanelWrapper
@@ -422,12 +422,12 @@ export default function UnifiedEditorPage() {
               onCodeUpdate={handleCodeUpdate}
             />
           ) : (
-            <div className="chat-panel-wrapper">
-              <div className="chat-panel-wrapper__header">
-                <h2>AI Assistant</h2>
-                <p>Loading conversation...</p>
-              </div>
-            </div>
+            <s-box padding="base">
+              <s-stack gap="base" alignItems="center">
+                <s-heading>AI Assistant</s-heading>
+                <s-text color="subdued">Loading conversation...</s-text>
+              </s-stack>
+            </s-box>
           )
         }
         codePreviewPanel={

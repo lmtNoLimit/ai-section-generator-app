@@ -101,6 +101,7 @@ const chatCSS = `
    ======================================== */
 .chat-message-list {
   flex: 1;
+  min-height: 0; /* Critical for flex scrolling */
   overflow-y: auto;
   padding: var(--chat-space-4);
   scroll-behavior: smooth;

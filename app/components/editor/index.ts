@@ -3,17 +3,13 @@
  * Provides unified editor layout and related components
  */
 
-// Main layout components
-export { UnifiedEditorLayout } from './UnifiedEditorLayout';
-export { MobileLayout } from './MobileLayout';
+// Main layout component
+export { PolarisEditorLayout } from './PolarisEditorLayout';
 
 // Sub-components
 export { ChatPanelWrapper } from './ChatPanelWrapper';
 export { CodePreviewPanel } from './CodePreviewPanel';
 export { EditorSettingsPanel } from './EditorSettingsPanel';
-export { EditorStyles } from './EditorStyles';
 
 // Hooks
 export { useEditorState } from './hooks/useEditorState';
-export { usePanelLayout } from './hooks/usePanelLayout';
-export type { PanelSizes } from './hooks/usePanelLayout';
