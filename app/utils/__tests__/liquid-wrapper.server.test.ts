@@ -79,40 +79,40 @@ describe("wrapLiquidForProxy", () => {
   });
 
   describe("settings injection", () => {
-    it("should inject string settings with proper escaping", () => {
+    it("should inject string settings with settings_ prefix", () => {
       const result = wrapLiquidForProxy({
-        liquidCode: "{{ heading }}",
+        liquidCode: "{{ settings_heading }}",
         settings: { heading: "Hello World" },
       });
 
-      expect(result).toContain("{% assign heading = 'Hello World' %}");
+      expect(result).toContain("{% assign settings_heading = 'Hello World' %}");
     });
 
-    it("should inject number settings", () => {
+    it("should inject number settings with settings_ prefix", () => {
       const result = wrapLiquidForProxy({
-        liquidCode: "{{ columns }}",
+        liquidCode: "{{ settings_columns }}",
         settings: { columns: 3 },
       });
 
-      expect(result).toContain("{% assign columns = 3 %}");
+      expect(result).toContain("{% assign settings_columns = 3 %}");
     });
 
-    it("should inject boolean settings", () => {
+    it("should inject boolean settings with settings_ prefix", () => {
       const result = wrapLiquidForProxy({
-        liquidCode: "{{ show_title }}",
+        liquidCode: "{{ settings_show_title }}",
         settings: { show_title: true },
       });
 
-      expect(result).toContain("{% assign show_title = true %}");
+      expect(result).toContain("{% assign settings_show_title = true %}");
     });
 
     it("should escape single quotes in string settings", () => {
       const result = wrapLiquidForProxy({
-        liquidCode: "{{ text }}",
+        liquidCode: "{{ settings_text }}",
         settings: { text: "It's a test" },
       });
 
-      expect(result).toContain("{% assign text = 'It\\'s a test' %}");
+      expect(result).toContain("{% assign settings_text = 'It\\'s a test' %}");
     });
 
     it("should reject settings with invalid variable names", () => {
@@ -122,7 +122,7 @@ describe("wrapLiquidForProxy", () => {
       });
 
       expect(result).not.toContain("123invalid");
-      expect(result).toContain("{% assign valid_name = 'value2' %}");
+      expect(result).toContain("{% assign settings_valid_name = 'value2' %}");
     });
 
     it("should skip complex object/array settings", () => {
@@ -131,8 +131,8 @@ describe("wrapLiquidForProxy", () => {
         settings: { nested: { key: "value" }, array: [1, 2, 3] },
       });
 
-      expect(result).not.toContain("nested");
-      expect(result).not.toContain("array");
+      expect(result).not.toContain("settings_nested");
+      expect(result).not.toContain("settings_array");
     });
   });
 
@@ -324,13 +324,66 @@ describe("parseProxyParams", () => {
     });
   });
 
+  describe("blocks parsing", () => {
+    it("should decode base64 JSON blocks array", () => {
+      const blocks = [
+        { id: "block-1", type: "text", settings: { title: "Hello" } },
+        { id: "block-2", type: "image", settings: { alt: "Image" } },
+      ];
+      const encoded = Buffer.from(JSON.stringify(blocks)).toString("base64");
+      const url = new URL(`https://example.com?blocks=${encoded}`);
+
+      const result = parseProxyParams(url);
+
+      expect(result.blocks).toHaveLength(2);
+      expect(result.blocks[0].id).toBe("block-1");
+      expect(result.blocks[0].type).toBe("text");
+      expect(result.blocks[1].id).toBe("block-2");
+    });
+
+    it("should return empty array for invalid blocks JSON", () => {
+      const encoded = Buffer.from("not valid json").toString("base64");
+      const url = new URL(`https://example.com?blocks=${encoded}`);
+
+      const result = parseProxyParams(url);
+
+      expect(result.blocks).toEqual([]);
+    });
+
+    it("should filter out invalid block objects", () => {
+      const blocks = [
+        { id: "valid", type: "text" },
+        { id: 123, type: "invalid" }, // id must be string
+        { type: "missing-id" }, // missing id
+        "not-an-object",
+      ];
+      const encoded = Buffer.from(JSON.stringify(blocks)).toString("base64");
+      const url = new URL(`https://example.com?blocks=${encoded}`);
+
+      const result = parseProxyParams(url);
+
+      expect(result.blocks).toHaveLength(1);
+      expect(result.blocks[0].id).toBe("valid");
+    });
+
+    it("should return empty array when blocks missing", () => {
+      const url = new URL("https://example.com");
+
+      const result = parseProxyParams(url);
+
+      expect(result.blocks).toEqual([]);
+    });
+  });
+
   describe("combined parsing", () => {
     it("should parse all parameters together", () => {
       const code = "{{ product.title }}";
       const settings = { show: true };
+      const blocks = [{ id: "b1", type: "heading", settings: { text: "Hi" } }];
       const url = new URL(
         `https://example.com?code=${Buffer.from(code).toString("base64")}` +
           `&settings=${Buffer.from(JSON.stringify(settings)).toString("base64")}` +
+          `&blocks=${Buffer.from(JSON.stringify(blocks)).toString("base64")}` +
           `&product=test-handle` +
           `&collection=all` +
           `&section_id=sec-1`
@@ -340,9 +393,69 @@ describe("parseProxyParams", () => {
 
       expect(result.code).toBe(code);
       expect(result.settings).toEqual(settings);
+      expect(result.blocks).toHaveLength(1);
+      expect(result.blocks[0].id).toBe("b1");
       expect(result.productHandle).toBe("test-handle");
       expect(result.collectionHandle).toBe("all");
       expect(result.sectionId).toBe("sec-1");
     });
+  });
+});
+
+describe("blocks injection", () => {
+  it("should inject blocks_count assign", () => {
+    const result = wrapLiquidForProxy({
+      liquidCode: "{{ blocks_count }}",
+      blocks: [
+        { id: "b1", type: "text", settings: { title: "Test" } },
+      ],
+    });
+
+    expect(result).toContain("{% assign blocks_count = 1 %}");
+  });
+
+  it("should inject block metadata assigns", () => {
+    const result = wrapLiquidForProxy({
+      liquidCode: "test",
+      blocks: [{ id: "block-123", type: "heading", settings: {} }],
+    });
+
+    expect(result).toContain("{% assign block_0_id = 'block-123' %}");
+    expect(result).toContain("{% assign block_0_type = 'heading' %}");
+  });
+
+  it("should inject block settings assigns", () => {
+    const result = wrapLiquidForProxy({
+      liquidCode: "test",
+      blocks: [
+        { id: "b1", type: "text", settings: { title: "Hello", count: 5 } },
+      ],
+    });
+
+    expect(result).toContain("{% assign block_0_title = 'Hello' %}");
+    expect(result).toContain("{% assign block_0_count = 5 %}");
+  });
+
+  it("should handle multiple blocks", () => {
+    const result = wrapLiquidForProxy({
+      liquidCode: "test",
+      blocks: [
+        { id: "b1", type: "text", settings: { title: "First" } },
+        { id: "b2", type: "image", settings: { alt: "Second" } },
+      ],
+    });
+
+    expect(result).toContain("{% assign block_0_type = 'text' %}");
+    expect(result).toContain("{% assign block_1_type = 'image' %}");
+    expect(result).toContain("{% assign blocks_count = 2 %}");
+  });
+
+  it("should inject blocks_count = 0 for empty blocks", () => {
+    const result = wrapLiquidForProxy({
+      liquidCode: "test",
+      blocks: [],
+    });
+
+    expect(result).toContain("{% assign blocks_count = 0 %}");
   });
 });

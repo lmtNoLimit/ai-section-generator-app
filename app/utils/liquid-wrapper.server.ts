@@ -4,19 +4,29 @@
  * for native Shopify Liquid rendering via App Proxy.
  */
 
+import type { SettingsState, BlockInstance } from '../components/preview/schema/SchemaTypes';
+import {
+  generateSettingsAssigns,
+  generateBlocksAssigns,
+  rewriteSectionSettings,
+} from './settings-transform.server';
+
 // Types for wrapper configuration
 export interface WrapperOptions {
   liquidCode: string;
   sectionId?: string;
   productHandle?: string;
   collectionHandle?: string;
-  settings?: Record<string, unknown>;
+  settings?: SettingsState;
+  blocks?: BlockInstance[];
+  transformSectionSettings?: boolean;
 }
 
 // Types for parsed proxy parameters
 export interface ProxyParams {
   code: string | null;
-  settings: Record<string, unknown>;
+  settings: SettingsState;
+  blocks: BlockInstance[];
   productHandle: string | null;
   collectionHandle: string | null;
   sectionId: string;
@@ -42,23 +52,13 @@ function isValidHandle(handle: string): boolean {
   return VALID_HANDLE_REGEX.test(handle) && handle.length <= 255;
 }
 
-/**
- * Escapes a value for safe use in Liquid assign statements
- */
-function escapeLiquidValue(value: unknown): string {
-  if (typeof value === "string") {
-    // Escape single quotes and backslashes
-    return `'${value.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  return "nil";
-}
 
 /**
  * Wraps Liquid code with context injection for App Proxy rendering
- * Injects product/collection context and settings as Liquid assigns
+ * Injects product/collection context, settings, and blocks as Liquid assigns
+ *
+ * Settings are injected as: settings_title, settings_columns, etc.
+ * Blocks are injected as: block_0_type, block_0_title, blocks_count, etc.
  */
 export function wrapLiquidForProxy({
   liquidCode,
@@ -66,6 +66,8 @@ export function wrapLiquidForProxy({
   productHandle,
   collectionHandle,
   settings = {},
+  blocks = [],
+  transformSectionSettings = false,
 }: WrapperOptions): string {
   const assigns: string[] = [];
 
@@ -79,18 +81,19 @@ export function wrapLiquidForProxy({
     assigns.push(`{% assign collection = collections['${collectionHandle}'] %}`);
   }
 
-  // Inject settings as individual assigns for simple values
-  for (const [key, value] of Object.entries(settings)) {
-    // Only allow valid variable names (alphanumeric + underscore, not starting with number)
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) continue;
+  // Inject settings as individual assigns (settings_title, settings_columns, etc.)
+  assigns.push(...generateSettingsAssigns(settings));
 
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      assigns.push(`{% assign ${key} = ${escapeLiquidValue(value)} %}`);
-    }
-  }
+  // Inject blocks as numbered assigns (block_0_type, block_0_title, blocks_count)
+  assigns.push(...generateBlocksAssigns(blocks));
 
   // Strip schema block from user code (not renderable)
-  const cleanedCode = liquidCode.replace(SCHEMA_BLOCK_REGEX, "");
+  let cleanedCode = liquidCode.replace(SCHEMA_BLOCK_REGEX, "");
+
+  // Optionally transform section.settings.X to settings_X for compatibility
+  if (transformSectionSettings) {
+    cleanedCode = rewriteSectionSettings(cleanedCode);
+  }
 
   // Build wrapped template with CSS isolation container
   const assignsBlock = assigns.length > 0 ? `${assigns.join("\n")}\n` : "";
@@ -106,11 +109,12 @@ ${cleanedCode}
 
 /**
  * Decode and validate proxy request parameters
- * Handles base64 decoding for code and settings
+ * Handles base64 decoding for code, settings, and blocks
  */
 export function parseProxyParams(url: URL): ProxyParams {
   const codeParam = url.searchParams.get("code");
   const settingsParam = url.searchParams.get("settings");
+  const blocksParam = url.searchParams.get("blocks");
   const productHandle = url.searchParams.get("product");
   const collectionHandle = url.searchParams.get("collection");
   const rawSectionId = url.searchParams.get("section_id");
@@ -122,17 +126,38 @@ export function parseProxyParams(url: URL): ProxyParams {
       : "preview";
 
   // Parse settings from base64 JSON with size limit (DoS prevention)
-  let settings: Record<string, unknown> = {};
+  let settings: SettingsState = {};
   if (settingsParam && settingsParam.length <= MAX_SETTINGS_LENGTH) {
     try {
       const decoded = Buffer.from(settingsParam, "base64").toString("utf-8");
       const parsed = JSON.parse(decoded);
-      // Only accept plain objects
+      // Only accept plain objects with primitive values
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        settings = parsed;
+        settings = parsed as SettingsState;
       }
     } catch {
       // Invalid settings, use empty object
+    }
+  }
+
+  // Parse blocks from base64 JSON array with size limit
+  let blocks: BlockInstance[] = [];
+  if (blocksParam && blocksParam.length <= MAX_SETTINGS_LENGTH) {
+    try {
+      const decoded = Buffer.from(blocksParam, "base64").toString("utf-8");
+      const parsed = JSON.parse(decoded);
+      // Only accept arrays of block objects
+      if (Array.isArray(parsed)) {
+        blocks = parsed.filter(
+          (b): b is BlockInstance =>
+            typeof b === 'object' &&
+            b !== null &&
+            typeof b.id === 'string' &&
+            typeof b.type === 'string'
+        );
+      }
+    } catch {
+      // Invalid blocks, use empty array
     }
   }
 
@@ -149,6 +174,7 @@ export function parseProxyParams(url: URL): ProxyParams {
   return {
     code,
     settings,
+    blocks,
     productHandle: productHandle && isValidHandle(productHandle) ? productHandle : null,
     collectionHandle: collectionHandle && isValidHandle(collectionHandle) ? collectionHandle : null,
     sectionId,

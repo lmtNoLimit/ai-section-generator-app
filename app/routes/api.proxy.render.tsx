@@ -7,7 +7,8 @@
  *
  * Query Parameters:
  * - code: Base64-encoded Liquid code
- * - settings: Base64-encoded JSON settings object
+ * - settings: Base64-encoded JSON settings object (injects as settings_X)
+ * - blocks: Base64-encoded JSON blocks array (injects as block_N_X)
  * - product: Product handle for context injection
  * - collection: Collection handle for context injection
  * - section_id: Optional section ID for CSS scoping
@@ -44,7 +45,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   // Parse and validate all proxy parameters
-  const { code, settings, productHandle, collectionHandle, sectionId } = parseProxyParams(url);
+  const { code, settings, blocks, productHandle, collectionHandle, sectionId } =
+    parseProxyParams(url);
 
   if (!code) {
     return liquid(errorTemplate("No Liquid code provided or invalid encoding."), {
@@ -60,6 +62,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       productHandle: productHandle ?? undefined,
       collectionHandle: collectionHandle ?? undefined,
       settings,
+      blocks,
     });
 
     return liquid(wrappedCode, { layout: false });

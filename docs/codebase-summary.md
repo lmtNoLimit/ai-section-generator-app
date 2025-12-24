@@ -100,7 +100,10 @@ ai-section-generator/
 │   ├── utils/                    # Utility functions
 │   │   ├── input-sanitizer.ts    # XSS & injection prevention (Phase 01)
 │   │   ├── code-extractor.ts     # Extract code from AI responses
-│   │   └── context-builder.ts    # Build conversation context
+│   │   ├── context-builder.ts    # Build conversation context
+│   │   ├── settings-transform.server.ts # Settings & blocks Liquid assigns (Phase 04 NEW)
+│   │   ├── liquid-wrapper.server.ts # Context injection & settings parsing (Phase 04 UPDATED)
+│   │   └── __tests__/            # Utility test suites
 │   ├── types/                    # TypeScript type definitions
 │   │   ├── ai.types.ts           # AI service types
 │   │   ├── chat.types.ts         # Chat types (Phase 01)
@@ -1443,6 +1446,97 @@ export interface ChatMetadata {
 - Handle parsing: valid/invalid handles, empty handles
 - Section ID parsing: valid ID, XSS attempts, special chars, underscore support, size limits
 - Combined parsing: all parameters together
+
+#### Settings Transform Utility (`app/utils/settings-transform.server.ts` - Phase 04 NEW)
+
+**Purpose**: Generate Liquid assign statements for section settings and blocks without parse_json filter
+
+**Key Problem Solved**: App Proxy Liquid rendering lacks access to parse_json filter, so settings/blocks must be injected as individual Liquid assign statements rather than JSON objects.
+
+**Type Dependencies**:
+- `SettingsState`: Key-value map of primitive values (string, number, boolean, null)
+- `BlockInstance`: Object with id, type, and optional settings object
+
+**Main Functions**:
+
+1. `generateSettingsAssigns(settings)`: Convert settings to Liquid assigns
+   - **Input**: `{ title: "Hello", columns: 3, show: true }`
+   - **Output**: Array of Liquid assign statements
+   - **Pattern**: `{% assign settings_KEY = VALUE %}`
+   - **Examples**:
+     - String: `{% assign settings_title = 'Hello' %}` (with quote escaping)
+     - Number: `{% assign settings_columns = 3 %}`
+     - Boolean: `{% assign settings_show = true %}`
+     - Null: `{% assign settings_empty = nil %}`
+   - **Validation**: Keys must start with letter or underscore (alphanumeric + underscore only)
+   - **Escaping**: Quote ('), backslash (\), newlines (\n), carriage returns (\r)
+   - **Size Check**: Warns if settings exceed 4KB (payload limit)
+
+2. `generateBlocksAssigns(blocks)`: Convert blocks array to numbered Liquid assigns
+   - **Input**: Array of BlockInstance objects
+   - **Output**: Array of Liquid assign statements + blocks_count
+   - **Pattern**: `block_N_KEY` where N is zero-indexed block number
+   - **Examples**:
+     ```liquid
+     {% assign block_0_id = 'abc123' %}
+     {% assign block_0_type = 'product-card' %}
+     {% assign block_0_title = 'Featured Product' %}
+     {% assign blocks_count = 2 %}
+     ```
+   - **Iteration Pattern**: Use `blocks_count` for loop range: `{% for i in (0..blocks_count) %}`
+   - **Block Metadata**: Each block gets id + type + all settings as individual assigns
+   - **Validation**: Same key sanitization as settings
+
+3. `rewriteSectionSettings(code)`: Optional compatibility helper
+   - **Purpose**: Transform legacy `section.settings.X` to `settings_X` pattern
+   - **Regex**: `/section\.settings\.([a-zA-Z_][a-zA-Z0-9_]*)/g` → `settings_$1`
+   - **Examples**:
+     - `{{ section.settings.title }}` → `{{ settings_title }}`
+     - `{% if section.settings.show %}` → `{% if settings_show %}`
+   - **WARNING**: Heuristic approach - may break valid Liquid in edge cases with property names
+   - **Use Case**: Migrating existing theme sections to App Proxy rendering
+   - **Default**: Disabled (transformSectionSettings=false) in wrapLiquidForProxy
+
+4. `rewriteBlocksIteration(code)`: Placeholder for future block transformation
+   - **Current**: No-op function
+   - **Reason**: Full iteration transformation (block.settings.X → block_{{forloop.index0}}_X) requires sophisticated parsing
+   - **Recommendation**: Use block_N_X pattern directly in templates instead of `{% for block in section.blocks %}`
+
+**Security Features**:
+- Key sanitization prevents invalid Liquid variable names
+- String escaping prevents quote injection and escape sequence attacks
+- Payload size warnings for DoS prevention
+- Type validation (only primitives, no complex objects/arrays)
+
+**Test Coverage** (`app/utils/__tests__/settings-transform.server.test.ts`):
+- Settings types: string (with escaping), number (int/float/negative), boolean (true/false), null/undefined
+- Key sanitization: numeric-prefix rejection, special char replacement, underscore support
+- Blocks iteration: multiple blocks, metadata injection, count variable
+- Edge cases: empty strings, very long strings, special characters in values
+
+#### Updated Liquid Wrapper (`app/utils/liquid-wrapper.server.ts` - Phase 04 UPDATED)
+
+**New Integration with Settings Transform**:
+- Import: `generateSettingsAssigns`, `generateBlocksAssigns`, `rewriteSectionSettings` from settings-transform.server
+- Enhanced WrapperOptions: Added optional `blocks?: BlockInstance[]` parameter
+- Updated `wrapLiquidForProxy()`:
+  1. Parse settings via `generateSettingsAssigns(settings)`
+  2. Parse blocks via `generateBlocksAssigns(blocks)`
+  3. Optionally rewrite section.settings.X to settings_X (if transformSectionSettings=true)
+  4. Inject all assigns before user code (assigns.join("\n"))
+
+**Query Parameter** (in `api.proxy.render.tsx`):
+- New: `blocks` parameter accepts base64-encoded JSON array of BlockInstance objects
+- Same validation as settings: size limit (70KB), JSON parsing with type checking
+- Empty array default if missing or invalid
+
+#### Updated App Proxy Route (`app/routes/api.proxy.render.tsx` - Phase 04 UPDATED)
+
+**Blocks Parameter Support**:
+- Query: `?code=...&settings=...&blocks=...&product=...&collection=...&section_id=...`
+- Destructure: `const { code, settings, blocks, productHandle, collectionHandle, sectionId } = parseProxyParams(url);`
+- Pass to wrapper: `wrapLiquidForProxy({ liquidCode: code, settings, blocks, ... })`
+- Validation: Same type checking as settings (array of objects with id/type properties)
 
 ### Chat Components Directory (`app/components/chat/` - NEW)
 

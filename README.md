@@ -29,13 +29,13 @@ Blocksmith is a Shopify embedded app that enables merchants to create custom the
 **For developers**, start with these:
 - [Quick Start](#quick-start) - Setup and local development
 - [Project Overview & PDR](docs/project-overview-pdr.md) - Product scope, requirements, roadmap
-- [Codebase Summary](docs/codebase-summary.md) - Structure, components, services (251 files, 231K tokens)
+- [Codebase Summary](docs/codebase-summary.md) - Structure, components, services (266 files, 259K tokens)
 - [Code Standards](docs/code-standards.md) - Development guidelines and patterns
 - [System Architecture](docs/system-architecture.md) - Technical design and data flow
 
 ## Project Status
 
-**Current Version**: 1.0 (Development) - Phase 3 Complete (96%)
+**Current Version**: 1.0 (Development) - Phase 4 Complete (Settings & Context)
 
 **Implemented**:
 - ✅ AI section generation with Google Gemini 2.5 Flash
