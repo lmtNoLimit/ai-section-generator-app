@@ -30,3 +30,8 @@ scopes = "write_products,write_themes,write_files"
 
 [auth]
 redirect_urls = [ "https://blocksmith.m8lab.co/api/auth" ]
+
+[app_proxy]
+url = "/api/proxy/render"
+prefix = "apps"
+subpath = "blocksmith-preview"
