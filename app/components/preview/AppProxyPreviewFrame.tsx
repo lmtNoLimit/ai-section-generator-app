@@ -1,22 +1,22 @@
 /**
  * App Proxy Preview Frame
  *
- * Loads Shopify App Proxy URL directly in an iframe for native Liquid rendering.
- * Handles:
- * - Browser-side password authentication for protected stores
- * - URL building with base64-encoded code, settings, blocks
- * - Device size scaling
- * - Loading states and error handling
+ * Renders Liquid code via server-side fetch and srcDoc injection.
+ * Bypasses CORS/CSP restrictions by fetching HTML server-side.
  *
  * Flow:
- * 1. Authenticate browser (if password protected)
- * 2. Build App Proxy URL with all params
- * 3. Load URL in iframe - Shopify handles HMAC, proxies to our app
- * 4. Our app returns Liquid code, Shopify renders it
+ * 1. Client sends code/settings to /api/preview/render
+ * 2. Server fetches from App Proxy with auth cookies
+ * 3. Server returns rendered HTML
+ * 4. Client injects HTML via srcDoc (bypasses CORS)
+ *
+ * Security:
+ * - sandbox="allow-scripts" isolates iframe from parent DOM
+ * - Server-side DOMPurify sanitizes HTML (Phase 02)
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useAppProxyAuth } from "./hooks/useAppProxyAuth";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useNativePreviewRenderer } from "./hooks/useNativePreviewRenderer";
 import type { DeviceSize } from "./types";
 import type { SettingsState, BlockInstance } from "./schema/SchemaTypes";
 import type { MockProduct, MockCollection } from "./mockData/types";
@@ -40,59 +40,9 @@ interface AppProxyPreviewFrameProps {
   onRefreshRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-/**
- * Base64 encode for browser (handles Unicode properly)
- */
-function base64Encode(str: string): string {
-  return btoa(unescape(encodeURIComponent(str)));
-}
-
-/**
- * Build App Proxy URL with all necessary parameters
- */
-function buildAppProxyUrl(
-  shopDomain: string,
-  liquidCode: string,
-  settings?: SettingsState,
-  blocks?: BlockInstance[],
-  resources?: Record<string, MockProduct | MockCollection>
-): string {
-  const url = new URL(`https://${shopDomain}/apps/blocksmith-preview`);
-
-  // Required: base64-encoded Liquid code
-  url.searchParams.set("code", base64Encode(liquidCode));
-  url.searchParams.set("section_id", "preview");
-
-  // Optional: settings
-  if (settings && Object.keys(settings).length > 0) {
-    url.searchParams.set("settings", base64Encode(JSON.stringify(settings)));
-  }
-
-  // Optional: blocks
-  if (blocks && blocks.length > 0) {
-    url.searchParams.set("blocks", base64Encode(JSON.stringify(blocks)));
-  }
-
-  // Optional: resource handles for context
-  if (resources) {
-    for (const resource of Object.values(resources)) {
-      if ("products" in resource && Array.isArray(resource.products)) {
-        // It's a collection
-        const collection = resource as MockCollection;
-        if (collection.handle) {
-          url.searchParams.set("collection", collection.handle);
-        }
-      } else if ("variants" in resource) {
-        // It's a product
-        const product = resource as MockProduct;
-        if (product.handle) {
-          url.searchParams.set("product", product.handle);
-        }
-      }
-    }
-  }
-
-  return url.toString();
+// Generate crypto-safe random ID for nonce
+function generateNonce(): string {
+  return crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
 }
 
 export function AppProxyPreviewFrame({
@@ -106,22 +56,33 @@ export function AppProxyPreviewFrame({
   onRenderStateChange,
   onRefreshRef,
 }: AppProxyPreviewFrameProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
-  const debounceRef = useRef<number | null>(null);
+  const [iframeHeight, setIframeHeight] = useState<number>(400);
+  // Nonce for postMessage authentication (prevents message spoofing)
+  const [messageNonce] = useState(generateNonce);
 
-  // Auth hook for password-protected stores
-  const { authState, error: authError, authenticate, isReady } = useAppProxyAuth({ shopDomain });
+  // Use server-side fetch hook (bypasses CORS)
+  const { html, isLoading, error, refetch } = useNativePreviewRenderer({
+    liquidCode,
+    settings,
+    blocks,
+    resources,
+    shopDomain,
+    debounceMs,
+  });
 
-  // Build URL (memoized)
-  const proxyUrl = useMemo(() => {
-    if (!liquidCode.trim()) return null;
-    return buildAppProxyUrl(shopDomain, liquidCode, settings, blocks, resources);
-  }, [shopDomain, liquidCode, settings, blocks, resources]);
+  // Notify parent of render state changes
+  useEffect(() => {
+    onRenderStateChange?.(isLoading);
+  }, [isLoading, onRenderStateChange]);
+
+  // Expose refetch to parent
+  useEffect(() => {
+    if (onRefreshRef) {
+      onRefreshRef.current = refetch;
+    }
+  }, [onRefreshRef, refetch]);
 
   // Measure container width for scaling
   useEffect(() => {
@@ -138,82 +99,63 @@ export function AppProxyPreviewFrame({
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Authenticate on mount
+  // Listen for height updates from iframe via postMessage (with nonce validation)
   useEffect(() => {
-    authenticate();
-  }, [authenticate]);
-
-  // Update iframe src with debounce when code/settings change
-  useEffect(() => {
-    if (!isReady || !proxyUrl) {
-      return;
-    }
-
-    // Clear previous debounce
-    if (debounceRef.current) {
-      window.clearTimeout(debounceRef.current);
-    }
-
-    setIsLoading(true);
-    onRenderStateChange?.(true);
-
-    debounceRef.current = window.setTimeout(() => {
-      console.log("[AppProxyPreview] Loading URL:", proxyUrl.substring(0, 100) + "...");
-      setIframeSrc(proxyUrl);
-    }, debounceMs);
-
-    return () => {
-      if (debounceRef.current) {
-        window.clearTimeout(debounceRef.current);
+    const handler = (event: MessageEvent) => {
+      // Accept messages from srcdoc iframe (null origin) or same origin
+      if (event.origin !== "null" && event.origin !== window.location.origin) return;
+      // Validate message type and nonce to prevent spoofing
+      if (event.data?.type !== "PREVIEW_HEIGHT" || event.data?.nonce !== messageNonce) return;
+      const height = parseInt(event.data.height, 10);
+      if (!isNaN(height) && height > 0) {
+        setIframeHeight(Math.max(300, height));
       }
     };
-  }, [proxyUrl, isReady, debounceMs, onRenderStateChange]);
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [messageNonce]);
 
-  // Handle iframe load
-  const handleIframeLoad = useCallback(() => {
-    setIsLoading(false);
-    setError(null);
-    onRenderStateChange?.(false);
-    console.log("[AppProxyPreview] Iframe loaded");
-  }, [onRenderStateChange]);
-
-  // Handle iframe error
-  const handleIframeError = useCallback(() => {
-    setIsLoading(false);
-    setError("Failed to load preview");
-    onRenderStateChange?.(false);
-    console.error("[AppProxyPreview] Iframe error");
-  }, [onRenderStateChange]);
-
-  // Expose refetch to parent
-  const refetch = useCallback(() => {
-    if (iframeRef.current && iframeSrc) {
-      setIsLoading(true);
-      onRenderStateChange?.(true);
-      // Force reload by temporarily clearing and re-setting src
-      iframeRef.current.src = "";
-      requestAnimationFrame(() => {
-        if (iframeRef.current) {
-          iframeRef.current.src = iframeSrc;
-        }
-      });
+  // Build full HTML document for srcDoc
+  const fullHtml = useMemo(() => {
+    if (!html) return null;
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.5;
     }
-  }, [iframeSrc, onRenderStateChange]);
-
-  useEffect(() => {
-    if (onRefreshRef) {
-      onRefreshRef.current = refetch;
+    img { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  ${html}
+  <script>
+    // Report content height to parent for dynamic iframe sizing
+    // Nonce prevents message spoofing from other iframes
+    function reportHeight() {
+      window.parent.postMessage({ type: 'PREVIEW_HEIGHT', height: document.body.scrollHeight, nonce: '${messageNonce}' }, '*');
     }
-  }, [onRefreshRef, refetch]);
+    window.addEventListener('load', reportHeight);
+    new MutationObserver(reportHeight).observe(document.body, { childList: true, subtree: true });
+  </script>
+</body>
+</html>`;
+  }, [html, messageNonce]);
 
   // Calculate scaling
   const targetWidth = DEVICE_WIDTHS[deviceSize];
   const needsScaling = containerWidth > 0 && containerWidth < targetWidth;
   const scale = needsScaling ? containerWidth / targetWidth : 1;
+  const scaledHeight = iframeHeight * scale;
 
   // Determine what to show
-  const displayError = error || authError;
-  const showLoading = isLoading || authState === "checking" || authState === "authenticating";
   const showNoCode = !liquidCode.trim();
 
   return (
@@ -221,7 +163,7 @@ export function AppProxyPreviewFrame({
       background="subdued"
       borderRadius="base"
       padding="base"
-      blockSize="100%"
+      blockSize={fullHtml ? `${scaledHeight + 32}px` : "100%"}
       overflow="hidden"
     >
       <div
@@ -233,10 +175,13 @@ export function AppProxyPreviewFrame({
         }}
       >
         {/* Error display */}
-        {displayError && (
+        {error && (
           <s-box padding="base">
-            <s-banner tone="warning" dismissible onDismiss={() => setError(null)}>
-              {displayError}
+            <s-banner tone="warning" dismissible>
+              {error}
+              <s-button slot="secondary-actions" variant="tertiary" onClick={refetch}>
+                Retry
+              </s-button>
             </s-banner>
           </s-box>
         )}
@@ -257,7 +202,7 @@ export function AppProxyPreviewFrame({
         )}
 
         {/* Loading indicator */}
-        {showLoading && !showNoCode && (
+        {isLoading && !showNoCode && (
           <div
             style={{
               position: "absolute",
@@ -274,13 +219,13 @@ export function AppProxyPreviewFrame({
           >
             <s-spinner size="large" />
             <span style={{ marginLeft: "8px", color: "#6d7175" }}>
-              {authState === "authenticating" ? "Authenticating..." : "Loading preview..."}
+              Loading preview...
             </span>
           </div>
         )}
 
-        {/* Preview iframe (only render when ready and have URL) */}
-        {isReady && iframeSrc && !showNoCode && (
+        {/* Preview iframe with srcDoc (bypasses CORS) */}
+        {fullHtml && !showNoCode && (
           <div
             style={{
               position: "absolute",
@@ -290,17 +235,16 @@ export function AppProxyPreviewFrame({
               marginLeft: `-${targetWidth / 2}px`,
               transform: `scale(${scale})`,
               transformOrigin: "top center",
-              height: "100%",
             }}
           >
             <iframe
-              ref={iframeRef}
-              src={iframeSrc}
-              onLoad={handleIframeLoad}
-              onError={handleIframeError}
+              srcDoc={fullHtml}
+              // Sandbox: allow-scripts but NOT allow-same-origin
+              // This isolates iframe from parent DOM/cookies while enabling interactivity
+              sandbox="allow-scripts"
               style={{
                 width: "100%",
-                height: "100%",
+                height: `${iframeHeight}px`,
                 border: "1px solid var(--p-color-border)",
                 borderRadius: "var(--p-border-radius-200)",
                 backgroundColor: "var(--p-color-bg-surface)",

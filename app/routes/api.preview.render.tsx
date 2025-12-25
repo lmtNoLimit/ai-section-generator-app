@@ -14,11 +14,17 @@
 
 import type { ActionFunctionArgs } from "react-router";
 import { data } from "react-router";
+import DOMPurify from "isomorphic-dompurify";
 import { authenticate } from "../shopify.server";
 import { getAuthenticatedCookiesForShop } from "../services/storefront-auth.server";
+import { storePreviewData } from "../services/preview-token-store.server";
 
 // Max code length (same as proxy endpoint)
 const MAX_CODE_LENGTH = 100_000;
+
+// URL length threshold - use token for URLs longer than this
+// HTTP spec recommends max 2000 chars for universal compatibility
+const URL_LENGTH_THRESHOLD = 2000;
 
 // Timeout for proxy fetch (10 seconds)
 const FETCH_TIMEOUT_MS = 10_000;
@@ -27,6 +33,42 @@ const FETCH_TIMEOUT_MS = 10_000;
 const SECURITY_HEADERS = {
   "Content-Security-Policy": "script-src 'none'; object-src 'none'; frame-ancestors 'self'",
   "X-Content-Type-Options": "nosniff",
+};
+
+// DOMPurify config for sanitizing Shopify Liquid HTML output
+// Excludes <script> tags by default for security (defer decision per user request)
+const DOMPURIFY_CONFIG = {
+  ALLOWED_TAGS: [
+    // Structure
+    "div", "span", "section", "article", "header", "footer", "main", "nav", "aside",
+    // Text
+    "p", "h1", "h2", "h3", "h4", "h5", "h6", "strong", "em", "b", "i", "u", "br", "hr",
+    // Lists
+    "ul", "ol", "li", "dl", "dt", "dd",
+    // Links & Media
+    "a", "img", "picture", "source", "video", "audio", "figure", "figcaption", "svg", "path",
+    // Forms (for interactive sections)
+    "form", "input", "button", "select", "option", "textarea", "label",
+    // Tables
+    "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption", "colgroup", "col",
+    // Shopify Liquid specific
+    "style", "noscript", "template",
+  ],
+  ALLOWED_ATTR: [
+    "class", "id", "style", "data-*",
+    // Links
+    "href", "target", "rel",
+    // Media
+    "src", "srcset", "alt", "width", "height", "loading", "decoding",
+    // Forms
+    "type", "name", "value", "placeholder", "required", "disabled", "checked", "for",
+    // Accessibility
+    "aria-*", "role", "tabindex",
+    // SVG
+    "viewBox", "fill", "stroke", "d", "xmlns",
+  ],
+  ALLOW_DATA_ATTR: true,
+  ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
 };
 
 interface ProxyResponse {
@@ -78,24 +120,47 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // SECURITY: Build URL using session.shop only (prevents SSRF)
   const proxyUrl = new URL(`https://${shop}/apps/blocksmith-preview`);
-  proxyUrl.searchParams.set("code", code);
 
-  if (settings) proxyUrl.searchParams.set("settings", settings);
-  if (blocks) proxyUrl.searchParams.set("blocks", blocks);
-  if (product) proxyUrl.searchParams.set("product", product);
-  if (collection) proxyUrl.searchParams.set("collection", collection);
-  proxyUrl.searchParams.set("section_id", section_id || "preview");
+  // Build URL with all params first to check length
+  const tempUrl = new URL(proxyUrl);
+  tempUrl.searchParams.set("code", code);
+  if (settings) tempUrl.searchParams.set("settings", settings);
+  if (blocks) tempUrl.searchParams.set("blocks", blocks);
+  if (product) tempUrl.searchParams.set("product", product);
+  if (collection) tempUrl.searchParams.set("collection", collection);
+  tempUrl.searchParams.set("section_id", section_id || "preview");
+
+  // Check if URL exceeds threshold - use token-based storage for large payloads
+  if (tempUrl.toString().length > URL_LENGTH_THRESHOLD) {
+    const token = storePreviewData({
+      code,
+      settings,
+      blocks,
+      product,
+      collection,
+      section_id: section_id || "preview",
+    });
+    proxyUrl.searchParams.set("token", token);
+    console.log("[ProxyRender] Using token for large payload:", token.substring(0, 8) + "...");
+  } else {
+    // Small payload - use direct URL params
+    proxyUrl.searchParams.set("code", code);
+    if (settings) proxyUrl.searchParams.set("settings", settings);
+    if (blocks) proxyUrl.searchParams.set("blocks", blocks);
+    if (product) proxyUrl.searchParams.set("product", product);
+    if (collection) proxyUrl.searchParams.set("collection", collection);
+    proxyUrl.searchParams.set("section_id", section_id || "preview");
+  }
 
   // Get authenticated cookies (null if not configured or auth fails)
   const cookies = await getAuthenticatedCookiesForShop(shop);
 
+  const urlString = proxyUrl.toString();
   console.log("[ProxyRender] ========== DEBUG START ==========");
   console.log("[ProxyRender] Shop:", shop);
-  console.log("[ProxyRender] Full URL:", proxyUrl.toString());
+  console.log("[ProxyRender] URL length:", urlString.length, "bytes");
+  console.log("[ProxyRender] URL (first 300 chars):", urlString.substring(0, 300));
   console.log("[ProxyRender] Has cookies:", !!cookies);
-  if (cookies) {
-    console.log("[ProxyRender] Cookie preview:", cookies.substring(0, 30) + "...");
-  }
 
   try {
     // Create abort controller for timeout
@@ -113,8 +178,10 @@ export async function action({ request }: ActionFunctionArgs) {
       headers.Cookie = cookies;
     }
 
+    console.log("[ProxyRender] Fetching with headers:", Object.keys(headers));
+
     // Fetch from App Proxy with redirect: "manual" to detect password redirects
-    const response = await fetch(proxyUrl.toString(), {
+    const response = await fetch(urlString, {
       method: "GET",
       signal: controller.signal,
       headers,
@@ -123,12 +190,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
     clearTimeout(timeoutId);
 
-    console.log("[ProxyRender] Response status:", response.status, response.statusText);
-    console.log("[ProxyRender] Response headers:", {
-      contentType: response.headers.get("content-type"),
-      location: response.headers.get("location"),
-      server: response.headers.get("server"),
+    // Log ALL response headers for debugging
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
     });
+
+    console.log("[ProxyRender] Response status:", response.status, response.statusText);
+    console.log("[ProxyRender] Response headers:", JSON.stringify(responseHeaders, null, 2));
     console.log("[ProxyRender] ========== DEBUG END ==========");
 
     // Check for redirect (302/301) - indicates password wall
@@ -164,6 +233,7 @@ export async function action({ request }: ActionFunctionArgs) {
           headers,
           signal: redirectController.signal,
         });
+        console.log("[ProxyRender] Redirect response status:", redirectResponse.status, redirectResponse.statusText);
         clearTimeout(redirectTimeoutId);
 
         if (!redirectResponse.ok) {
@@ -173,9 +243,10 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
 
-        const html = await redirectResponse.text();
+        const rawHtml = await redirectResponse.text();
+        const sanitizedHtml = DOMPurify.sanitize(rawHtml, DOMPURIFY_CONFIG);
         return data<ProxyResponse>(
-          { html, mode: "native" },
+          { html: sanitizedHtml, mode: "native" },
           { headers: SECURITY_HEADERS }
         );
       } catch {
@@ -190,10 +261,11 @@ export async function action({ request }: ActionFunctionArgs) {
     if (!response.ok) {
       const statusText = response.statusText || "Unknown error";
       const errorBody = await response.text().catch(() => "");
-      console.error(
-        `[ProxyRender] App Proxy error: ${response.status} ${statusText}`,
-        { url: proxyUrl.toString().substring(0, 100) + "...", body: errorBody.substring(0, 200) }
-      );
+      console.error("[ProxyRender] ========== ERROR DETAILS ==========");
+      console.error("[ProxyRender] Status:", response.status, statusText);
+      console.error("[ProxyRender] URL:", urlString);
+      console.error("[ProxyRender] Response body (first 500 chars):", errorBody.substring(0, 500));
+      console.error("[ProxyRender] ========== END ERROR ==========");
       return data<ProxyResponse>(
         { html: null, mode: "fallback", error: `Proxy error: ${response.status} ${statusText}` },
         { headers: SECURITY_HEADERS }
@@ -201,12 +273,12 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     // Return the rendered HTML with mode indicator
-    const html = await response.text();
+    const rawHtml = await response.text();
 
     // Final check: if HTML contains password form, auth failed silently
     if (
-      html.includes('form_type="storefront_password"') ||
-      html.includes('id="password"')
+      rawHtml.includes('form_type="storefront_password"') ||
+      rawHtml.includes('id="password"')
     ) {
       console.log("[ProxyRender] Password form in response, using fallback");
       return data<ProxyResponse>(
@@ -215,8 +287,10 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    // Sanitize HTML to prevent XSS attacks
+    const sanitizedHtml = DOMPurify.sanitize(rawHtml, DOMPURIFY_CONFIG);
     return data<ProxyResponse>(
-      { html, mode: "native" },
+      { html: sanitizedHtml, mode: "native" },
       { headers: SECURITY_HEADERS }
     );
   } catch (err) {

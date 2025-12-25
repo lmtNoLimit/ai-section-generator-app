@@ -2,9 +2,9 @@
 
 client_id = "7ecb57c3cbe103bb659936a2841c60b4"
 name = "Blocksmith"
-handle = "blocksmith-ai"
 application_url = "https://blocksmith.m8lab.co"
 embedded = true
+handle = "blocksmith-ai"
 
 [build]
 automatically_update_urls_on_dev = true
@@ -13,25 +13,26 @@ automatically_update_urls_on_dev = true
 api_version = "2026-01"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
-  uri = "/webhooks/app/scopes_update"
+  topics = [ "app_subscriptions/update" ]
+  uri = "/webhooks/app/subscriptions_update"
 
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
   uri = "/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
-  topics = [ "app_subscriptions/update" ]
-  uri = "/webhooks/app/subscriptions_update"
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,write_themes,write_files"
+# write_app_proxy is REQUIRED for App Proxy to work
+scopes = "write_files,write_products,write_themes,write_app_proxy"
 
 [auth]
 redirect_urls = [ "https://blocksmith.m8lab.co/api/auth" ]
 
 [app_proxy]
 url = "/api/proxy/render"
-prefix = "apps"
 subpath = "blocksmith-preview"
+prefix = "apps"
