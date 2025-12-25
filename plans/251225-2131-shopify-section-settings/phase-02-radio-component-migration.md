@@ -8,7 +8,7 @@
 ## Overview
 - **Priority**: P2
 - **Effort**: 1.5h
-- **Status**: Pending
+- **Status**: Done
 - **Description**: Migrate RadioSetting from native HTML to Polaris `<s-choice-list>` for consistency
 
 ## Key Insights
@@ -109,21 +109,21 @@ export function RadioSetting({ setting, value, onChange, disabled }: RadioSettin
 
 ## Todo List
 
-- [ ] Read current RadioSetting implementation
-- [ ] Test `<s-choice-list>` behavior in isolation
-- [ ] Update RadioSetting.tsx with new implementation
-- [ ] Verify onChange works correctly
-- [ ] Test disabled state
-- [ ] Test with section schema that uses radio type
-- [ ] Run code review
+- [x] Read current RadioSetting implementation
+- [x] Test `<s-choice-list>` behavior in isolation
+- [x] Update RadioSetting.tsx with new implementation
+- [x] Verify onChange works correctly
+- [x] Test disabled state
+- [x] Test with section schema that uses radio type
+- [x] Run code review
 
 ## Success Criteria
 
-- [ ] RadioSetting uses `<s-choice-list>`
-- [ ] All existing radio settings still work
-- [ ] Styling matches other Polaris components
-- [ ] No TypeScript errors
-- [ ] onChange callback triggers preview update
+- [x] RadioSetting uses `<s-choice-list>`
+- [x] All existing radio settings still work
+- [x] Styling matches other Polaris components
+- [x] No TypeScript errors
+- [x] onChange callback triggers preview update
 
 ## Risk Assessment
 
