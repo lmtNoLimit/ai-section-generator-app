@@ -9,7 +9,8 @@ export interface SelectSettingProps {
 
 /**
  * SelectSetting - Renders dropdown or segmented control based on options
- * Per Shopify: Use SegmentedControl for ≤5 ungrouped options, Dropdown otherwise
+ * Per Shopify: Use SegmentedControl (s-button-group gap="none") for ≤5 ungrouped options
+ * @see https://shopify.dev/docs/api/app-home/polaris-web-components/actions/buttongroup
  */
 export function SelectSetting({ setting, value, onChange, disabled }: SelectSettingProps) {
   const options = setting.options || [];
@@ -21,54 +22,23 @@ export function SelectSetting({ setting, value, onChange, disabled }: SelectSett
   const useSegmented = options.length <= 5 && options.length > 1 && !hasGroups;
 
   if (useSegmented) {
-    // Unique class name for hover styles scoped to this setting
-    // Sanitize setting.id to prevent CSS injection
-    const safeId = setting.id.replace(/[^a-zA-Z0-9_-]/g, '');
-    const segmentClass = `segment-${safeId}`;
-
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <span style={{ fontWeight: 500 }}>{setting.label}</span>
 
-        {/* Hover styles for segmented control buttons */}
-        <style>{`
-          .${segmentClass}:not(:disabled):not([data-selected="true"]):hover {
-            background-color: #f6f6f7 !important;
-          }
-        `}</style>
-
-        <div style={{
-          display: 'flex',
-          border: '1px solid #c9cccf',
-          borderRadius: '4px',
-          overflow: 'hidden',
-          width: 'fit-content'
-        }}>
-          {options.map((opt, index) => (
-            <button
+        <s-button-group gap="none" accessibilityLabel={setting.label}>
+          {options.map((opt) => (
+            <s-button
               key={opt.value}
-              type="button"
-              className={segmentClass}
-              data-selected={value === opt.value}
-              onClick={() => !disabled && onChange(opt.value)}
-              disabled={disabled}
-              style={{
-                padding: '6px 12px',
-                border: 'none',
-                borderRight: index < options.length - 1 ? '1px solid #c9cccf' : 'none',
-                backgroundColor: value === opt.value ? '#000' : '#fff',
-                color: value === opt.value ? '#fff' : '#202223',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-                fontWeight: 500,
-                fontSize: '13px',
-                opacity: disabled ? 0.5 : 1,
-                transition: 'background-color 0.15s, color 0.15s',
-              }}
+              slot="secondary-actions"
+              variant={value === opt.value ? 'primary' : 'secondary'}
+              disabled={disabled || undefined}
+              onClick={() => onChange(opt.value)}
             >
               {opt.label}
-            </button>
+            </s-button>
           ))}
-        </div>
+        </s-button-group>
 
         {setting.info && (
           <span style={{ fontSize: '13px', color: '#6d7175' }}>{setting.info}</span>
