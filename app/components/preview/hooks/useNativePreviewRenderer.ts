@@ -9,12 +9,16 @@ interface UseNativePreviewRendererOptions {
   resources?: Record<string, MockProduct | MockCollection>;
   shopDomain: string;
   debounceMs?: number;
+  /** When false, skips fetching (for fallback mode) */
+  enabled?: boolean;
 }
 
 interface NativePreviewResult {
   html: string | null;
   isLoading: boolean;
   error: string | null;
+  /** Server indicated fallback mode due to password protection or error */
+  shouldFallback: boolean;
   refetch: () => void;
 }
 
@@ -29,10 +33,12 @@ export function useNativePreviewRenderer({
   resources = {},
   shopDomain,
   debounceMs = 600,
+  enabled = true,
 }: UseNativePreviewRendererOptions): NativePreviewResult {
   const [html, setHtml] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shouldFallback, setShouldFallback] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimeoutRef = useRef<number | null>(null);
@@ -63,35 +69,33 @@ export function useNativePreviewRenderer({
     return btoa(binary);
   }, []);
 
-  // Build proxy URL
-  const buildProxyUrl = useCallback(() => {
-    const base = `https://${shopDomain}/apps/blocksmith-preview`;
-    const params = new URLSearchParams();
-
-    // Base64 encode Liquid code
-    params.set('code', base64Encode(liquidCode));
+  // Build request body for internal proxy
+  const buildProxyBody = useCallback(() => {
+    const body: Record<string, string> = {
+      shopDomain,
+      code: base64Encode(liquidCode),
+      section_id: 'preview',
+    };
 
     // Add settings if present
     if (Object.keys(settings).length > 0) {
-      params.set('settings', base64Encode(JSON.stringify(settings)));
+      body.settings = base64Encode(JSON.stringify(settings));
     }
 
     // Add blocks if present
     if (blocks.length > 0) {
-      params.set('blocks', base64Encode(JSON.stringify(blocks)));
+      body.blocks = base64Encode(JSON.stringify(blocks));
     }
 
     // Add resource handles
     const { productHandle, collectionHandle } = getResourceHandles();
-    if (productHandle) params.set('product', productHandle);
-    if (collectionHandle) params.set('collection', collectionHandle);
+    if (productHandle) body.product = productHandle;
+    if (collectionHandle) body.collection = collectionHandle;
 
-    params.set('section_id', 'preview');
-
-    return `${base}?${params.toString()}`;
+    return body;
   }, [liquidCode, settings, blocks, shopDomain, getResourceHandles, base64Encode]);
 
-  // Fetch preview from proxy
+  // Fetch preview via internal proxy (bypasses CORS)
   const fetchPreview = useCallback(async () => {
     if (!liquidCode.trim() || !shopDomain) {
       setHtml('<p style="color:#6d7175;text-align:center;">No code to preview</p>');
@@ -106,20 +110,37 @@ export function useNativePreviewRenderer({
 
     setIsLoading(true);
     setError(null);
+    setShouldFallback(false);
 
     try {
-      const url = buildProxyUrl();
-      const response = await fetch(url, {
+      // Use internal proxy to bypass CORS
+      const response = await fetch('/api/preview/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildProxyBody()),
         signal: abortControllerRef.current.signal,
-        credentials: 'include',
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(result.error || `HTTP ${response.status}`);
       }
 
-      const renderedHtml = await response.text();
-      setHtml(renderedHtml);
+      // Handle mode-aware response from server
+      if (result.mode === 'fallback') {
+        // Server indicated to use client-side fallback
+        setShouldFallback(true);
+        setError(result.error || 'Server indicated fallback mode');
+        setHtml(null);
+        return;
+      }
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      setHtml(result.html);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         return; // Request cancelled, ignore
@@ -130,10 +151,14 @@ export function useNativePreviewRenderer({
     } finally {
       setIsLoading(false);
     }
-  }, [liquidCode, shopDomain, buildProxyUrl]);
+  }, [liquidCode, shopDomain, buildProxyBody]);
 
-  // Debounced fetch on code/settings changes
+  // Debounced fetch on code/settings changes (only when enabled)
   useEffect(() => {
+    if (!enabled) {
+      return; // Skip fetching when disabled
+    }
+
     if (debounceTimeoutRef.current) {
       window.clearTimeout(debounceTimeoutRef.current);
     }
@@ -145,7 +170,7 @@ export function useNativePreviewRenderer({
         window.clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [fetchPreview, debounceMs]);
+  }, [fetchPreview, debounceMs, enabled]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -156,5 +181,5 @@ export function useNativePreviewRenderer({
     };
   }, []);
 
-  return { html, isLoading, error, refetch: fetchPreview };
+  return { html, isLoading, error, shouldFallback, refetch: fetchPreview };
 }

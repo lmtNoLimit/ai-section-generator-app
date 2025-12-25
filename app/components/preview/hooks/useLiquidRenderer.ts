@@ -128,19 +128,37 @@ export function useLiquidRenderer(): UseLiquidRendererResult {
       }
     });
 
-    engine.registerFilter('img_tag', (url: string, alt?: string) => {
-      return `<img src="${url}" alt="${alt || ''}" />`;
+    // img_tag filter - outputs raw HTML, must not be escaped
+    engine.registerFilter('img_tag', {
+      handler: (url: string, alt?: string) => {
+        if (!url) return '';
+        // Handle ImageDrop or object with src/url property
+        let imgUrl = url;
+        if (typeof url === 'object' && url !== null) {
+          const imgObj = url as { src?: string; url?: string };
+          imgUrl = imgObj.src || imgObj.url || '';
+        }
+        return `<img src="${imgUrl}" alt="${alt || ''}" />`;
+      },
+      raw: true // Don't escape HTML output
     });
 
-    engine.registerFilter('link_to', (text: string, url?: string) => {
-      // Shopify syntax: {{ 'text' | link_to: '/url' }}
-      // text is the pipe input, url is the filter parameter
-      return `<a href="${url || '#'}">${text || ''}</a>`;
+    // link_to filter - outputs raw HTML, must not be escaped
+    engine.registerFilter('link_to', {
+      handler: (text: string, url?: string) => {
+        // Shopify syntax: {{ 'text' | link_to: '/url' }}
+        // text is the pipe input, url is the filter parameter
+        return `<a href="${url || '#'}">${text || ''}</a>`;
+      },
+      raw: true // Don't escape HTML output
     });
 
-    // Payment button filter stub - renders placeholder button
-    engine.registerFilter('payment_button', () => {
-      return `<button type="button" class="shopify-payment-button" style="padding: 12px 24px; background: #5c6ac4; color: white; border: none; border-radius: 4px; cursor: pointer;">Buy with Shop Pay</button>`;
+    // Payment button filter stub - renders placeholder button (raw HTML)
+    engine.registerFilter('payment_button', {
+      handler: () => {
+        return `<button type="button" class="shopify-payment-button" style="padding: 12px 24px; background: #5c6ac4; color: white; border: none; border-radius: 4px; cursor: pointer;">Buy with Shop Pay</button>`;
+      },
+      raw: true // Don't escape HTML output
     });
 
     engine.registerFilter('product_url', (product: { url?: string; handle?: string }) => {
@@ -192,8 +210,12 @@ export function useLiquidRenderer(): UseLiquidRendererResult {
     });
 
     // Register media filters (image_tag, video_tag, media_tag, etc.)
+    // These output raw HTML and must not be escaped
     Object.entries(mediaFilters).forEach(([name, fn]) => {
-      engine.registerFilter(name, fn as (...args: unknown[]) => unknown);
+      engine.registerFilter(name, {
+        handler: fn as (...args: unknown[]) => unknown,
+        raw: true // Don't escape HTML output from media filters
+      });
     });
 
     // Register font filters (font_face, font_url, font_modify)
@@ -207,8 +229,20 @@ export function useLiquidRenderer(): UseLiquidRendererResult {
     });
 
     // Register utility filters (default, highlight, time_tag, weight_with_unit, etc.)
+    // Some of these output raw HTML (stylesheet_tag, script_tag, time_tag, etc.)
+    const htmlOutputFilters = new Set([
+      'default_errors', 'default_pagination', 'stylesheet_tag',
+      'script_tag', 'preload_tag', 'time_tag', 'payment_type_svg_tag', 'highlight'
+    ]);
     Object.entries(utilityFilters).forEach(([name, fn]) => {
-      engine.registerFilter(name, fn as (...args: unknown[]) => unknown);
+      if (htmlOutputFilters.has(name)) {
+        engine.registerFilter(name, {
+          handler: fn as (...args: unknown[]) => unknown,
+          raw: true // Don't escape HTML output
+        });
+      } else {
+        engine.registerFilter(name, fn as (...args: unknown[]) => unknown);
+      }
     });
 
     // Register all Shopify-specific tags (form, paginate, section, render, comment, style, etc.)
