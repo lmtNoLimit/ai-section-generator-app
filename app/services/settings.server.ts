@@ -1,6 +1,7 @@
 import prisma from "../db.server";
 import type { ShopSettings } from "@prisma/client";
 import type { CTAState } from "../types/dashboard.types";
+import { encrypt, decrypt, isEncryptionConfigured } from "./encryption.server";
 
 interface PreferencesInput {
   defaultTone: string;
@@ -106,5 +107,85 @@ export const settingsService = {
       update: preferences,
       create: { shop, ...preferences },
     });
+  },
+
+  /**
+   * Save storefront password (encrypted)
+   * Used for bypassing password-protected storefronts in native preview
+   */
+  async saveStorefrontPassword(shop: string, password: string): Promise<void> {
+    if (!isEncryptionConfigured()) {
+      throw new Error("Encryption not configured. Set ENCRYPTION_KEY environment variable.");
+    }
+
+    const encryptedPassword = encrypt(password);
+
+    await prisma.shopSettings.upsert({
+      where: { shop },
+      update: {
+        storefrontPassword: encryptedPassword,
+        passwordVerifiedAt: null, // Reset until verified
+      },
+      create: {
+        shop,
+        storefrontPassword: encryptedPassword,
+      },
+    });
+  },
+
+  /**
+   * Get storefront password (decrypted)
+   * Returns null if no password stored or encryption not configured
+   */
+  async getStorefrontPassword(shop: string): Promise<string | null> {
+    if (!isEncryptionConfigured()) {
+      return null;
+    }
+
+    const settings = await prisma.shopSettings.findUnique({
+      where: { shop },
+      select: { storefrontPassword: true },
+    });
+
+    if (!settings?.storefrontPassword) {
+      return null;
+    }
+
+    return decrypt(settings.storefrontPassword);
+  },
+
+  /**
+   * Mark storefront password as verified
+   * Called after successful authentication with the password
+   */
+  async markPasswordVerified(shop: string): Promise<void> {
+    await prisma.shopSettings.update({
+      where: { shop },
+      data: { passwordVerifiedAt: new Date() },
+    });
+  },
+
+  /**
+   * Clear storefront password
+   */
+  async clearStorefrontPassword(shop: string): Promise<void> {
+    await prisma.shopSettings.update({
+      where: { shop },
+      data: {
+        storefrontPassword: null,
+        passwordVerifiedAt: null,
+      },
+    });
+  },
+
+  /**
+   * Check if storefront password is configured
+   */
+  async hasStorefrontPassword(shop: string): Promise<boolean> {
+    const settings = await prisma.shopSettings.findUnique({
+      where: { shop },
+      select: { storefrontPassword: true },
+    });
+    return settings?.storefrontPassword != null;
   },
 };
