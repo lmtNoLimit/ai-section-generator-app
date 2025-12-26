@@ -130,6 +130,10 @@ export function AppProxyPreviewFrame({
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1.5;
+      overflow: hidden;
+    }
+    html {
+      overflow: hidden;
     }
     img { max-width: 100%; height: auto; }
   </style>

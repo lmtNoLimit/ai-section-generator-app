@@ -62,14 +62,15 @@ export function CodePreviewPanel({
   }, [code]);
 
   return (
-    <s-stack blockSize="100%" gap="none">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header with segmented control and device selector */}
-      <s-box
-        padding="base"
-        borderWidth="none none small none"
-        borderColor="base"
-        background="base"
-      >
+      <div style={{ flexShrink: 0 }}>
+        <s-box
+          padding="base"
+          borderWidth="none none small none"
+          borderColor="base"
+          background="base"
+        >
         <s-stack direction="inline" justifyContent="space-between" alignItems="center">
           {/* Left: View mode tabs */}
           <s-button-group gap="none" accessibilityLabel="View mode">
@@ -148,15 +149,19 @@ export function CodePreviewPanel({
           </s-stack>
         </s-stack>
       </s-box>
+      </div>
 
-      {/* Content area */}
-      <s-box
-        background="subdued"
-        blockSize="100%"
-        overflow="hidden"
-        {...(isViewingHistory && {
-          border: 'base base dashed',
-        })}
+      {/* Content area - flex: 1 with min-height: 0 enables scrolling in flex container */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: 'auto',
+          background: 'var(--p-color-bg-surface-secondary)',
+          ...(isViewingHistory && {
+            border: '1px dashed var(--p-color-border)',
+          }),
+        }}
       >
         {activeTab === 'preview' ? (
           <PreviewErrorBoundary onRetry={() => setActiveTab('preview')}>
@@ -174,7 +179,7 @@ export function CodePreviewPanel({
         ) : (
           <CodePreview code={code} fileName={fileName} />
         )}
-      </s-box>
-    </s-stack>
+      </div>
+    </div>
   );
 }
