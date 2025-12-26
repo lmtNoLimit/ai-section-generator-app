@@ -287,15 +287,6 @@ export default function SectionsPage() {
     modalTriggerRef.current?.click();
   }, []);
 
-  const handleDeleteClick = useCallback(
-    (id: string) => {
-      setSingleDeleteId(id);
-      setDeleteTarget("single");
-      openDeleteModal();
-    },
-    [openDeleteModal],
-  );
-
   const handleBulkDeleteClick = useCallback(() => {
     if (selectedResources.length === 0) return;
     setDeleteTarget("bulk");

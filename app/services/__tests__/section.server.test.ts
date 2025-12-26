@@ -23,19 +23,16 @@ jest.mock('../../db.server', () => ({
 
 // Now import after mocking
 import { sectionService } from '../section.server';
-import {
-  SECTION_STATUS,
-  type SectionStatus,
-} from '../../types/section-status';
+import { SECTION_STATUS } from '../../types/section-status';
 import prisma from '../../db.server';
 
 const mockedPrismaSection = prisma.section as {
-  create: MockedFunction<any>;
-  update: MockedFunction<any>;
-  findFirst: MockedFunction<any>;
-  findMany: MockedFunction<any>;
-  count: MockedFunction<any>;
-  delete: MockedFunction<any>;
+  create: MockedFunction<typeof prisma.section.create>;
+  update: MockedFunction<typeof prisma.section.update>;
+  findFirst: MockedFunction<typeof prisma.section.findFirst>;
+  findMany: MockedFunction<typeof prisma.section.findMany>;
+  count: MockedFunction<typeof prisma.section.count>;
+  delete: MockedFunction<typeof prisma.section.delete>;
 };
 
 describe('SectionService', () => {
@@ -473,6 +470,8 @@ describe('SectionService', () => {
 
       const result = await sectionService.unpublish('section-123', 'myshop.myshopify.com');
 
+      expect(result).toBeDefined();
+      expect(result?.status).toBe(SECTION_STATUS.DRAFT);
       expect(mockedPrismaSection.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({

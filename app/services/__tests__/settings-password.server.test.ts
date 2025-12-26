@@ -224,7 +224,6 @@ describe("SettingsService - Storefront Password", () => {
   describe("Integration: save and retrieve", () => {
     it("should save and retrieve password correctly", async () => {
       const { settingsService } = await import("../settings.server");
-      const { encrypt } = await import("../encryption.server");
       const prisma = (await import("../../db.server")).default;
 
       let storedPassword: string | null = null;
