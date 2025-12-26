@@ -9,10 +9,10 @@ export { PreviewSkeleton } from './PreviewSkeleton';
 export { EmptyPreviewState } from './EmptyPreviewState';
 
 // Hooks
-export { useLiquidRenderer } from './hooks/useLiquidRenderer';
 export { usePreviewMessaging } from './hooks/usePreviewMessaging';
 export { usePreviewSettings } from './hooks/usePreviewSettings';
 export { useNativePreviewRenderer } from './hooks/useNativePreviewRenderer';
+export { usePreviewRenderer } from './hooks/usePreviewRenderer';
 
 // Types
 export * from './types';

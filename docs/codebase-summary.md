@@ -2,12 +2,12 @@
 
 ## Overview
 
-AI Section Generator (Blocksmith) is a production-ready Shopify embedded app that leverages Google Gemini 2.5 Flash to generate Shopify Liquid theme sections from natural language prompts. The app features a modern React Router 7 SSR architecture with comprehensive AI chat integration, live preview rendering with LiquidJS context, multi-tenant billing, and full TypeScript strict mode.
+AI Section Generator (Blocksmith) is a production-ready Shopify embedded app that leverages Google Gemini 2.5 Flash to generate Shopify Liquid theme sections from natural language prompts. The app features a modern React Router 7 SSR architecture with comprehensive AI chat integration, live preview rendering via App Proxy native Shopify Liquid, multi-tenant billing, and full TypeScript strict mode.
 
 **Total Files**: 275 TypeScript/TSX files (254 in core pack)
 **Total Tokens**: 273,261 tokens (via repomix 2025-12-26)
 **Code Languages**: TypeScript (strict mode), Prisma, CSS/TailwindCSS, JSON
-**Architecture**: Service-oriented with adapter pattern, singleton pattern, multi-tenant isolation, comprehensive Liquid preview engine with 18 context drops
+**Architecture**: Service-oriented with adapter pattern, singleton pattern, multi-tenant isolation, native App Proxy rendering
 
 ### Quick Stats
 - Routes: 20 file-based
@@ -57,8 +57,7 @@ ai-section-generator/
 │   │   │   ├── TemplateSuggestions.tsx
 │   │   │   ├── SaveTemplateModal.tsx
 │   │   │   └── 8+ more components
-│   │   ├── preview/              # Preview system (40+ files)
-│   │   │   ├── drops/            # LiquidJS context drops (18)
+│   │   ├── preview/              # Preview system (schema, settings, utilities)
 │   │   │   ├── schema/           # Schema parsing & defaults (Phase 02 EXPANDED)
 │   │   │   │   ├── parseSchema.ts     # Schema parser with all 31 Shopify types (293 lines, expanded Phase 02)
 │   │   │   │   │   - buildInitialState() - Covers all 31 Shopify setting types with type-specific defaults
@@ -75,17 +74,11 @@ ai-section-generator/
 │   │   │   │   ├── SettingField.tsx   # Individual setting renderer
 │   │   │   │   ├── ImagePickerModal.tsx # Image picker dialog
 │   │   │   │   └── ResourceSelector.tsx # Resource picker context
-│   │   │   ├── utils/            # Liquid filter utilities
-│   │   │   │   ├── liquidTags.ts     # Shopify tags (form, paginate, style, tablerow, etc. - 455 lines)
-│   │   │   │   ├── liquidFilters.ts  # Array, string, math filters (285 lines)
-│   │   │   │   ├── colorFilters.ts   # Color manipulation filters (325 lines)
-│   │   │   │   └── __tests__/    # Filter & tag test suites
-│   │   │   ├── hooks/            # Preview rendering hooks
-│   │   │   │   └── useLiquidRenderer.ts # LiquidJS engine wrapper with tag registration (462 lines)
-│   │   │   │       - Uses SectionSettingsDrop for resource context
-│   │   │   └── drops/            # Shopify drop objects (Phase 01-02)
-│   │   │       ├── SectionSettingsDrop.ts  # Resource context integration (Phase 01)
-│   │   │       ├── __tests__/SectionSettingsDrop.test.ts # 13 resource tests (Phase 01)
+│   │   │   └── utils/            # Liquid filter utilities
+│   │   │       ├── liquidTags.ts     # Shopify tags (form, paginate, style, tablerow, etc. - 455 lines)
+│   │   │       ├── liquidFilters.ts  # Array, string, math filters (285 lines)
+│   │   │       ├── colorFilters.ts   # Color manipulation filters (325 lines)
+│   │   │       └── __tests__/    # Filter & tag test suites
 │   │   ├── ServiceModeIndicator.tsx # Debug mode indicator
 │   │   └── index.ts              # Barrel export file
 │   ├── services/                 # 25 business logic files
@@ -248,351 +241,6 @@ import {
 - **Scalability**: New features can reuse existing components
 - **Maintainability**: Changes to UI components don't affect route logic
 - **Type Safety**: TypeScript interfaces prevent prop errors
-
-### Phase 2 Missing Objects Implementation (NEW in Phase 7)
-
-Phase 2 expands the preview system with 7 new Shopify Liquid Drop classes for missing objects. These provide comprehensive support for Liquid global variables and context-aware rendering.
-
-#### New Drop Classes
-
-**File Organization**:
-```
-app/components/preview/drops/
-├── ForloopDrop.ts      # Loop iteration context (index, first, last, etc.)
-├── RequestDrop.ts      # HTTP request context (page_type, path, design_mode)
-├── RoutesDrop.ts       # Shop route URLs (cart, account, search, etc.)
-├── CartDrop.ts         # Shopping cart with CartItemDrop
-├── CustomerDrop.ts     # Customer account data (email, name, orders)
-├── PaginateDrop.ts     # Pagination context (current_page, page_size)
-└── ThemeDrop.ts        # Theme settings with SettingsDrop
-```
-
-**Forloop Context** (`ForloopDrop.ts`):
-- `index`: Current iteration (1-based)
-- `index0`: Current iteration (0-based)
-- `rindex`: Reverse index (from end, 1-based)
-- `rindex0`: Reverse index (0-based)
-- `first`: True if first iteration
-- `last`: True if last iteration
-- `length`: Total items in loop
-
-**Request Context** (`RequestDrop.ts`):
-- `design_mode`: Boolean (true in preview)
-- `page_type`: Current page type (product, collection, article, index)
-- `path`: Current URL path
-- `host`: Request host
-- `origin`: Request origin
-
-**Routes Context** (`RoutesDrop.ts`):
-- `root_url`, `cart_url`, `account_url`
-- `account_login_url`, `account_logout_url`, `account_register_url`
-- `account_addresses_url`, `cart_add_url`, `cart_change_url`
-- `cart_clear_url`, `cart_update_url`, `collections_url`
-- `all_products_collection_url`, `search_url`, `predictive_search_url`
-- `product_recommendations_url`
-
-**Cart Context** (`CartDrop.ts` with `CartItemDrop`):
-- `item_count`: Number of items in cart
-- `total_price`: Total cart value
-- `items`: Array of CartItem objects
-- `currency`: Cart currency code
-
-**CartItem Properties**:
-- `id`, `title`, `quantity`, `price`, `line_price`
-- `image`: Image object with src, alt, width, height
-- `url`: Product URL
-
-**Customer Context** (`CustomerDrop.ts`):
-- `id`: Customer ID
-- `email`: Customer email
-- `first_name`, `last_name`: Name components
-- `name`: Full name
-- `orders_count`: Number of orders placed
-- `total_spent`: Lifetime customer value
-
-**Paginate Context** (`PaginateDrop.ts`):
-- `current_page`: Current page number
-- `page_size`: Items per page
-- `total_items`: Total item count
-
-**Theme Context** (`ThemeDrop.ts` with `SettingsDrop`):
-- `name`: Theme name
-- `id`: Theme ID
-- `role`: Theme role (main, unpublished, etc.)
-- `settings`: SettingsDrop with theme configuration access
-
-#### Context Builder Updates
-
-**`buildPreviewContext.ts`** (updated):
-- Integrated new Drop classes (request, routes, cart, customer, theme)
-- Page type detection (product, collection, article, index)
-- Auto-population of request context based on selected resources
-- Cart and customer always available in context
-- Settings-based resource mapping for dynamic schema settings
-
-**PreviewContext Interface** (expanded):
-```typescript
-export interface PreviewContext {
-  product?: ProductDrop;
-  collection?: CollectionDrop;
-  collections?: CollectionsDrop;
-  article?: ArticleDrop;
-  shop: ShopDrop;
-  request: RequestDrop;        // NEW
-  routes: RoutesDrop;          // NEW
-  theme: ThemeDrop;            // NEW
-  cart?: CartDrop;             // NEW
-  customer: CustomerDrop;      // NEW
-  settingsResourceDrops?: Record<string, ProductDrop | CollectionDrop>;
-}
-```
-
-#### Mock Data Types
-
-**`mockData/types.ts`** (new interfaces):
-- `MockRequest`: Request context properties
-- `MockForloop`: Loop iteration data
-- `MockPaginate`: Pagination properties
-- `MockRoutes`: Shop route URLs
-- `MockCart` & `MockCartItem`: Cart structure
-- `MockCustomer`: Customer account data
-- `MockTheme`: Theme metadata
-
-#### Integration Points
-
-All new Drop classes are:
-- Registered in `useLiquidRenderer.ts` during engine initialization
-- Available in Liquid templates via `{{ request.page_type }}`, `{{ cart.total_price }}`, etc.
-- Automatically instantiated by `buildPreviewContext()` with sensible defaults
-- Support chained property access and filters
-
-**Example Liquid Usage**:
-```liquid
-{% if request.page_type == 'product' %}
-  <h1>{{ product.title }}</h1>
-{% endif %}
-
-{% for item in cart.items %}
-  <p>{{ item.title }}: ${{ item.price | money }}</p>
-{% endfor %}
-
-{% if customer.id %}
-  Welcome back, {{ customer.first_name }}!
-  You've placed {{ customer.orders_count }} orders.
-{% endif %}
-
-{{ routes.cart_url }}
-{{ theme.name }}
-```
-
-### Phase 3 Advanced Tags Implementation (NEW)
-
-Phase 3 introduces 9 Shopify-specific Liquid tags for comprehensive section preview support. Tags enable form handling, pagination, style/script injection, multi-statement blocks, and layout composition stubs.
-
-#### File Organization
-
-**`app/components/preview/utils/liquidTags.ts`** (455 lines):
-- Centralized tag registration module for LiquidJS engine
-- 9 tag implementations with parse/render generators
-- Robust error handling with stream validation
-
-#### Tag Implementations
-
-**Form Tags** (`{% form 'type' %} ... {% endform %}`):
-- Parses form type argument
-- Renders HTML `<form>` wrapper in preview
-- Captures nested template content via stream parsing
-
-**Paginate Tags** (`{% paginate collection by 12 %} ... {% endpaginate %}`):
-- Extracts collection expression and page size
-- Creates paginate context object with current_page/page_size
-- Renders paginated subset of items
-- Integrates with PaginateDrop for pagination context
-
-**Section & Render Tags**:
-- `{% section 'section-name' %}`: Comments-only stub (sections not loaded in preview)
-- `{% render 'snippet' %}`: Comments-only stub (snippets not loaded in preview)
-- Both return HTML comments indicating preview limitation
-
-**Comment Tags** (`{% comment %} ... {% endcomment %}`):
-- Stream-based parser consuming nested tokens
-- No output (properly stripped from rendered HTML)
-
-**Style Tags**:
-- **`{% style %}`**: Wraps CSS in `<style data-shopify-style>` (Shopify-specific data attribute)
-- **`{% stylesheet %}`**: Legacy form wraps CSS in `<style>` (historical support)
-- Both preserve CSS content with proper nesting via renderTemplates
-
-**JavaScript Tags** (`{% javascript %} ... {% endjavascript %}`):
-- Captures JavaScript code in `<script>` tags
-- Renders with proper template context
-- Enables dynamic script injection in preview
-
-**Liquid Tag** (`{% liquid %} ... %}`):
-- Multi-statement block for compact syntax
-- Parses newline-separated statements
-- Converts `echo var` to `{{ var }}` expressions
-- Wraps control flow in `{% %}` for `if`, `for`, `assign`
-- Try-catch error handling for malformed statements
-
-**Include Tag** (`{% include 'snippet', var: value %}`):
-- Comments-only stub (snippets not loaded in preview)
-- Preserves shared scope semantics in comment
-- Extracts snippet name from quoted arguments
-
-**Tablerow Tag** (`{% tablerow item in array cols:3 limit:6 offset:0 %} ... {% endtablerow %}`):
-- Full implementation rendering HTML `<table>` structure
-- Supports options:
-  - **cols**: Columns per row (default: array length)
-  - **limit**: Max items (default: all)
-  - **offset**: Starting position (default: 0)
-- Generates `<tr>` rows with `<td>` cells
-- Creates `tablerowloop` context object:
-  - `index` (1-based), `index0` (0-based)
-  - `rindex` (reverse 1-based), `rindex0` (reverse 0-based)
-  - `first`, `last`, `length`
-  - `col`, `col0`, `col_first`, `col_last`
-  - `row` (current row number)
-- Integrates ForloopDrop for compatibility with forloop variables
-
-**Layout Stubs**:
-- `{% layout 'name' %}`: Template stub (layout not applied in preview)
-- `{% layout none %}`: Disable layout (stub)
-- `{% content_for 'block' %}`: Content block stub
-- `{% sections %}`: Render sections stub
-- All return HTML comments indicating theme-level features not simulated
-
-#### Integration with useLiquidRenderer
-
-Tags registered in hook initialization (lines 20-40):
-```typescript
-import { registerShopifyTags } from './liquidTags';
-
-// During engine setup:
-registerShopifyTags(engine);  // Register all 9 tags
-```
-
-All tags available immediately in Liquid templates during preview rendering.
-
-#### Key Features
-
-1. **LiquidJS Generator Pattern**: Uses `*render(ctx, emitter)` with `yield` for proper async control
-2. **Stream-Based Parsing**: Complex tags like form/paginate use LiquidJS parser streams
-3. **Error Handling**: Missing end tags throw descriptive errors (e.g., "tag {% form %} not closed")
-4. **Context Management**: Proper ctx.push/ctx.pop for variable scoping (tablerow, paginate)
-5. **HTML Safety**: Content escaped/validated before emitter.write
-6. **Shopify Compatibility**: Preserves Shopify-specific attributes (data-shopify-style)
-
-#### Testing
-
-**`app/components/preview/utils/__tests__/liquidTags.test.ts`** (24 tests):
-- Tag registration verification
-- Form tag parsing and rendering
-- Paginate context creation and slicing
-- Style tag HTML output
-- Liquid block statement conversion
-- Tablerow option parsing (cols, limit, offset)
-- Tablerow loop object generation
-- Error handling for malformed tags
-
-Test coverage ensures all tag variations produce correct HTML and context.
-
-#### Preview Limitations
-
-The following tags intentionally render as HTML comments (not fully simulated):
-- `{% section 'section-name' %}`: Theme sections not available in preview context
-- `{% render 'snippet' %}`: Snippet files not loaded in preview
-- `{% include 'snippet' %}`: Shared scope include not available
-- `{% layout 'name' %}`: Theme layout system not simulated
-- `{% content_for 'block' %}`: Theme block system not simulated
-- `{% sections %}`: Sections rendering not available
-
-These stubs prevent errors while accurately indicating feature unavailability in preview.
-
-### Phase 01 Resource Context Integration (NEW)
-
-Phase 01 implements resource context integration to enable dynamic property chaining from resource picker selections into Liquid templates. This fixes the data flow from resource picker (product/collection selection) → template context → proper nested property access.
-
-#### SectionSettingsDrop Class
-
-**File**: `app/components/preview/drops/SectionSettingsDrop.ts` (58 lines)
-
-The `SectionSettingsDrop` class merges primitive section settings with resource Drop objects, enabling complex property chains like `{{ section.settings.featured_product.title }}`.
-
-**Implementation Details**:
-```typescript
-export class SectionSettingsDrop extends ShopifyDrop {
-  private primitiveSettings: SettingsState;
-  private resourceDrops: Record<string, ResourceDrop>;
-
-  constructor(
-    settings: SettingsState,
-    resourceDrops: Record<string, ResourceDrop> = {}
-  ) { ... }
-
-  liquidMethodMissing(key: string): unknown {
-    // Resource drops take precedence (product/collection pickers)
-    if (key in this.resourceDrops) {
-      return this.resourceDrops[key];
-    }
-    // Primitive settings (text, number, color, etc.)
-    return this.primitiveSettings[key];
-  }
-}
-```
-
-**Key Features**:
-- Dual-source resolution: resource Drops + primitive settings
-- Resource precedence when keys conflict (product picker ID resolves to ProductDrop)
-- Iterable support for `{% for %}` loops
-- Type-safe with TypeScript generics
-- 13 comprehensive test cases covering primitive settings, resource drops, precedence, iteration, and empty states
-
-#### LiquidJS Integration
-
-**File**: `app/components/preview/hooks/useLiquidRenderer.ts` (updated)
-
-The `useLiquidRenderer` hook now instantiates `SectionSettingsDrop` when rendering:
-
-```typescript
-const settingsResourceDrops = mockData.settingsResourceDrops as
-  Record<string, ProductDrop | CollectionDrop> | undefined;
-
-const sectionSettings = new SectionSettingsDrop(
-  settings,
-  settingsResourceDrops || {}
-);
-
-const context = {
-  ...mockData,
-  section: {
-    id: 'preview-section',
-    settings: sectionSettings,  // Drop object for property chaining
-    blocks: blockDrops
-  }
-};
-```
-
-#### Drop Export
-
-**File**: `app/components/preview/drops/index.ts` (added export)
-
-```typescript
-// Phase 1: Resource Context Integration
-export { SectionSettingsDrop } from './SectionSettingsDrop';
-```
-
-#### Test Coverage
-
-**File**: `app/components/preview/drops/__tests__/SectionSettingsDrop.test.ts` (228 lines)
-
-13 test suites validate:
-1. **Primitive Settings** (3 tests): Basic property access, undefined handling, boolean values
-2. **Resource Drops** (3 tests): ProductDrop, CollectionDrop, property chaining
-3. **Precedence** (1 test): Resource takes priority over primitive with same key
-4. **Iteration** (3 tests): Primitive iteration, resource-only iteration, precedence in iteration
-5. **Empty States** (2 tests): Empty settings, empty resource drops
-6. **Multiple Resources** (1 test): Multiple products + collections in single Drop
 
 ### Phase 1 Critical Filters Implementation (Phase 6)
 
@@ -784,11 +432,11 @@ Object.entries(colorFilters).forEach(([name, fn]) => {
 - **Color Conversions**: O(1) constant time operations
 - **Hash Functions**: O(n) string iteration (mock implementations)
 
-#### Integration with LiquidJS
+#### Integration with Native Liquid
 
-The `useLiquidRenderer` hook registers all filters during initialization:
-- Filters are attached to the LiquidJS engine via `engine.registerFilter(name, fn)`
-- All 47 filters available in Liquid template expressions during preview rendering
+All filters are registered for use in Liquid templates:
+- Filters available in Liquid template expressions via App Proxy rendering
+- All 47 filters support native Shopify Liquid rendering
 - Filters chain seamlessly: `{{ text | escape_once | url_encode }}`
 
 #### Use Cases
@@ -3073,9 +2721,5 @@ Phase 04 will integrate native preview into `CodePreviewPanel`, replacing or aug
   - 1,200+ lines added (includes test coverage)
 - **Phase 4 Advanced Filters**: 25+ new Shopify Liquid filters for media, fonts, metafields, utilities
   - 70+ total filter support (11 array + 16 string + 8 math + 12 color + 6 media + 3 font + 4 metafield + 12 utility)
-- **Phase 3 Advanced Tags**: 9 Shopify-specific Liquid tags with 24-test suite
-- **Phase 7 (Phase 2)**: 7 new Shopify Liquid Drop classes with integrated context builder
-- **Phase 6**: 47 Shopify Liquid filters with DoS prevention & security hardening
-- **Phase 5**: SYSTEM_PROMPT rewrite (65→157 lines) with comprehensive input type catalog
 - **Phase 04**: Component-based architecture (9 reusable UI components)
 - **Phase 03**: Feature flag system, adapter pattern, mock services, dual-action save flow

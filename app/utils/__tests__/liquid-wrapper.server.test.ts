@@ -10,13 +10,13 @@ describe("wrapLiquidForProxy", () => {
       expect(result).toContain("</div>");
     });
 
-    it("should include CSS isolation styles", () => {
+    it("should include block assigns and wrapper container", () => {
       const result = wrapLiquidForProxy({ liquidCode: "<p>Hello</p>" });
 
-      expect(result).toContain("<style>");
-      expect(result).toContain(".blocksmith-preview");
-      expect(result).toContain("font-family:");
-      expect(result).toContain("max-width: 100%");
+      expect(result).toContain("{% assign blocks_count = 0 %}");
+      expect(result).toContain('<div class="blocksmith-preview"');
+      expect(result).toContain("<p>Hello</p>");
+      expect(result).toContain("</div>");
     });
 
     it("should use custom section ID when provided", () => {
