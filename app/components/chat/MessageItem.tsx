@@ -138,23 +138,35 @@ export const MessageItem = memo(function MessageItem({
         {isUser ? '👤' : '🤖'}
       </div>
       <div className="chat-message__content">
-        {/* Message content parts */}
-        {parts.map((part, index) => (
-          part.type === 'code' ? (
-            <CodeBlock
-              key={index}
-              code={part.content}
-              language={part.language || 'liquid'}
-            />
-          ) : (
+        {/* Message content parts - skip code blocks for AI messages (code visible in Preview Panel) */}
+        {parts.map((part, index) => {
+          // Skip code blocks for AI messages - code is visible in Code Preview Panel
+          if (part.type === 'code' && !isUser) return null;
+
+          if (part.type === 'code') {
+            // User message with code - render normally
+            return (
+              <CodeBlock
+                key={index}
+                code={part.content}
+                language={part.language || 'liquid'}
+              />
+            );
+          }
+
+          // Text content - show streaming cursor on last text part only
+          const textParts = parts.filter(p => p.type === 'text');
+          const isLastTextPart = part === textParts[textParts.length - 1];
+
+          return (
             <p key={index} className="chat-message__text">
               {part.content}
-              {isStreaming && index === parts.length - 1 && (
+              {isStreaming && isLastTextPart && (
                 <span className="chat-cursor" aria-hidden="true">▋</span>
               )}
             </p>
-          )
-        ))}
+          );
+        })}
 
         {/* Version Card for AI messages with code */}
         {showVersionBadge && (

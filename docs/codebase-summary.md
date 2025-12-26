@@ -1749,11 +1749,10 @@ app/components/chat/
 └── __tests__/                  # Chat component tests
 ```
 
-**Message Rendering** (Phase 01):
-- User messages: Right-aligned with blue background
-- Assistant messages: Left-aligned with gray background
+**Message Rendering** (Phase 01 - Updated):
+- User messages: Right-aligned with blue background; code blocks rendered inline with syntax highlighting
+- Assistant messages: Left-aligned with gray background; code blocks hidden (visible in Code Preview Panel)
 - Streaming indicator: Animated dots during generation
-- Code blocks: Syntax highlighting for extracted Liquid
 - Timestamps: Optional message timestamps
 - Error states: Red banner with retry button
 

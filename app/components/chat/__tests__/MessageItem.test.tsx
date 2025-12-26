@@ -108,7 +108,7 @@ describe('MessageItem', () => {
   });
 
   describe('code block parsing', () => {
-    it('extracts and renders code blocks', () => {
+    it('hides code blocks in AI messages (code visible in Preview Panel)', () => {
       const message = createMessage({
         role: 'assistant',
         content: 'Here is some code:\n```javascript\nconst x = 1;\n```',
@@ -116,12 +116,15 @@ describe('MessageItem', () => {
 
       const { container } = render(<MessageItem message={message} />);
 
-      expect(screen.getByText('const x = 1;')).toBeInTheDocument();
-      expect(container.querySelector('.chat-code-block')).toBeInTheDocument();
+      // Text explanation should be visible
+      expect(screen.getByText('Here is some code:')).toBeInTheDocument();
+      // Code block should NOT be rendered for AI messages
+      expect(container.querySelector('.chat-code-block')).not.toBeInTheDocument();
     });
 
-    it('renders code block with specified language', () => {
+    it('renders code block with specified language for user messages', () => {
       const message = createMessage({
+        role: 'user',
         content: '```liquid\n{% for item in items %}\n{{ item }}\n{% endfor %}\n```',
       });
 
@@ -133,6 +136,7 @@ describe('MessageItem', () => {
 
     it('uses default language (liquid) for code block without language', () => {
       const message = createMessage({
+        role: 'user',
         content: '```\nsome code\n```',
       });
 
@@ -142,8 +146,9 @@ describe('MessageItem', () => {
       expect(screen.getByText(/some code/)).toBeInTheDocument();
     });
 
-    it('renders multiple code blocks in one message', () => {
+    it('renders multiple code blocks in user message', () => {
       const message = createMessage({
+        role: 'user',
         content: '```js\nfirst\n```\n\nSome text\n\n```python\nsecond\n```',
       });
 
@@ -160,6 +165,7 @@ describe('MessageItem', () => {
 
     it('handles code block with leading/trailing whitespace', () => {
       const message = createMessage({
+        role: 'user',
         content: '```javascript\n\n  const x = 1;\n\n```',
       });
 
@@ -169,8 +175,9 @@ describe('MessageItem', () => {
       expect(screen.getByText(/const x/)).toBeInTheDocument();
     });
 
-    it('handles nested backticks in text', () => {
+    it('handles nested backticks in text for user messages', () => {
       const message = createMessage({
+        role: 'user',
         content: 'Use `inline code` like this:\n```js\ncode block\n```',
       });
 
@@ -182,8 +189,9 @@ describe('MessageItem', () => {
   });
 
   describe('mixed content', () => {
-    it('renders text before code block', () => {
+    it('renders text before code block for user messages', () => {
       const message = createMessage({
+        role: 'user',
         content: 'Here is the solution:\n```js\nconst answer = 42;\n```',
       });
 
@@ -193,8 +201,9 @@ describe('MessageItem', () => {
       expect(screen.getByText(/const answer/)).toBeInTheDocument();
     });
 
-    it('renders text after code block', () => {
+    it('renders text after code block for user messages', () => {
       const message = createMessage({
+        role: 'user',
         content: '```js\nconst x = 1;\n```\n\nThat is the code!',
       });
 
@@ -204,8 +213,9 @@ describe('MessageItem', () => {
       expect(screen.getByText(/That is the code/)).toBeInTheDocument();
     });
 
-    it('renders text between code blocks', () => {
+    it('renders text between code blocks for user messages', () => {
       const message = createMessage({
+        role: 'user',
         content: '```js\nfirst\n```\n\nExplanation text\n\n```js\nsecond\n```',
       });
 
@@ -214,6 +224,21 @@ describe('MessageItem', () => {
       expect(screen.getByText(/first/)).toBeInTheDocument();
       expect(screen.getByText(/Explanation text/)).toBeInTheDocument();
       expect(screen.getByText(/second/)).toBeInTheDocument();
+    });
+
+    it('AI messages show only text, not code blocks', () => {
+      const message = createMessage({
+        role: 'assistant',
+        content: 'Here is the solution:\n```js\nconst answer = 42;\n```\n\nLet me know if you need help!',
+      });
+
+      const { container } = render(<MessageItem message={message} />);
+
+      // Text explanations should be visible
+      expect(screen.getByText(/Here is the solution/)).toBeInTheDocument();
+      expect(screen.getByText(/Let me know if you need help/)).toBeInTheDocument();
+      // Code block should NOT be rendered
+      expect(container.querySelector('.chat-code-block')).not.toBeInTheDocument();
     });
   });
 
