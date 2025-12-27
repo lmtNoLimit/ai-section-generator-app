@@ -12,8 +12,44 @@ let styleRefCount = 0;
 const chatCSS = `
 /* ========================================
    Chat Component Styles
-   Polished animations and visual enhancements
+   Layout, animations, and visual enhancements
    ======================================== */
+
+/* ===== Layout Structure ===== */
+
+/* Main chat panel container - flex column for header/messages/input */
+.chat-panel-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--p-color-bg-surface);
+}
+
+/* Messages container - scrollable, takes remaining space */
+.chat-messages-container {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Message list scroll area */
+.chat-message-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+/* Chat panel wrapper - ensures full height propagation */
+.chat-panel-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
 
 /* ===== Message Animations ===== */
 

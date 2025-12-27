@@ -1,7 +1,11 @@
 /**
  * ChatPanel component - Main chat container
- * Uses 100% Polaris Web Components for structure
+ * Uses Polaris Web Components for structure with minimal CSS for flex layout
  * Supports version display and selection
+ *
+ * Layout: Header | Scrollable Messages | Fixed Input
+ * - Full height using flex column layout
+ * - MessageList scrolls, ChatInput stays at bottom
  */
 import { useEffect, useCallback, useRef } from "react";
 import { useChat } from "./hooks/useChat";
@@ -25,21 +29,6 @@ export interface ChatPanelProps {
   onVersionSelect?: (versionId: string | null) => void;
   onVersionApply?: (versionId: string) => void;
 }
-
-// Minimal inline styles required for flex layout (not available in s-box)
-const containerStyle = {
-  display: "flex",
-  flexDirection: "column" as const,
-  height: "100%",
-  minHeight: 0,
-};
-
-const contentStyle = {
-  flex: 1,
-  minHeight: 0,
-  display: "flex",
-  flexDirection: "column" as const,
-};
 
 export function ChatPanel({
   conversationId,
@@ -121,17 +110,11 @@ export function ChatPanel({
   }, [messages.length, clearConversation]);
 
   return (
-    <s-stack
-      direction="block"
-      gap="none"
-      blockSize="100%"
-      minBlockSize="0"
-      background="base"
-    >
-      {/* Minimal CSS for animations only */}
+    <div className="chat-panel-container">
+      {/* Minimal CSS for animations + layout */}
       <ChatStyles />
 
-      {/* Header */}
+      {/* Header - fixed at top */}
       <s-box
         padding="small base"
         borderWidth="none none small none"
@@ -183,30 +166,26 @@ export function ChatPanel({
         </s-banner>
       )}
 
-      {/* Message list */}
-      <div style={{ flex: 1 }}>
-        <s-stack direction="block" minBlockSize="0" gap="none">
-          <MessageList
-            messages={messages}
-            isStreaming={isStreaming}
-            streamingContent={streamingContent}
-            versions={versions}
-            selectedVersionId={selectedVersionId}
-            activeVersionId={activeVersionId}
-            onVersionSelect={onVersionSelect}
-            onVersionApply={onVersionApply}
-          />
-        </s-stack>
+      {/* Message list - scrollable, takes remaining space */}
+      <div className="chat-messages-container">
+        <MessageList
+          messages={messages}
+          isStreaming={isStreaming}
+          streamingContent={streamingContent}
+          versions={versions}
+          selectedVersionId={selectedVersionId}
+          activeVersionId={activeVersionId}
+          onVersionSelect={onVersionSelect}
+          onVersionApply={onVersionApply}
+        />
       </div>
 
-      {/* Input */}
-      <s-stack direction="block" minBlockSize="0" gap="none">
-        <ChatInput
-          onSend={sendMessage}
-          onStop={stopStreaming}
-          isStreaming={isStreaming}
-        />
-      </s-stack>
-    </s-stack>
+      {/* Input - fixed at bottom */}
+      <ChatInput
+        onSend={sendMessage}
+        onStop={stopStreaming}
+        isStreaming={isStreaming}
+      />
+    </div>
   );
 }

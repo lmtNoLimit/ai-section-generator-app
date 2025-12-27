@@ -62,124 +62,122 @@ export function CodePreviewPanel({
   }, [code]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header with segmented control and device selector */}
-      <div style={{ flexShrink: 0 }}>
+    <s-box blockSize="100%" display="auto">
+      <s-stack direction="block" gap="none">
+        {/* Header with segmented control and device selector */}
         <s-box
           padding="base"
           borderWidth="none none small none"
           borderColor="base"
           background="base"
         >
-        <s-stack direction="inline" justifyContent="space-between" alignItems="center">
-          {/* Left: View mode tabs */}
-          <s-button-group gap="none" accessibilityLabel="View mode">
-            <s-button
-              slot="secondary-actions"
-              variant={activeTab === 'preview' ? 'primary' : 'secondary'}
-              onClick={() => setActiveTab('preview')}
-            >
-              Preview
-            </s-button>
-            <s-button
-              slot="secondary-actions"
-              variant={activeTab === 'code' ? 'primary' : 'secondary'}
-              onClick={() => setActiveTab('code')}
-            >
-              Code
-            </s-button>
-          </s-button-group>
-
-          {/* Center: Device selector (only in preview mode) */}
-          {activeTab === 'preview' && (
-            <s-button-group gap="none" accessibilityLabel="Device size">
+          <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+            {/* Left: View mode tabs */}
+            <s-button-group gap="none" accessibilityLabel="View mode">
               <s-button
                 slot="secondary-actions"
-                variant={deviceSize === 'mobile' ? 'primary' : 'tertiary'}
-                onClick={() => onDeviceSizeChange('mobile')}
+                variant={activeTab === 'preview' ? 'primary' : 'secondary'}
+                onClick={() => setActiveTab('preview')}
               >
-                Mobile
+                Preview
               </s-button>
               <s-button
                 slot="secondary-actions"
-                variant={deviceSize === 'tablet' ? 'primary' : 'tertiary'}
-                onClick={() => onDeviceSizeChange('tablet')}
+                variant={activeTab === 'code' ? 'primary' : 'secondary'}
+                onClick={() => setActiveTab('code')}
               >
-                Tablet
-              </s-button>
-              <s-button
-                slot="secondary-actions"
-                variant={deviceSize === 'desktop' ? 'primary' : 'tertiary'}
-                onClick={() => onDeviceSizeChange('desktop')}
-              >
-                Desktop
+                Code
               </s-button>
             </s-button-group>
-          )}
 
-          {/* Right: Actions */}
-          <s-stack direction="inline" gap="small" alignItems="center">
-            {/* Refresh button (only in preview mode) */}
-            {activeTab === 'preview' && onRefresh && (
-              <s-button
-                variant="tertiary"
-                onClick={onRefresh}
-                disabled={isRendering || undefined}
-                loading={isRendering || undefined}
-                icon="refresh"
-              >
-                Refresh
-              </s-button>
-            )}
-            {/* Version indicator when viewing history */}
-            {isViewingHistory && versionNumber && (
-              <>
-                <s-badge tone="info">Viewing v{versionNumber}</s-badge>
-                <s-button variant="tertiary" onClick={onReturnToCurrent}>
-                  Return to current
+            {/* Center: Device selector (only in preview mode) */}
+            {activeTab === 'preview' && (
+              <s-button-group gap="none" accessibilityLabel="Device size">
+                <s-button
+                  slot="secondary-actions"
+                  variant={deviceSize === 'mobile' ? 'primary' : 'tertiary'}
+                  onClick={() => onDeviceSizeChange('mobile')}
+                >
+                  Mobile
                 </s-button>
-              </>
+                <s-button
+                  slot="secondary-actions"
+                  variant={deviceSize === 'tablet' ? 'primary' : 'tertiary'}
+                  onClick={() => onDeviceSizeChange('tablet')}
+                >
+                  Tablet
+                </s-button>
+                <s-button
+                  slot="secondary-actions"
+                  variant={deviceSize === 'desktop' ? 'primary' : 'tertiary'}
+                  onClick={() => onDeviceSizeChange('desktop')}
+                >
+                  Desktop
+                </s-button>
+              </s-button-group>
             )}
-            {/* Copy button (only in code view, not when viewing history) */}
-            {activeTab === 'code' && code && !isViewingHistory && (
-              <s-button onClick={handleCopyCode} variant="secondary" icon={copied ? 'check' : undefined}>
-                {copied ? 'Copied' : 'Copy All'}
-              </s-button>
-            )}
-          </s-stack>
-        </s-stack>
-      </s-box>
-      </div>
 
-      {/* Content area - flex: 1 with min-height: 0 enables scrolling in flex container */}
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflow: 'auto',
-          background: 'var(--p-color-bg-surface-secondary)',
-          ...(isViewingHistory && {
-            border: '1px dashed var(--p-color-border)',
-          }),
-        }}
-      >
-        {activeTab === 'preview' ? (
-          <PreviewErrorBoundary onRetry={() => setActiveTab('preview')}>
-            <SectionPreview
-              liquidCode={code}
-              deviceSize={deviceSize}
-              settingsValues={settingsValues}
-              blocksState={blocksState}
-              loadedResources={loadedResources}
-              onRenderStateChange={onRenderStateChange}
-              onRefreshRef={onRefreshRef}
-              shopDomain={shopDomain}
-            />
-          </PreviewErrorBoundary>
-        ) : (
-          <CodePreview code={code} fileName={fileName} />
-        )}
-      </div>
-    </div>
+            {/* Right: Actions */}
+            <s-stack direction="inline" gap="small" alignItems="center">
+              {/* Refresh button (only in preview mode) */}
+              {activeTab === 'preview' && onRefresh && (
+                <s-button
+                  variant="tertiary"
+                  onClick={onRefresh}
+                  disabled={isRendering || undefined}
+                  loading={isRendering || undefined}
+                  icon="refresh"
+                >
+                  Refresh
+                </s-button>
+              )}
+              {/* Version indicator when viewing history */}
+              {isViewingHistory && versionNumber && (
+                <>
+                  <s-badge tone="info">Viewing v{versionNumber}</s-badge>
+                  <s-button variant="tertiary" onClick={onReturnToCurrent}>
+                    Return to current
+                  </s-button>
+                </>
+              )}
+              {/* Copy button (only in code view, not when viewing history) */}
+              {activeTab === 'code' && code && !isViewingHistory && (
+                <s-button onClick={handleCopyCode} variant="secondary" icon={copied ? 'check' : undefined}>
+                  {copied ? 'Copied' : 'Copy All'}
+                </s-button>
+              )}
+            </s-stack>
+          </s-stack>
+        </s-box>
+
+        {/* Content area */}
+        <s-box
+          background="subdued"
+          overflow="hidden"
+          minBlockSize="0"
+          blockSize="100%"
+          borderStyle={isViewingHistory ? 'dashed' : undefined}
+          borderWidth={isViewingHistory ? 'small' : undefined}
+          borderColor={isViewingHistory ? 'base' : undefined}
+        >
+          {activeTab === 'preview' ? (
+            <PreviewErrorBoundary onRetry={() => setActiveTab('preview')}>
+              <SectionPreview
+                liquidCode={code}
+                deviceSize={deviceSize}
+                settingsValues={settingsValues}
+                blocksState={blocksState}
+                loadedResources={loadedResources}
+                onRenderStateChange={onRenderStateChange}
+                onRefreshRef={onRefreshRef}
+                shopDomain={shopDomain}
+              />
+            </PreviewErrorBoundary>
+          ) : (
+            <CodePreview code={code} fileName={fileName} />
+          )}
+        </s-box>
+      </s-stack>
+    </s-box>
   );
 }

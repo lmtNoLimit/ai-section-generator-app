@@ -2,6 +2,8 @@
  * MessageList component - Scrollable message container
  * Uses Polaris components for layout and empty state
  * Handles auto-scroll and version display
+ *
+ * Note: Parent container handles scroll - this renders message content
  */
 import { useAutoScroll } from './hooks/useAutoScroll';
 import { MessageItem } from './MessageItem';
@@ -20,14 +22,6 @@ export interface MessageListProps {
   onVersionApply?: (versionId: string) => void;
 }
 
-// Minimal inline styles for scrollable container (not available in Polaris)
-const scrollContainerStyle = {
-  flex: 1,
-  minHeight: 0,
-  overflowY: 'auto' as const,
-  scrollBehavior: 'smooth' as const,
-};
-
 export function MessageList({
   messages,
   isStreaming,
@@ -45,19 +39,15 @@ export function MessageList({
   return (
     <div
       ref={containerRef}
-      style={scrollContainerStyle}
       onScroll={handleScroll}
-      className="chat-scroll"
+      className="chat-scroll chat-message-list"
       role="log"
       aria-live="polite"
       aria-label="Chat messages"
     >
       <s-box padding="small-400">
         {messages.length === 0 ? (
-          <s-box
-            padding="large-500"
-            minBlockSize="250px"
-          >
+          <s-box padding="large-500" minBlockSize="250px">
             <s-stack direction="block" gap="large" alignItems="center">
               {/* Icon with gradient background */}
               <div className="chat-empty-icon">
@@ -93,7 +83,8 @@ export function MessageList({
             {messages.map((message) => {
               // Find version info for this message
               const version = versions.find((v) => v.id === message.id);
-              const isLatestVersion = version && versions.indexOf(version) === versions.length - 1;
+              const isLatestVersion =
+                version && versions.indexOf(version) === versions.length - 1;
 
               return (
                 <MessageItem
@@ -113,9 +104,9 @@ export function MessageList({
             {isStreaming && streamingContent && (
               <MessageItem
                 message={{
-                  id: 'streaming',
-                  conversationId: '',
-                  role: 'assistant',
+                  id: "streaming",
+                  conversationId: "",
+                  role: "assistant",
                   content: streamingContent,
                   createdAt: new Date(),
                 }}
@@ -124,9 +115,7 @@ export function MessageList({
             )}
 
             {/* Typing indicator when waiting for first token */}
-            {isStreaming && !streamingContent && (
-              <TypingIndicator />
-            )}
+            {isStreaming && !streamingContent && <TypingIndicator />}
           </s-stack>
         )}
       </s-box>

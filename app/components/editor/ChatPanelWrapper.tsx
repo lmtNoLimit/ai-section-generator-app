@@ -1,5 +1,10 @@
-import { ChatPanel } from '../chat';
-import type { UIMessage, CodeVersion } from '../../types';
+/**
+ * ChatPanelWrapper - Minimal wrapper for ChatPanel
+ * Uses CSS class for flex layout (defined in ChatStyles)
+ * Passes through version props for version display in messages
+ */
+import { ChatPanel } from "../chat";
+import type { UIMessage, CodeVersion } from "../../types";
 
 interface ChatPanelWrapperProps {
   conversationId: string;
@@ -16,18 +21,6 @@ interface ChatPanelWrapperProps {
   onVersionApply?: (versionId: string) => void;
 }
 
-// Flex container style for proper height propagation
-const wrapperStyle = {
-  display: 'flex',
-  flexDirection: 'column' as const,
-  height: '100%',
-  minHeight: 0,
-};
-
-/**
- * Wrapper for ChatPanel - minimal wrapper as ChatPanel has its own header
- * Passes through version props for version display in messages
- */
 export function ChatPanelWrapper({
   conversationId,
   initialMessages,
@@ -41,7 +34,7 @@ export function ChatPanelWrapper({
   onVersionApply,
 }: ChatPanelWrapperProps) {
   return (
-    <div className="chat-panel-wrapper" style={wrapperStyle}>
+    <div className="chat-panel-wrapper">
       <ChatPanel
         conversationId={conversationId}
         initialMessages={initialMessages}

@@ -190,7 +190,7 @@ describe('ChatInput', () => {
       expect(container.querySelector('s-box')).toBeInTheDocument();
     });
 
-    it('renders with s-stack for layout', () => {
+    it('renders with nested s-box for text area container', () => {
       const { container } = render(
         <ChatInput
           onSend={mockOnSend}
@@ -198,7 +198,9 @@ describe('ChatInput', () => {
         />
       );
 
-      expect(container.querySelector('s-stack')).toBeInTheDocument();
+      // ChatInput uses nested s-box elements for layout
+      const boxes = container.querySelectorAll('s-box');
+      expect(boxes.length).toBeGreaterThan(1);
     });
   });
 });
