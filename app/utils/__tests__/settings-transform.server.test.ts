@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import {
   generateSettingsAssigns,
   generateBlocksAssigns,
@@ -13,22 +14,38 @@ describe("generateSettingsAssigns", () => {
       expect(assigns).toContain("{% assign settings_title = 'Hello World' %}");
     });
 
-    it("should escape single quotes in strings", () => {
+    it("should use double quotes for strings with single quotes", () => {
       const assigns = generateSettingsAssigns({ text: "It's a test" });
 
-      expect(assigns).toContain("{% assign settings_text = 'It\\'s a test' %}");
+      // New behavior: use double quotes when string contains single quotes
+      expect(assigns).toContain('{% assign settings_text = "It\'s a test" %}');
     });
 
-    it("should escape backslashes in strings", () => {
+    it("should use single quotes for strings with double quotes", () => {
+      const assigns = generateSettingsAssigns({ quote: 'He said "hello"' });
+
+      expect(assigns).toContain("{% assign settings_quote = 'He said \"hello\"' %}");
+    });
+
+    it("should use capture block for strings with both quote types", () => {
+      const assigns = generateSettingsAssigns({ mixed: "It's \"complex\"" });
+
+      // Capture blocks don't need escaping - content is literal
+      expect(assigns).toContain("{% capture settings_mixed %}It's \"complex\"{% endcapture %}");
+    });
+
+    it("should preserve backslashes in strings", () => {
+      // Backslashes are literal in Liquid strings
       const assigns = generateSettingsAssigns({ path: "C:\\Users\\test" });
 
-      expect(assigns).toContain("{% assign settings_path = 'C:\\\\Users\\\\test' %}");
+      expect(assigns).toContain("{% assign settings_path = 'C:\\Users\\test' %}");
     });
 
-    it("should escape newlines in strings", () => {
+    it("should preserve newlines in strings", () => {
+      // Liquid strings can contain literal newlines
       const assigns = generateSettingsAssigns({ multiline: "line1\nline2" });
 
-      expect(assigns).toContain("{% assign settings_multiline = 'line1\\nline2' %}");
+      expect(assigns).toContain("{% assign settings_multiline = 'line1\nline2' %}");
     });
   });
 
@@ -172,20 +189,29 @@ describe("generateBlocksAssigns", () => {
   });
 
   describe("block value escaping", () => {
-    it("should escape block id with special chars", () => {
+    it("should use double quotes for block id with apostrophes", () => {
       const assigns = generateBlocksAssigns([
         { id: "block's-id", type: "text", settings: {} },
       ]);
 
-      expect(assigns).toContain("{% assign block_0_id = 'block\\'s-id' %}");
+      // New behavior: use double quotes when string contains single quotes
+      expect(assigns).toContain('{% assign block_0_id = "block\'s-id" %}');
     });
 
-    it("should escape block setting strings", () => {
+    it("should use double quotes for block settings with apostrophes", () => {
       const assigns = generateBlocksAssigns([
         { id: "b1", type: "text", settings: { quote: "He said 'hello'" } },
       ]);
 
-      expect(assigns).toContain("{% assign block_0_quote = 'He said \\'hello\\'' %}");
+      expect(assigns).toContain('{% assign block_0_quote = "He said \'hello\'" %}');
+    });
+
+    it("should use capture block for both quote types", () => {
+      const assigns = generateBlocksAssigns([
+        { id: "b1", type: "text", settings: { mixed: "It's \"tricky\"" } },
+      ]);
+
+      expect(assigns).toContain("{% capture block_0_mixed %}It's \"tricky\"{% endcapture %}");
     });
   });
 });

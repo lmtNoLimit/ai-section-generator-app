@@ -141,7 +141,6 @@ export async function action({ request }: ActionFunctionArgs) {
       section_id: section_id || "preview",
     });
     proxyUrl.searchParams.set("token", token);
-    console.log("[ProxyRender] Using token for large payload:", token.substring(0, 8) + "...");
   } else {
     // Small payload - use direct URL params
     proxyUrl.searchParams.set("code", code);
@@ -156,11 +155,6 @@ export async function action({ request }: ActionFunctionArgs) {
   const cookies = await getAuthenticatedCookiesForShop(shop);
 
   const urlString = proxyUrl.toString();
-  console.log("[ProxyRender] ========== DEBUG START ==========");
-  console.log("[ProxyRender] Shop:", shop);
-  console.log("[ProxyRender] URL length:", urlString.length, "bytes");
-  console.log("[ProxyRender] URL (first 300 chars):", urlString.substring(0, 300));
-  console.log("[ProxyRender] Has cookies:", !!cookies);
 
   try {
     // Create abort controller for timeout
@@ -178,8 +172,6 @@ export async function action({ request }: ActionFunctionArgs) {
       headers.Cookie = cookies;
     }
 
-    console.log("[ProxyRender] Fetching with headers:", Object.keys(headers));
-
     // Fetch from App Proxy with redirect: "manual" to detect password redirects
     const response = await fetch(urlString, {
       method: "GET",
@@ -190,23 +182,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
     clearTimeout(timeoutId);
 
-    // Log ALL response headers for debugging
-    const responseHeaders: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      responseHeaders[key] = value;
-    });
-
-    console.log("[ProxyRender] Response status:", response.status, response.statusText);
-    console.log("[ProxyRender] Response headers:", JSON.stringify(responseHeaders, null, 2));
-    console.log("[ProxyRender] ========== DEBUG END ==========");
-
     // Check for redirect (302/301) - indicates password wall
     if (response.status === 302 || response.status === 301) {
       const location = response.headers.get("location") || "";
 
       // Password redirect detected
       if (location.includes("/password")) {
-        console.log("[ProxyRender] Password redirect detected, using fallback");
         return data<ProxyResponse>(
           {
             html: null,
@@ -233,7 +214,6 @@ export async function action({ request }: ActionFunctionArgs) {
           headers,
           signal: redirectController.signal,
         });
-        console.log("[ProxyRender] Redirect response status:", redirectResponse.status, redirectResponse.statusText);
         clearTimeout(redirectTimeoutId);
 
         if (!redirectResponse.ok) {
@@ -280,7 +260,6 @@ export async function action({ request }: ActionFunctionArgs) {
       rawHtml.includes('form_type="storefront_password"') ||
       rawHtml.includes('id="password"')
     ) {
-      console.log("[ProxyRender] Password form in response, using fallback");
       return data<ProxyResponse>(
         { html: null, mode: "fallback", error: "Store is password-protected" },
         { headers: SECURITY_HEADERS }

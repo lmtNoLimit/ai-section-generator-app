@@ -16,15 +16,46 @@ const MAX_SETTINGS_SIZE = 4096;
 const VALID_VAR_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /**
- * Escape string value for Liquid assign statement
- * Handles quotes, backslashes, and newlines
+ * Escape string value for Liquid capture blocks
+ * Only escapes Liquid syntax to prevent injection, preserves quotes as-is
  */
-function escapeLiquidString(value: string): string {
+function escapeLiquidCapture(value: string): string {
+  // Escape Liquid delimiters to prevent code injection
+  // Replace {{ with { { and {% with { % (space breaks Liquid parsing)
   return value
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, "\\'")
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '\\r');
+    .replace(/\{\{/g, '{ {')
+    .replace(/\}\}/g, '} }')
+    .replace(/\{%/g, '{ %')
+    .replace(/\%\}/g, '% }');
+}
+
+/**
+ * Generate Liquid string assignment
+ * Uses capture blocks for strings with quotes, simple assign for plain strings
+ * Capture blocks don't require quote escaping - content is literal
+ */
+function generateStringAssign(varName: string, value: string): string {
+  const hasSingleQuote = value.includes("'");
+  const hasDoubleQuote = value.includes('"');
+
+  // Simple case: no quotes - use single-quoted assign (fastest)
+  if (!hasSingleQuote && !hasDoubleQuote) {
+    return `{% assign ${varName} = '${value}' %}`;
+  }
+
+  // Has single quotes but no double quotes - use double-quoted assign
+  if (hasSingleQuote && !hasDoubleQuote) {
+    return `{% assign ${varName} = "${value}" %}`;
+  }
+
+  // Has double quotes but no single quotes - use single-quoted assign
+  if (!hasSingleQuote && hasDoubleQuote) {
+    return `{% assign ${varName} = '${value}' %}`;
+  }
+
+  // Has both quote types - use capture block (safest, handles any content)
+  const escaped = escapeLiquidCapture(value);
+  return `{% capture ${varName} %}${escaped}{% endcapture %}`;
 }
 
 /**
@@ -65,8 +96,7 @@ export function generateSettingsAssigns(settings: SettingsState): string[] {
     if (value === null || value === undefined) {
       assigns.push(`{% assign settings_${safeKey} = nil %}`);
     } else if (typeof value === 'string') {
-      const escaped = escapeLiquidString(value);
-      assigns.push(`{% assign settings_${safeKey} = '${escaped}' %}`);
+      assigns.push(generateStringAssign(`settings_${safeKey}`, value));
     } else if (typeof value === 'number') {
       assigns.push(`{% assign settings_${safeKey} = ${value} %}`);
     } else if (typeof value === 'boolean') {
@@ -96,9 +126,9 @@ export function generateBlocksAssigns(blocks: BlockInstance[]): string[] {
   blocks.forEach((block, index) => {
     const prefix = `block_${index}`;
 
-    // Block metadata
-    assigns.push(`{% assign ${prefix}_id = '${escapeLiquidString(block.id)}' %}`);
-    assigns.push(`{% assign ${prefix}_type = '${escapeLiquidString(block.type)}' %}`);
+    // Block metadata (IDs and types are typically safe alphanumeric strings)
+    assigns.push(generateStringAssign(`${prefix}_id`, block.id));
+    assigns.push(generateStringAssign(`${prefix}_type`, block.type));
 
     // Block settings
     if (block.settings) {
@@ -107,8 +137,7 @@ export function generateBlocksAssigns(blocks: BlockInstance[]): string[] {
         if (!safeKey || !VALID_VAR_REGEX.test(safeKey)) continue;
 
         if (typeof value === 'string') {
-          const escaped = escapeLiquidString(value);
-          assigns.push(`{% assign ${prefix}_${safeKey} = '${escaped}' %}`);
+          assigns.push(generateStringAssign(`${prefix}_${safeKey}`, value));
         } else if (typeof value === 'number' || typeof value === 'boolean') {
           assigns.push(`{% assign ${prefix}_${safeKey} = ${value} %}`);
         }
