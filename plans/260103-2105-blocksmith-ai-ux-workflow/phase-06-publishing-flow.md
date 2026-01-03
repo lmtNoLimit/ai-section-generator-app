@@ -12,7 +12,7 @@
 | Attribute | Value |
 |-----------|-------|
 | Priority | P1 |
-| Status | pending |
+| Status | review-complete |
 | Effort | 4h |
 | Description | Schema validation before publishing, "Push to Theme" with confirmation, and feedback bridge |
 
@@ -642,16 +642,32 @@ const validation = useMemo(() => {
 
 ## Todo List
 
-- [ ] Create validation-rules.ts with all rules
-- [ ] Create schema-validator.ts
-- [ ] Create SchemaValidation component
-- [ ] Create FeedbackWidget component
-- [ ] Create api.feedback.tsx endpoint
-- [ ] Add SectionFeedback model to Prisma schema
-- [ ] Integrate validation into PublishModal
-- [ ] Disable publish button when invalid
-- [ ] Show feedback widget after publish
-- [ ] Test validation with various sections
+- [x] Create validation-rules.ts with all rules ✅
+- [x] Create schema-validator.ts ✅
+- [x] Create SchemaValidation component ✅
+- [x] Create FeedbackWidget component ✅
+- [x] Create api.feedback.tsx endpoint ✅
+- [x] Add SectionFeedback model to Prisma schema ✅
+- [x] Integrate validation into PublishModal ✅
+- [x] Disable publish button when invalid ✅
+- [x] Show feedback widget after publish ✅
+- [ ] Test validation with various sections ⚠️ NEEDS MANUAL TESTING
+
+## Code Review Notes (2026-01-04)
+
+**Review Report**: `plans/reports/code-reviewer-260104-0037-phase06-publishing-flow.md`
+
+### Critical Issues Found
+1. **XSS Risk**: Validation messages embed unsanitized user input - MUST FIX before deploy
+2. **Missing Rate Limiting**: Feedback endpoint vulnerable to spam/DoS - HIGH PRIORITY
+3. **Input Validation**: sectionId not format-validated before DB query - SECURITY RISK
+4. **Error Handling**: Feedback errors swallowed silently - DATA LOSS RISK
+
+### Action Items Before Deploy
+- [ ] Sanitize all validation message outputs
+- [ ] Add rate limiting to feedback API (10/hour per shop)
+- [ ] Validate ObjectId format for sectionId
+- [ ] Fix error handling to track failures properly
 
 ## Success Criteria
 

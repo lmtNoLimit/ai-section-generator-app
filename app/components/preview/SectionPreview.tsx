@@ -17,6 +17,8 @@ export interface SectionPreviewProps {
   onRefreshRef?: React.MutableRefObject<(() => void) | null>;
   // Shop domain for native preview rendering
   shopDomain: string;
+  /** Nonce for element targeting postMessage authentication */
+  targetingNonce?: string;
 }
 
 /**
@@ -34,6 +36,7 @@ export function SectionPreview({
   onRenderStateChange,
   onRefreshRef,
   shopDomain,
+  targetingNonce,
 }: SectionPreviewProps) {
   return (
     <AppProxyPreviewFrame
@@ -46,6 +49,7 @@ export function SectionPreview({
       debounceMs={600}
       onRenderStateChange={onRenderStateChange}
       onRefreshRef={onRefreshRef}
+      targetingNonce={targetingNonce}
     />
   );
 }

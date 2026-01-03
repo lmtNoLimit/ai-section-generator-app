@@ -1,10 +1,10 @@
 import type { CodeExtractionResult } from '../types/ai.types';
 
-// Code block patterns in priority order
+// Code block patterns in priority order (allow optional whitespace/newline after language)
 const CODE_BLOCK_PATTERNS = [
-  /```liquid\n([\s\S]*?)```/g,
-  /```html\n([\s\S]*?)```/g,
-  /```\n([\s\S]*?)```/g,
+  /```liquid\s*([\s\S]*?)```/g,
+  /```html\s*([\s\S]*?)```/g,
+  /```\s*([\s\S]*?)```/g,
 ];
 
 /**
@@ -54,7 +54,7 @@ export function extractCodeFromResponse(content: string): CodeExtractionResult {
 
   // Compute explanation (content without the code block)
   const explanation = content
-    .replace(/```(?:liquid|html)?\n[\s\S]*?```/g, '')
+    .replace(/```(?:liquid|html)?\s*[\s\S]*?```/g, '')
     .trim() || undefined;
 
   return {

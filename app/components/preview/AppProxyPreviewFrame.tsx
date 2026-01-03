@@ -13,10 +13,15 @@
  * Security:
  * - sandbox="allow-scripts" isolates iframe from parent DOM
  * - Server-side DOMPurify sanitizes HTML (Phase 02)
+ *
+ * Element Targeting (Phase 03):
+ * - Injects targeting script for click-to-select functionality
+ * - Uses postMessage with nonce for secure communication
  */
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNativePreviewRenderer } from "./hooks/useNativePreviewRenderer";
+import { generateTargetingScript } from "./targeting/iframe-injection-script";
 import type { DeviceSize } from "./types";
 import type { SettingsState, BlockInstance } from "./schema/SchemaTypes";
 import type { MockProduct, MockCollection } from "./mockData/types";
@@ -38,6 +43,8 @@ interface AppProxyPreviewFrameProps {
   debounceMs?: number;
   onRenderStateChange?: (isRendering: boolean) => void;
   onRefreshRef?: React.MutableRefObject<(() => void) | null>;
+  /** Nonce for element targeting postMessage authentication */
+  targetingNonce?: string;
 }
 
 // Generate crypto-safe random ID for nonce
@@ -55,12 +62,15 @@ export function AppProxyPreviewFrame({
   debounceMs = 600,
   onRenderStateChange,
   onRefreshRef,
+  targetingNonce,
 }: AppProxyPreviewFrameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const [iframeHeight, setIframeHeight] = useState<number>(400);
   // Nonce for postMessage authentication (prevents message spoofing)
   const [messageNonce] = useState(generateNonce);
+  // Use provided targeting nonce or generate one
+  const effectiveTargetingNonce = targetingNonce || messageNonce;
 
   // Use server-side fetch hook (bypasses CORS)
   const { html, isLoading, error, refetch } = useNativePreviewRenderer({
@@ -115,9 +125,10 @@ export function AppProxyPreviewFrame({
     return () => window.removeEventListener("message", handler);
   }, [messageNonce]);
 
-  // Build full HTML document for srcDoc
+  // Build full HTML document for srcDoc with targeting script
   const fullHtml = useMemo(() => {
     if (!html) return null;
+    const targetingScript = generateTargetingScript(effectiveTargetingNonce);
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -149,9 +160,13 @@ export function AppProxyPreviewFrame({
     window.addEventListener('load', reportHeight);
     new MutationObserver(reportHeight).observe(document.body, { childList: true, subtree: true });
   </script>
+  <script>
+    // Element targeting script (Phase 03)
+    ${targetingScript}
+  </script>
 </body>
 </html>`;
-  }, [html, messageNonce]);
+  }, [html, messageNonce, effectiveTargetingNonce]);
 
   // Calculate scaling
   const targetWidth = DEVICE_WIDTHS[deviceSize];

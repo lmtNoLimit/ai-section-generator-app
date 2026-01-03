@@ -1,6 +1,8 @@
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { ThemeSelector } from '../generate/ThemeSelector';
 import { SectionNameInput } from '../generate/SectionNameInput';
+import { SchemaValidation } from './SchemaValidation';
+import { validateSchema } from './validation/schema-validator';
 import type { Theme } from '../../types';
 
 interface PublishModalProps {
@@ -13,13 +15,14 @@ interface PublishModalProps {
   onPublish: () => void;
   isPublishing?: boolean;
   canPublish?: boolean;
+  code?: string;
 }
 
 /** Modal ID for commandFor reference */
 export const PUBLISH_MODAL_ID = 'publish-modal';
 
 /**
- * Modal for publish workflow with theme and filename selection
+ * Modal for publish workflow with theme, filename selection and schema validation
  * Use with: <s-button commandFor="publish-modal" command="--show">Publish</s-button>
  */
 export function PublishModal({
@@ -32,6 +35,7 @@ export function PublishModal({
   onPublish,
   isPublishing = false,
   canPublish = true,
+  code = '',
 }: PublishModalProps) {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const modalRef = useRef<any>(null);
@@ -39,6 +43,12 @@ export function PublishModal({
 
   const [localFileName, setLocalFileName] = useState(fileName);
   const [localTheme, setLocalTheme] = useState(selectedTheme);
+
+  // Run validation on code
+  const validation = useMemo(() => validateSchema(code), [code]);
+
+  // Combine canPublish prop with validation result
+  const isValidForPublish = canPublish && validation.valid;
 
   // Sync local state with props
   useEffect(() => {
@@ -54,6 +64,8 @@ export function PublishModal({
   }, [fileName, selectedTheme]);
 
   const handlePublish = useCallback(() => {
+    if (!validation.valid) return;
+
     // Apply local changes
     if (localTheme !== selectedTheme) {
       onThemeChange(localTheme);
@@ -65,65 +77,77 @@ export function PublishModal({
     modalRef.current?.hideOverlay?.();
     // Small delay to ensure state updates propagate
     setTimeout(() => onPublish(), 50);
-  }, [localTheme, selectedTheme, localFileName, fileName, onThemeChange, onFileNameChange, onPublish]);
+  }, [
+    validation.valid,
+    localTheme,
+    selectedTheme,
+    localFileName,
+    fileName,
+    onThemeChange,
+    onFileNameChange,
+    onPublish,
+  ]);
 
-  const selectedThemeObj = themes.find(t => t.id === localTheme);
+  const selectedThemeObj = themes.find((t) => t.id === localTheme);
   const displayThemeName = selectedThemeObj?.name || selectedThemeName || 'Select theme';
 
   return (
     <s-modal ref={modalRef} id={PUBLISH_MODAL_ID} heading="Publish to Theme">
-        <s-stack gap="large">
-          {/* Info text */}
-          <s-text>
-            Select a theme and filename to publish your section. This will add the
-            section to your theme&apos;s sections folder.
-          </s-text>
+      <s-stack gap="large">
+        {/* Info text */}
+        <s-text>
+          Select a theme and filename to publish your section. This will add the section to
+          your theme&apos;s sections folder.
+        </s-text>
 
-          {/* Theme Selection */}
-          <s-stack gap="base">
-            <ThemeSelector
-              themes={themes}
-              selectedThemeId={localTheme}
-              onChange={setLocalTheme}
-              disabled={isPublishing}
-            />
-          </s-stack>
+        {/* Validation Status */}
+        <SchemaValidation validation={validation} />
 
-          {/* File Name */}
-          <s-stack gap="base">
-            <SectionNameInput
-              value={localFileName}
-              onChange={setLocalFileName}
-              disabled={isPublishing}
-            />
-          </s-stack>
-
-          {/* Summary */}
-          {localTheme && localFileName && (
-            <s-banner tone="info">
-              Will publish as <strong>{localFileName}</strong> to{' '}
-              <strong>{displayThemeName}</strong>
-            </s-banner>
-          )}
+        {/* Theme Selection */}
+        <s-stack gap="base">
+          <ThemeSelector
+            themes={themes}
+            selectedThemeId={localTheme}
+            onChange={setLocalTheme}
+            disabled={isPublishing}
+          />
         </s-stack>
 
-        {/* Actions */}
-        <s-button
-          slot="secondary-actions"
-          onClick={handleCancel}
-          disabled={isPublishing || undefined}
-        >
-          Cancel
-        </s-button>
-        <s-button
-          slot="primary-action"
-          variant="primary"
-          onClick={handlePublish}
-          loading={isPublishing || undefined}
-          disabled={!canPublish || isPublishing || undefined}
-        >
-          Publish
-        </s-button>
-      </s-modal>
+        {/* File Name */}
+        <s-stack gap="base">
+          <SectionNameInput
+            value={localFileName}
+            onChange={setLocalFileName}
+            disabled={isPublishing}
+          />
+        </s-stack>
+
+        {/* Summary */}
+        {localTheme && localFileName && validation.valid && (
+          <s-banner tone="info">
+            Will publish as <strong>{localFileName}</strong> to{' '}
+            <strong>{displayThemeName}</strong>
+          </s-banner>
+        )}
+      </s-stack>
+
+      {/* Actions */}
+      <s-button
+        slot="secondary-actions"
+        onClick={handleCancel}
+        disabled={isPublishing || undefined}
+      >
+        Cancel
+      </s-button>
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        onClick={handlePublish}
+        loading={isPublishing || undefined}
+        disabled={!isValidForPublish || isPublishing || undefined}
+      >
+        Publish
+      </s-button>
+    </s-modal>
   );
 }

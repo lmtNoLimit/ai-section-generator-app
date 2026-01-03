@@ -13,6 +13,30 @@ interface UseVersionStateOptions {
 }
 
 /**
+ * Extract code from message content when codeSnapshot is not available
+ * Falls back to parsing markdown code blocks from content
+ */
+function extractCodeFromContent(content: string): string | undefined {
+  const codeBlockStart = content.indexOf('```');
+  if (codeBlockStart === -1) return undefined;
+
+  // Find the end of the language line
+  const lineEnd = content.indexOf('\n', codeBlockStart);
+  if (lineEnd === -1) return undefined;
+
+  // Find closing ``` or use rest of content if incomplete
+  const codeBlockEnd = content.indexOf('```', lineEnd + 1);
+  if (codeBlockEnd === -1) return undefined;
+
+  const codeContent = content.slice(lineEnd + 1, codeBlockEnd).trim();
+  // Verify it looks like Liquid/HTML
+  if (codeContent.includes('{%') || codeContent.includes('{{') || codeContent.includes('<')) {
+    return codeContent;
+  }
+  return undefined;
+}
+
+/**
  * Hook for managing version state derived from chat messages
  * Each message with codeSnapshot = version
  */
@@ -26,18 +50,24 @@ export function useVersionState({
   initialVersionId,
   onVersionChange,
 }: UseVersionStateOptions) {
-  // Derive versions from messages with codeSnapshot
+  // Derive versions from messages with codeSnapshot (or extracted code as fallback)
   const versions = useMemo<CodeVersion[]>(() => {
     let versionNumber = 0;
     return messages
-      .filter((m) => m.role === 'assistant' && m.codeSnapshot)
-      .map((m) => ({
-        id: m.id,
-        versionNumber: ++versionNumber,
-        code: m.codeSnapshot!,
-        createdAt: m.createdAt,
-        messageContent: m.content.slice(0, 100),
-      }));
+      .filter((m) => m.role === 'assistant')
+      .map((m) => {
+        // Use codeSnapshot if available, otherwise extract from content
+        const code = m.codeSnapshot || extractCodeFromContent(m.content);
+        if (!code) return null;
+        return {
+          id: m.id,
+          versionNumber: ++versionNumber,
+          code,
+          createdAt: m.createdAt,
+          messageContent: m.content.slice(0, 100),
+        };
+      })
+      .filter((v): v is CodeVersion => v !== null);
   }, [messages]);
 
   // Selected version for preview (null = show active/current code)

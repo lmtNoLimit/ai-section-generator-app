@@ -543,12 +543,14 @@ export function usePreviewRenderer(code: string, shopDomain: string) {
 
 ## Todo List
 
-- [ ] Create diff-types.ts with type definitions
-- [ ] Create diff-engine.ts with diff algorithm
-- [ ] Create useCodeDiff hook
-- [ ] Create CodeDiffView component
-- [ ] Add diff toggle to CodePreviewPanel
-- [ ] Track previous code for diff comparison
+- [x] Create diff-types.ts with type definitions
+- [x] Create diff-engine.ts with diff algorithm
+- [x] Create useCodeDiff hook
+- [x] Create CodeDiffView component
+- [x] Add diff toggle to CodePreviewPanel
+- [x] Track previous code for diff comparison
+- [ ] **[HIGH]** Add input size guard to diff algorithm (prevents browser freeze)
+- [ ] **[MEDIUM]** Optimize createHunk() to single-pass
 - [ ] Optimize preview refresh with debounce
 - [ ] Add refresh overlay during update
 - [ ] Test diff with large code changes
@@ -579,6 +581,24 @@ export function usePreviewRenderer(code: string, shopDomain: string) {
 
 ---
 
-**Phase Status**: Pending
-**Estimated Completion**: 6 hours
+## Review Results
+
+**Code Review:** `plans/reports/code-reviewer-260103-2345-phase04-diff-preview.md`
+
+**Summary:**
+- ✅ Diff preview fully implemented (6 new files)
+- ⚠️ Performance guard needed for large files (>1000 lines)
+- ❌ HMR/refresh optimization not implemented (deferred)
+- Quality: 8.5/10 | Critical: 0 | High: 1 | Medium: 3
+
+**Next Steps:**
+1. Add size guard to `calculateDiff()` before production
+2. Defer HMR implementation to Phase 05 or separate phase
+3. Add tests for diff edge cases
+
+---
+
+**Phase Status**: Partially Complete (Diff ✅, HMR ❌)
+**Actual Time**: ~4 hours (diff only)
+**Estimated Remaining**: 2 hours (HMR optimization)
 **Dependencies**: Phase 02 (streaming state for code changes)

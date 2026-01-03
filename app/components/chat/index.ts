@@ -22,6 +22,13 @@ export type { CodeBlockProps } from './CodeBlock';
 
 export { TypingIndicator } from './TypingIndicator';
 
+// Streaming/Progress components
+export { BuildProgressIndicator } from './BuildProgressIndicator';
+export type { BuildProgressIndicatorProps } from './BuildProgressIndicator';
+
+export { StreamingCodeBlock } from './StreamingCodeBlock';
+export type { StreamingCodeBlockProps } from './StreamingCodeBlock';
+
 // Version components
 export { VersionBadge } from './VersionBadge';
 export type { VersionBadgeProps } from './VersionBadge';
@@ -34,10 +41,24 @@ export type { VersionTimelineProps } from './VersionTimeline';
 
 // Hooks
 export { useChat } from './hooks/useChat';
-export type { UseChatOptions, ChatState, ChatAction } from './hooks/useChat';
+export type { UseChatOptions, ChatState, ChatAction, StreamingProgress } from './hooks/useChat';
 
 export { useAutoScroll } from './hooks/useAutoScroll';
 export type { UseAutoScrollOptions } from './hooks/useAutoScroll';
+
+export { useStreamingProgress } from './hooks/useStreamingProgress';
+export type { BuildPhase, StreamingProgressState } from './hooks/useStreamingProgress';
+
+// Suggestion Chips (Phase 05)
+export { SuggestionChips } from './SuggestionChips';
+export type { SuggestionChipsProps } from './SuggestionChips';
+
+// Suggestion utilities (Phase 05)
+export { getSuggestions, getDetectedSectionType } from './utils/suggestion-engine';
+export type { Suggestion, GetSuggestionsOptions } from './utils/suggestion-engine';
+
+export { detectSectionType } from './utils/section-type-detector';
+export type { SectionType } from './utils/section-type-detector';
 
 // Style utilities
 export { ChatStyles } from './ChatStyles';

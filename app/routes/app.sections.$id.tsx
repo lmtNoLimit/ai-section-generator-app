@@ -22,6 +22,7 @@ import {
   PublishModal,
   PUBLISH_MODAL_ID,
   useEditorState,
+  FeedbackWidget,
 } from '../components/editor';
 import { ImagePickerModal } from '../components/preview/settings/ImagePickerModal';
 import { usePreviewSettings } from '../components/preview';
@@ -270,6 +271,9 @@ export default function UnifiedEditorPage() {
   // State for version apply confirmation
   const [pendingVersionApply, setPendingVersionApply] = useState<string | null>(null);
 
+  // State for feedback widget after publish success
+  const [showFeedback, setShowFeedback] = useState(false);
+
   // Sync editedName when sectionName changes
   useEffect(() => {
     setEditedName(sectionName);
@@ -401,6 +405,10 @@ export default function UnifiedEditorPage() {
     if (actionData && 'success' in actionData && actionData.success) {
       if ('message' in actionData && actionData.message) {
         shopify.toast.show(actionData.message);
+        // Show feedback widget after successful publish
+        if (actionData.message.includes('Published to')) {
+          setShowFeedback(true);
+        }
       }
       if ('redirect' in actionData && actionData.redirect) {
         window.location.href = actionData.redirect;
@@ -450,7 +458,18 @@ export default function UnifiedEditorPage() {
         onPublish={handlePublish}
         isPublishing={isPublishing}
         canPublish={canPublish && !isLoading}
+        code={sectionCode}
       />
+
+      {/* Feedback widget after successful publish */}
+      {showFeedback && (
+        <div style={{ position: 'fixed', bottom: '16px', right: '16px', zIndex: 1000 }}>
+          <FeedbackWidget
+            sectionId={section.id}
+            onDismiss={() => setShowFeedback(false)}
+          />
+        </div>
+      )}
 
       {/* Image Picker Modal - rendered at page level to avoid z-index issues */}
       <ImagePickerModal />

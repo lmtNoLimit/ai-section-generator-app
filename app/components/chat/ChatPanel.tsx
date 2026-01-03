@@ -1,19 +1,20 @@
 /**
  * ChatPanel component - Main chat container
  * Uses Polaris Web Components for structure with minimal CSS for flex layout
- * Supports version display and selection
+ * Supports version display, selection, and suggestion chips
  *
  * Layout: Header | Scrollable Messages | Fixed Input
  * - Full height using flex column layout
  * - MessageList scrolls, ChatInput stays at bottom
  */
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { useChat } from "./hooks/useChat";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { ChatStyles } from "./ChatStyles";
 import { VersionTimeline } from "./VersionTimeline";
 import type { UIMessage, CodeVersion } from "../../types";
+import type { Suggestion } from "./utils/suggestion-engine";
 
 export interface ChatPanelProps {
   conversationId: string;
@@ -48,6 +49,7 @@ export function ChatPanel({
     streamingContent,
     error,
     failedMessage,
+    progress,
     sendMessage,
     triggerGeneration,
     stopStreaming,
@@ -61,19 +63,33 @@ export function ChatPanel({
     onCodeUpdate,
   });
 
-  // Track if we've already triggered auto-generation
+  // Track if we've already triggered auto-generation and loaded initial messages
   const hasTriggeredAutoGenRef = useRef(false);
+  const hasLoadedInitialRef = useRef(false);
+  const initialMessagesIdRef = useRef<string | null>(null);
 
-  // Reset auto-trigger flag when conversation changes
+  // Reset flags when conversation changes
   useEffect(() => {
     hasTriggeredAutoGenRef.current = false;
+    hasLoadedInitialRef.current = false;
+    initialMessagesIdRef.current = null;
   }, [conversationId]);
 
-  // Load initial messages
+  // Load initial messages only once per conversation
   useEffect(() => {
-    if (initialMessages.length > 0) {
-      loadMessages(initialMessages);
+    if (initialMessages.length === 0) return;
+
+    // Create a stable ID from the messages to detect actual changes
+    const messagesId = initialMessages.map(m => m.id).join(',');
+
+    // Skip if we've already loaded these exact messages
+    if (hasLoadedInitialRef.current && messagesId === initialMessagesIdRef.current) {
+      return;
     }
+
+    hasLoadedInitialRef.current = true;
+    initialMessagesIdRef.current = messagesId;
+    loadMessages(initialMessages);
   }, [initialMessages, loadMessages]);
 
   // Sync messages back to parent when they change
@@ -108,6 +124,47 @@ export function ChatPanel({
       clearConversation();
     }
   }, [messages.length, clearConversation]);
+
+  // Phase 05: State for prefilled input from suggestion chips
+  const [prefilledInput, setPrefilledInput] = useState<string>("");
+
+  // Phase 05: Handle suggestion chip click
+  const handleSuggestionClick = useCallback((suggestion: Suggestion) => {
+    if (suggestion.prompt) {
+      // Set prefilled input for ChatInput
+      setPrefilledInput(suggestion.prompt);
+    }
+    // Handle special actions
+    if (suggestion.id === 'preview-theme') {
+      // Could emit event for parent to handle tab switch
+      console.log('Preview in theme clicked');
+    }
+    if (suggestion.id === 'publish') {
+      // Could emit event for parent to handle publish modal
+      console.log('Publish to theme clicked');
+    }
+  }, []);
+
+  // Phase 05: Handle copy code action
+  const handleCopyCode = useCallback((code: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      // Could show toast notification
+      console.log('Code copied to clipboard');
+    }).catch((err) => {
+      console.error('Failed to copy code:', err);
+    });
+  }, []);
+
+  // Phase 05: Handle apply code action (uses onCodeUpdate if available)
+  const handleApplyCode = useCallback((code: string) => {
+    onCodeUpdate?.(code);
+  }, [onCodeUpdate]);
+
+  // Phase 05: Clear prefilled input after send
+  const handleSend = useCallback((message: string) => {
+    sendMessage(message);
+    setPrefilledInput("");
+  }, [sendMessage]);
 
   return (
     <div className="chat-panel-container">
@@ -172,19 +229,26 @@ export function ChatPanel({
           messages={messages}
           isStreaming={isStreaming}
           streamingContent={streamingContent}
+          progress={progress}
           versions={versions}
           selectedVersionId={selectedVersionId}
           activeVersionId={activeVersionId}
           onVersionSelect={onVersionSelect}
           onVersionApply={onVersionApply}
+          // Phase 05: Suggestion chips handlers
+          onSuggestionClick={handleSuggestionClick}
+          onCopyCode={handleCopyCode}
+          onApplyCode={handleApplyCode}
         />
       </div>
 
       {/* Input - fixed at bottom */}
       <ChatInput
-        onSend={sendMessage}
+        onSend={handleSend}
         onStop={stopStreaming}
         isStreaming={isStreaming}
+        prefilledValue={prefilledInput}
+        onPrefilledClear={() => setPrefilledInput("")}
       />
     </div>
   );

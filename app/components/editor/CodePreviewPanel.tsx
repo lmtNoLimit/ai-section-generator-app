@@ -1,6 +1,8 @@
-import { useState, useCallback, type MutableRefObject } from 'react';
+import { useState, useCallback, useRef, useMemo, type MutableRefObject } from 'react';
 import { CodePreview } from '../generate/CodePreview';
 import { SectionPreview, PreviewErrorBoundary } from '../preview';
+import { CodeDiffView } from './CodeDiffView';
+import { calculateDiff } from './diff/diff-engine';
 import type { DeviceSize } from '../preview/types';
 import type { SettingsState, BlockInstance } from '../preview/schema/SchemaTypes';
 import type { MockProduct, MockCollection } from '../preview/mockData/types';
@@ -11,25 +13,27 @@ interface CodePreviewPanelProps {
   isViewingHistory?: boolean;
   versionNumber?: number;
   onReturnToCurrent?: () => void;
-  // Device selector props
   deviceSize: DeviceSize;
   onDeviceSizeChange: (size: DeviceSize) => void;
-  // Preview controls
   onRefresh?: () => void;
   isRendering?: boolean;
-  // Preview settings (from usePreviewSettings hook)
   settingsValues?: SettingsState;
   blocksState?: BlockInstance[];
   loadedResources?: Record<string, MockProduct | MockCollection>;
   onRenderStateChange?: (isRendering: boolean) => void;
   onRefreshRef?: MutableRefObject<(() => void) | null>;
-  // Shop domain for native preview
   shopDomain: string;
+  /** Previous code baseline for diff comparison */
+  previousCode?: string;
+  /** Callback when user accepts current changes as new baseline */
+  onAcceptChanges?: () => void;
 }
 
+type ViewTab = 'preview' | 'code' | 'diff';
+
 /**
- * Tabbed panel for code editor and live preview
- * Uses Polaris s-button-group for segmented control
+ * Tabbed panel for code editor, live preview, and diff view
+ * Supports color-coded diff with additions/deletions
  */
 export function CodePreviewPanel({
   code,
@@ -47,9 +51,21 @@ export function CodePreviewPanel({
   onRenderStateChange,
   onRefreshRef,
   shopDomain,
+  previousCode,
+  onAcceptChanges,
 }: CodePreviewPanelProps) {
-  const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
+  const [activeTab, setActiveTab] = useState<ViewTab>('preview');
   const [copied, setCopied] = useState(false);
+
+  // Track initial code as baseline if no previousCode provided
+  const initialCodeRef = useRef(code);
+  const effectivePreviousCode = previousCode ?? initialCodeRef.current;
+
+  // Calculate diff
+  const diff = useMemo(
+    () => calculateDiff(effectivePreviousCode, code),
+    [effectivePreviousCode, code]
+  );
 
   const handleCopyCode = useCallback(async () => {
     try {
@@ -60,6 +76,16 @@ export function CodePreviewPanel({
       console.error('Failed to copy:', err);
     }
   }, [code]);
+
+  const handleAcceptChanges = useCallback(() => {
+    if (onAcceptChanges) {
+      onAcceptChanges();
+    } else {
+      // Update internal baseline
+      initialCodeRef.current = code;
+    }
+    setActiveTab('code');
+  }, [code, onAcceptChanges]);
 
   return (
     <s-box blockSize="100%" display="auto">
@@ -88,6 +114,16 @@ export function CodePreviewPanel({
               >
                 Code
               </s-button>
+              {/* Diff tab - only show if there are changes */}
+              {diff.hasDiff && (
+                <s-button
+                  slot="secondary-actions"
+                  variant={activeTab === 'diff' ? 'primary' : 'secondary'}
+                  onClick={() => setActiveTab('diff')}
+                >
+                  Diff ({diff.stats.additions + diff.stats.deletions})
+                </s-button>
+              )}
             </s-button-group>
 
             {/* Center: Device selector (only in preview mode) */}
@@ -131,6 +167,12 @@ export function CodePreviewPanel({
                   Refresh
                 </s-button>
               )}
+              {/* Accept changes button (only in diff mode) */}
+              {activeTab === 'diff' && diff.hasDiff && (
+                <s-button variant="primary" onClick={handleAcceptChanges}>
+                  Accept Changes
+                </s-button>
+              )}
               {/* Version indicator when viewing history */}
               {isViewingHistory && versionNumber && (
                 <>
@@ -142,7 +184,11 @@ export function CodePreviewPanel({
               )}
               {/* Copy button (only in code view, not when viewing history) */}
               {activeTab === 'code' && code && !isViewingHistory && (
-                <s-button onClick={handleCopyCode} variant="secondary" icon={copied ? 'check' : undefined}>
+                <s-button
+                  onClick={handleCopyCode}
+                  variant="secondary"
+                  icon={copied ? 'check' : undefined}
+                >
                   {copied ? 'Copied' : 'Copy All'}
                 </s-button>
               )}
@@ -160,7 +206,7 @@ export function CodePreviewPanel({
           borderWidth={isViewingHistory ? 'small' : undefined}
           borderColor={isViewingHistory ? 'base' : undefined}
         >
-          {activeTab === 'preview' ? (
+          {activeTab === 'preview' && (
             <PreviewErrorBoundary onRetry={() => setActiveTab('preview')}>
               <SectionPreview
                 liquidCode={code}
@@ -173,9 +219,9 @@ export function CodePreviewPanel({
                 shopDomain={shopDomain}
               />
             </PreviewErrorBoundary>
-          ) : (
-            <CodePreview code={code} fileName={fileName} />
           )}
+          {activeTab === 'code' && <CodePreview code={code} fileName={fileName} />}
+          {activeTab === 'diff' && <CodeDiffView diff={diff} fileName={fileName} />}
         </s-box>
       </s-stack>
     </s-box>

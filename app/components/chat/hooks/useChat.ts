@@ -1,10 +1,12 @@
 /**
  * Chat state management hook
  * Handles message state, streaming, and API communication
+ * Integrates with useStreamingProgress for build phase tracking
  */
 import { useReducer, useCallback, useRef, useEffect, useState } from 'react';
 import type { UIMessage, StreamEvent } from '../../../types';
 import { parseError, formatErrorMessage, type ChatError } from '../../../utils/error-handler';
+import { useStreamingProgress, type StreamingProgress } from './useStreamingProgress';
 
 interface FailedMessage {
   content: string;
@@ -54,13 +56,35 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         streamingContent: state.streamingContent + action.content,
       };
 
-    case 'COMPLETE_STREAMING':
+    case 'COMPLETE_STREAMING': {
+      // Prevent duplicate messages - check if an assistant message already exists
+      // after the last user message (guards against race conditions)
+      let lastUserIndex = -1;
+      for (let i = state.messages.length - 1; i >= 0; i--) {
+        if (state.messages[i].role === 'user') {
+          lastUserIndex = i;
+          break;
+        }
+      }
+      const hasAssistantAfterUser = state.messages.slice(lastUserIndex + 1).some((m: UIMessage) => m.role === 'assistant');
+      const messageExists = state.messages.some((m: UIMessage) => m.id === action.message.id);
+
+      if (messageExists || hasAssistantAfterUser) {
+        // Already have an assistant response, just clear streaming state
+        return {
+          ...state,
+          isStreaming: false,
+          streamingContent: '',
+        };
+      }
+
       return {
         ...state,
         isStreaming: false,
         streamingContent: '',
         messages: [...state.messages, action.message],
       };
+    }
 
     case 'SET_ERROR':
       return {
@@ -95,6 +119,15 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
   const [state, dispatch] = useReducer(chatReducer, initialState);
   const [failedMessage, setFailedMessage] = useState<FailedMessage | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Generation lock to prevent duplicate calls (not affected by React re-renders)
+  const isGeneratingRef = useRef(false);
+
+  // Streaming progress tracking for build phases
+  const {
+    progress,
+    processToken,
+    reset: resetProgress,
+  } = useStreamingProgress();
 
   // Cleanup AbortController on unmount to prevent memory leaks
   useEffect(() => {
@@ -109,6 +142,13 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
    * @param skipAddMessage - If true, skip adding user message (for auto-generation)
    */
   const streamResponse = useCallback(async (content: string, skipAddMessage: boolean) => {
+    // Prevent duplicate concurrent calls using ref (survives React re-renders)
+    if (isGeneratingRef.current) {
+      console.warn('[useChat] Ignoring duplicate generation call');
+      return;
+    }
+    isGeneratingRef.current = true;
+
     // Abort any existing request
     abortControllerRef.current?.abort();
     abortControllerRef.current = new AbortController();
@@ -141,6 +181,9 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
       let assistantContent = '';
       let codeSnapshot: string | undefined;
 
+      // Store server's real message ID from message_complete event
+      let serverMessageId: string | undefined;
+
       let done = false;
       while (!done) {
         const result = await reader.read();
@@ -161,10 +204,14 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
                   if (event.data.content) {
                     assistantContent += event.data.content;
                     dispatch({ type: 'APPEND_CONTENT', content: event.data.content });
+                    // Track progress through build phases
+                    processToken(event.data.content);
                   }
                   break;
 
                 case 'message_complete':
+                  // Capture server's real message ID to sync client state with DB
+                  serverMessageId = event.data.messageId;
                   codeSnapshot = event.data.codeSnapshot;
                   if (codeSnapshot && onCodeUpdate) {
                     onCodeUpdate(codeSnapshot);
@@ -181,9 +228,9 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
         }
       }
 
-      // Add completed assistant message
+      // Add completed assistant message using server's real ID to prevent duplicate versions
       const assistantMessage: UIMessage = {
-        id: `assistant-${Date.now()}`,
+        id: serverMessageId || `assistant-${Date.now()}`,
         conversationId,
         role: 'assistant',
         content: assistantContent,
@@ -205,11 +252,17 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
 
       // Store failed message for manual retry
       setFailedMessage({ content: content.trim(), error: chatError });
+    } finally {
+      // Always reset generation lock
+      isGeneratingRef.current = false;
     }
-  }, [conversationId, currentCode, onCodeUpdate]);
+  }, [conversationId, currentCode, onCodeUpdate, processToken]);
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || state.isStreaming) return;
+
+    // Reset progress for new generation
+    resetProgress();
 
     // Optimistically add user message
     const userMessage: UIMessage = {
@@ -223,7 +276,7 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
     dispatch({ type: 'START_STREAMING' });
 
     await streamResponse(content, false);
-  }, [conversationId, state.isStreaming, streamResponse]);
+  }, [conversationId, state.isStreaming, streamResponse, resetProgress]);
 
   /**
    * Trigger AI generation for an existing user message (no new message added)
@@ -232,9 +285,12 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
   const triggerGeneration = useCallback(async (content: string) => {
     if (!content.trim() || state.isStreaming) return;
 
+    // Reset progress for new generation
+    resetProgress();
+
     dispatch({ type: 'START_STREAMING' });
     await streamResponse(content, true);
-  }, [state.isStreaming, streamResponse]);
+  }, [state.isStreaming, streamResponse, resetProgress]);
 
   const stopStreaming = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -275,6 +331,7 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
     streamingContent: state.streamingContent,
     error: state.error,
     failedMessage,
+    progress, // Build phase progress
     sendMessage,
     triggerGeneration,
     stopStreaming,
@@ -285,4 +342,4 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
   };
 }
 
-export type { ChatState, ChatAction };
+export type { ChatState, ChatAction, StreamingProgress };

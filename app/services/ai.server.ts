@@ -349,6 +349,77 @@ export class AIService implements AIServiceInterface {
 </div>
     `.trim();
   }
+
+  /**
+   * Enhance a user prompt into a detailed, AI-optimized prompt
+   * Returns enhanced prompt plus 3 alternative variations
+   */
+  async enhancePrompt(
+    prompt: string,
+    context?: { themeStyle?: string; sectionType?: string }
+  ): Promise<{ enhanced: string; variations: string[] }> {
+    const enhanceSystemPrompt = `You enhance user prompts for Shopify section generation.
+Transform vague prompts into detailed, specific requirements.
+
+Include in enhanced prompts:
+- Layout structure (columns, grid, flexbox)
+- Responsive behavior (mobile, tablet, desktop)
+- Color scheme suggestions
+- Typography hierarchy
+- Spacing and padding guidelines
+- Interactive elements (hover states, animations)
+
+Return ONLY valid JSON with this exact structure:
+{"enhanced": "detailed prompt text", "variations": ["variation 1", "variation 2", "variation 3"]}
+
+The enhanced prompt should be 2-3 sentences. Each variation should offer a different approach or style.
+Do not include markdown code fences in your response.`;
+
+    if (!this.genAI) {
+      // Return mock enhancement for development
+      return {
+        enhanced: `Create a ${context?.sectionType || 'custom'} section: ${prompt}. Include responsive layout with mobile-first design, clean typography hierarchy, and consistent spacing. Add hover states and smooth transitions.`,
+        variations: [
+          `${prompt} - with a modern minimalist design and subtle animations`,
+          `${prompt} - using a card-based layout with shadows and rounded corners`,
+          `${prompt} - with a bold, high-contrast color scheme and large typography`,
+        ],
+      };
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        systemInstruction: enhanceSystemPrompt,
+      });
+
+      const contextStr = context
+        ? `Theme style: ${context.themeStyle || 'default'}. Section type: ${context.sectionType || 'general'}.`
+        : '';
+
+      const result = await model.generateContent(
+        `Enhance this Shopify section prompt: "${prompt}". ${contextStr}`
+      );
+
+      const text = result.response.text().trim();
+
+      // Parse JSON response, stripping any markdown fences
+      const cleanText = text.replace(/^```(?:json)?\s*|\s*```$/g, '');
+      const parsed = JSON.parse(cleanText);
+
+      return {
+        enhanced: parsed.enhanced || prompt,
+        variations: parsed.variations || [],
+      };
+    } catch (error) {
+      console.error("Enhance prompt error:", error);
+      // Fallback: return original with basic enhancement
+      return {
+        enhanced: `${prompt}. Include responsive design, clean typography, and consistent spacing.`,
+        variations: [],
+      };
+    }
+  }
 }
 
 export const aiService = new AIService();

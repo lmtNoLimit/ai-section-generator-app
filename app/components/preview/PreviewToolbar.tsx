@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
-import type { DeviceSize } from './types';
+import type { DeviceSize, SelectedElementInfo } from './types';
 import type { ResourceNeeds } from './hooks/useResourceDetection';
 import type { SelectedResource } from './ResourceSelector';
 import type { SchemaSetting } from './schema/SchemaTypes';
 import { ResourceSelector } from './ResourceSelector';
+import { ElementInfoPanel } from './ElementInfoPanel';
 
 export interface PreviewToolbarProps {
   deviceSize: DeviceSize;
@@ -22,6 +23,13 @@ export interface PreviewToolbarProps {
   isLoadingResource?: boolean;
   // Schema settings (to check if resource pickers are in settings panel)
   schemaSettings?: SchemaSetting[];
+  // Element targeting props (Phase 03)
+  isTargetingEnabled?: boolean;
+  selectedElement?: SelectedElementInfo | null;
+  onEnableTargeting?: () => void;
+  onDisableTargeting?: () => void;
+  onClearSelection?: () => void;
+  onEditElement?: () => void;
 }
 
 /**
@@ -41,7 +49,14 @@ export function PreviewToolbar({
   onCollectionSelect,
   resourceNeeds,
   isLoadingResource,
-  schemaSettings = []
+  schemaSettings = [],
+  // Element targeting props
+  isTargetingEnabled = false,
+  selectedElement,
+  onEnableTargeting,
+  onDisableTargeting,
+  onClearSelection,
+  onEditElement,
 }: PreviewToolbarProps) {
   const [copied, setCopied] = useState(false);
 
@@ -106,6 +121,23 @@ export function PreviewToolbar({
         </s-button-group>
 
         <s-stack direction="inline" gap="small" alignItems="center">
+          {/* Element targeting toggle */}
+          {onEnableTargeting && onDisableTargeting && (
+            <s-tooltip id="targeting-tooltip">
+              <span slot="content">
+                {isTargetingEnabled ? 'Cancel element targeting' : 'Click elements to target for editing'}
+              </span>
+              <s-button
+                variant={isTargetingEnabled ? 'primary' : 'tertiary'}
+                onClick={isTargetingEnabled ? onDisableTargeting : onEnableTargeting}
+                accessibilityLabel={isTargetingEnabled ? 'Disable element targeting' : 'Enable element targeting'}
+                icon="target"
+              >
+                {isTargetingEnabled ? 'Cancel' : 'Target'}
+              </s-button>
+            </s-tooltip>
+          )}
+
           {/* Copy HTML button */}
           {renderedHtml && (
             <s-button
@@ -182,6 +214,15 @@ export function PreviewToolbar({
             )}
           </s-stack>
         </s-box>
+      )}
+
+      {/* Selected element info panel (Phase 03) */}
+      {selectedElement && onClearSelection && onEditElement && (
+        <ElementInfoPanel
+          element={selectedElement}
+          onEdit={onEditElement}
+          onClear={onClearSelection}
+        />
       )}
     </s-stack>
   );

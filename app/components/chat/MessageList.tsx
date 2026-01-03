@@ -1,36 +1,72 @@
 /**
  * MessageList component - Scrollable message container
  * Uses Polaris components for layout and empty state
- * Handles auto-scroll and version display
+ * Handles auto-scroll, version display, build progress, and suggestion chips
  *
  * Note: Parent container handles scroll - this renders message content
  */
 import { useAutoScroll } from './hooks/useAutoScroll';
 import { MessageItem } from './MessageItem';
 import { TypingIndicator } from './TypingIndicator';
+import { BuildProgressIndicator } from './BuildProgressIndicator';
+import { StreamingCodeBlock } from './StreamingCodeBlock';
 import type { UIMessage, CodeVersion } from '../../types';
+import type { StreamingProgress } from './hooks/useStreamingProgress';
+import type { Suggestion } from './utils/suggestion-engine';
+
+/**
+ * Extract code from markdown code block in streaming content
+ * Handles partial/incomplete code blocks during streaming
+ */
+function extractCodeFromContent(content: string): string {
+  const codeBlockStart = content.indexOf('```');
+  if (codeBlockStart === -1) return '';
+
+  // Find the end of the language line
+  const lineEnd = content.indexOf('\n', codeBlockStart);
+  if (lineEnd === -1) return '';
+
+  // Find closing ``` or use rest of content if incomplete
+  const codeBlockEnd = content.indexOf('```', lineEnd + 1);
+  const codeContent = codeBlockEnd !== -1
+    ? content.slice(lineEnd + 1, codeBlockEnd)
+    : content.slice(lineEnd + 1); // Partial code block
+
+  return codeContent.trim();
+}
 
 export interface MessageListProps {
   messages: UIMessage[];
   isStreaming: boolean;
   streamingContent: string;
+  // Build progress props
+  progress?: StreamingProgress;
   // Version props
   versions?: CodeVersion[];
   selectedVersionId?: string | null;
   activeVersionId?: string | null;
   onVersionSelect?: (versionId: string) => void;
   onVersionApply?: (versionId: string) => void;
+  // Suggestion chips handlers (Phase 05)
+  onSuggestionClick?: (suggestion: Suggestion) => void;
+  onCopyCode?: (code: string) => void;
+  onApplyCode?: (code: string) => void;
 }
 
 export function MessageList({
   messages,
   isStreaming,
   streamingContent,
+  progress,
   versions = [],
   selectedVersionId,
   activeVersionId,
   onVersionSelect,
   onVersionApply,
+  // Suggestion chips handlers (Phase 05)
+  onSuggestionClick,
+  onCopyCode,
+  onApplyCode,
 }: MessageListProps) {
   const { containerRef, handleScroll } = useAutoScroll<HTMLDivElement>({
     enabled: true,
@@ -80,11 +116,16 @@ export function MessageList({
           </s-box>
         ) : (
           <s-stack direction="block" gap="none">
-            {messages.map((message) => {
+            {messages.map((message, index) => {
               // Find version info for this message
               const version = versions.find((v) => v.id === message.id);
               const isLatestVersion =
                 version && versions.indexOf(version) === versions.length - 1;
+              // Phase 05: Determine if this is the latest message (for suggestion chips)
+              const isLatestMessage = index === messages.length - 1;
+
+              // Use version.code as fallback (includes extracted code from content)
+              const effectiveCode = message.codeSnapshot || version?.code;
 
               return (
                 <MessageItem
@@ -96,26 +137,68 @@ export function MessageList({
                   isActive={activeVersionId === message.id}
                   onVersionSelect={() => onVersionSelect?.(message.id)}
                   onVersionApply={() => onVersionApply?.(message.id)}
+                  // Phase 05: Suggestion chips props
+                  messageCount={messages.length}
+                  isLatestMessage={isLatestMessage}
+                  onSuggestionClick={onSuggestionClick}
+                  onCopyCode={effectiveCode ? () => onCopyCode?.(effectiveCode) : undefined}
+                  onApplyCode={effectiveCode ? () => onApplyCode?.(effectiveCode) : undefined}
                 />
               );
             })}
 
-            {/* Streaming message */}
-            {isStreaming && streamingContent && (
-              <MessageItem
-                message={{
-                  id: "streaming",
-                  conversationId: "",
-                  role: "assistant",
-                  content: streamingContent,
-                  createdAt: new Date(),
-                }}
-                isStreaming={true}
-              />
-            )}
+            {/* Streaming message with build progress */}
+            {isStreaming && (
+              <div className="streaming-message-container">
+                {/* Build progress indicator */}
+                {progress && (
+                  <BuildProgressIndicator
+                    phases={progress.phases}
+                    currentPhase={progress.currentPhase}
+                    percentage={progress.percentage}
+                    isComplete={progress.isComplete}
+                  />
+                )}
 
-            {/* Typing indicator when waiting for first token */}
-            {isStreaming && !streamingContent && <TypingIndicator />}
+                {/* Streaming code block (if code detected) */}
+                {streamingContent && streamingContent.includes('```') && (
+                  <StreamingCodeBlock
+                    code={extractCodeFromContent(streamingContent)}
+                    isStreaming={isStreaming}
+                    language="liquid"
+                    maxHeight="250px"
+                  />
+                )}
+
+                {/* Typing indicator when waiting for first token or generating */}
+                {!streamingContent ? (
+                  <TypingIndicator />
+                ) : (
+                  /* Simple "Generating..." message while streaming */
+                  <div className="chat-message-enter">
+                    <s-box padding="small" borderRadius="base">
+                      <s-stack direction="inline" gap="small" alignItems="center">
+                        <div className="chat-avatar--ai">
+                          <s-avatar initials="AI" size="small" />
+                        </div>
+                        <div
+                          className="chat-bubble--ai"
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '16px 16px 16px 4px',
+                          }}
+                        >
+                          <s-text>
+                            Generating your section
+                            <span className="chat-cursor" aria-hidden="true" />
+                          </s-text>
+                        </div>
+                      </s-stack>
+                    </s-box>
+                  </div>
+                )}
+              </div>
+            )}
           </s-stack>
         )}
       </s-box>

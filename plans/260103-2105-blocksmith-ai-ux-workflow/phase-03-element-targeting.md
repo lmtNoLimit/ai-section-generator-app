@@ -11,9 +11,12 @@
 | Attribute | Value |
 |-----------|-------|
 | Priority | P2 |
-| Status | pending |
-| Effort | 8h |
+| Status | code-review-required |
+| Effort | 8h (complete) + 2-3h (security fixes) |
 | Description | Point-and-click element selection in preview iframe for targeted AI refinement |
+| Review Report | [Code Review 260103-2326](../reports/code-reviewer-260103-2326-phase03-element-targeting.md) |
+| Critical Issues | 2 (postMessage security) |
+| Blocker | Must fix CRIT-01, CRIT-02 before production |
 
 ## Key Research Insights
 
@@ -503,15 +506,28 @@ export function ElementInfoPanel({ element, onEdit, onClear }: ElementInfoPanelP
 
 ## Todo List
 
-- [ ] Create selector-utils.ts with unique selector generation
-- [ ] Create iframe-injection.ts script
-- [ ] Create useElementTargeting hook
-- [ ] Create ElementInfoPanel component
-- [ ] Modify PreviewFrame to inject targeting script
-- [ ] Add targeting toggle to PreviewToolbar
-- [ ] Integrate element context with ChatInput
-- [ ] Add escape key handler to cancel targeting
+### Implementation (Complete ✅)
+- [x] Create selector-utils.ts with unique selector generation
+- [x] Create iframe-injection.ts script
+- [x] Create useElementTargeting hook
+- [x] Create ElementInfoPanel component
+- [x] Modify PreviewFrame to inject targeting script
+- [x] Add targeting toggle to PreviewToolbar
+- [x] Integrate element context with ChatInput
+- [x] Add escape key handler to cancel targeting
+
+### Security Fixes (Required ⛔)
+- [ ] **CRIT-01**: Replace `postMessage(..., '*')` with origin validation (ALL files)
+- [ ] **CRIT-02**: Add origin validation to ALL message handlers
+- [ ] **HIGH-02**: Fix selector uniqueness (nth-of-type → nth-child)
+- [ ] **HIGH-01**: Add event listener cleanup on targeting disable
+- [ ] **HIGH-03**: Escape attribute names in selector generation
+
+### Testing & QA (Pending)
 - [ ] Test with various Liquid section structures
+- [ ] Test with SVG/Shadow DOM elements
+- [ ] Performance test with 1000+ element DOM
+- [ ] Verify selector uniqueness with real sections
 - [ ] Add accessibility labels and keyboard navigation
 
 ## Success Criteria
@@ -534,13 +550,21 @@ export function ElementInfoPanel({ element, onEdit, onClear }: ElementInfoPanelP
 
 ## Security Considerations
 
-- Validate postMessage origin (already in usePreviewMessaging)
-- Sanitize selector strings before use
-- Don't expose internal page structure to external sources
-- Limit text content preview to 100 chars
+- ❌ **CRITICAL**: Validate postMessage origin (NOT implemented - uses wildcard '*')
+- ⚠️ **HIGH**: Sanitize selector strings before use (partial - CSS.escape on values only)
+- ✅ Don't expose internal page structure to external sources (nonce implemented but insufficient)
+- ✅ Limit text content preview to 100 chars
+
+### Security Audit Results (2026-01-03)
+- **2 Critical Issues**: postMessage wildcard origins, missing origin validation
+- **3 High Issues**: memory leaks, selector bugs, XSS vectors
+- **Security Rating**: 5/10 (Not Production Ready)
+- **See**: [Full Security Report](../reports/code-reviewer-260103-2326-phase03-element-targeting.md#security-audit-summary)
 
 ---
 
-**Phase Status**: Pending
-**Estimated Completion**: 8 hours
+**Phase Status**: Code Review Required (Security Fixes Pending)
+**Implementation Time**: 8 hours (Complete)
+**Security Fix Time**: 2-3 hours (Required)
 **Dependencies**: Phase 02 (streaming state), existing usePreviewMessaging
+**Code Review**: [Report 260103-2326](../reports/code-reviewer-260103-2326-phase03-element-targeting.md)

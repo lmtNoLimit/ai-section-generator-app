@@ -7,12 +7,14 @@ export { PreviewToolbar } from './PreviewToolbar';
 export { PreviewErrorBoundary } from './PreviewErrorBoundary';
 export { PreviewSkeleton } from './PreviewSkeleton';
 export { EmptyPreviewState } from './EmptyPreviewState';
+export { ElementInfoPanel } from './ElementInfoPanel';
 
 // Hooks
 export { usePreviewMessaging } from './hooks/usePreviewMessaging';
 export { usePreviewSettings } from './hooks/usePreviewSettings';
 export { useNativePreviewRenderer } from './hooks/useNativePreviewRenderer';
 export { usePreviewRenderer } from './hooks/usePreviewRenderer';
+export { useElementTargeting } from './hooks/useElementTargeting';
 
 // Types
 export * from './types';
@@ -25,3 +27,6 @@ export * from './settings';
 
 // Mock data
 export * from './mockData';
+
+// Targeting utilities
+export * from './targeting/selector-utils';

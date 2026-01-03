@@ -330,6 +330,131 @@ const chatCSS = `
   background: var(--p-color-border);
 }
 
+/* ===== Build Progress Indicator ===== */
+
+/* Progress container - fade in animation */
+.build-progress {
+  animation: build-progress-enter 0.3s ease-out forwards;
+  margin-bottom: 12px;
+}
+
+@keyframes build-progress-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Progress complete - fade out after delay */
+.build-progress--complete {
+  animation: build-progress-complete 0.5s ease-out 1s forwards;
+}
+
+@keyframes build-progress-complete {
+  to {
+    opacity: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* Progress bar container */
+.build-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--p-color-bg-surface-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+/* Progress bar fill - animated gradient */
+.build-progress-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg,
+    var(--p-color-bg-fill-brand) 0%,
+    var(--p-color-bg-fill-success) 50%,
+    var(--p-color-bg-fill-brand) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease-out;
+  animation: progress-shimmer 2s linear infinite;
+}
+
+@keyframes progress-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Phase status icons */
+.build-progress-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.build-progress-icon--complete {
+  color: var(--p-color-icon-success);
+}
+
+.build-progress-icon--current {
+  color: var(--p-color-icon-brand);
+}
+
+.build-progress-icon--pending {
+  color: var(--p-color-icon-secondary);
+  opacity: 0.5;
+}
+
+/* ===== Streaming Code Block ===== */
+
+/* Streaming cursor - blinking effect */
+.streaming-cursor {
+  display: inline-block;
+  color: #4fc3f7;
+  font-weight: bold;
+  animation: streaming-cursor-blink 0.8s step-end infinite;
+}
+
+@keyframes streaming-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Streaming code container */
+.streaming-code-block {
+  animation: streaming-code-enter 0.2s ease-out forwards;
+  margin: 8px 0;
+}
+
+@keyframes streaming-code-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Streaming message container */
+.streaming-message-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: chat-message-fade-in 0.3s ease-out forwards;
+}
+
 /* ===== Utility Classes ===== */
 
 .chat-transition {

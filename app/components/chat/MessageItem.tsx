@@ -1,13 +1,16 @@
 /**
  * MessageItem component - Individual chat message display
  * Uses Polaris components for layout and styling
- * Supports both user and assistant messages with code block parsing
+ * Supports both user and assistant messages with code block rendering
  * Shows version badge for AI messages with codeSnapshot
+ * Phase 05: Added suggestion chips for context-aware follow-ups
  */
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import type { UIMessage } from '../../types';
 import { CodeBlock } from './CodeBlock';
 import { VersionCard } from './VersionCard';
+import { SuggestionChips } from './SuggestionChips';
+import { getSuggestions, type Suggestion } from './utils/suggestion-engine';
 
 export interface MessageItemProps {
   message: UIMessage;
@@ -19,12 +22,42 @@ export interface MessageItemProps {
   isActive?: boolean; // This version is current active draft
   onVersionSelect?: () => void;
   onVersionApply?: () => void;
+  // Suggestion chips props (Phase 05)
+  messageCount?: number;
+  isLatestMessage?: boolean;
+  onSuggestionClick?: (suggestion: Suggestion) => void;
+  onCopyCode?: () => void;
+  onApplyCode?: () => void;
 }
 
 interface ContentPart {
   type: 'text' | 'code';
   content: string;
   language?: string;
+}
+
+/**
+ * Extract code from message content when codeSnapshot is not available
+ * Falls back to parsing markdown code blocks from content
+ */
+function extractCodeFromContent(content: string): string | undefined {
+  const codeBlockStart = content.indexOf('```');
+  if (codeBlockStart === -1) return undefined;
+
+  // Find the end of the language line
+  const lineEnd = content.indexOf('\n', codeBlockStart);
+  if (lineEnd === -1) return undefined;
+
+  // Find closing ``` or use rest of content if incomplete
+  const codeBlockEnd = content.indexOf('```', lineEnd + 1);
+  if (codeBlockEnd === -1) return undefined;
+
+  const codeContent = content.slice(lineEnd + 1, codeBlockEnd).trim();
+  // Verify it looks like Liquid/HTML
+  if (codeContent.includes('{%') || codeContent.includes('{{') || codeContent.includes('<')) {
+    return codeContent;
+  }
+  return undefined;
 }
 
 /**
@@ -115,12 +148,42 @@ export const MessageItem = memo(function MessageItem({
   isActive = false,
   onVersionSelect,
   onVersionApply,
+  // Suggestion chips props (Phase 05)
+  messageCount = 0,
+  isLatestMessage = false,
+  onSuggestionClick,
+  onCopyCode,
+  onApplyCode,
 }: MessageItemProps) {
   const isUser = message.role === 'user';
   const parts = parseMessageContent(message.content);
 
-  // Show version badge for AI messages with code
-  const showVersionBadge = !isUser && message.codeSnapshot && versionNumber;
+  // For AI messages, check if there's any text content (not just code)
+  const hasTextContent = parts.some(p => p.type === 'text');
+  const hasCodeContent = parts.some(p => p.type === 'code');
+
+  // Derive effective code: prefer codeSnapshot, fallback to extracted from content
+  const effectiveCode = useMemo(() => {
+    if (message.codeSnapshot) return message.codeSnapshot;
+    if (!isUser && hasCodeContent) {
+      return extractCodeFromContent(message.content);
+    }
+    return undefined;
+  }, [message.codeSnapshot, message.content, isUser, hasCodeContent]);
+
+  // Show version badge for AI messages with code (use effectiveCode as fallback)
+  const showVersionBadge = !isUser && (message.codeSnapshot || effectiveCode) && versionNumber;
+
+  // Generate context-aware suggestions (Phase 05) - use effectiveCode
+  const suggestions = useMemo(() => {
+    if (isUser || isStreaming) return [];
+    return getSuggestions({
+      code: effectiveCode || '',
+      messageCount,
+      isLatestMessage,
+      isStreaming,
+    });
+  }, [isUser, isStreaming, effectiveCode, messageCount, isLatestMessage]);
 
   return (
     <div className="chat-message-enter">
@@ -149,13 +212,25 @@ export const MessageItem = memo(function MessageItem({
           {/* Message content */}
           <s-box maxInlineSize="85%">
             <s-stack direction="block" gap="small">
-              {/* Message content parts - skip code blocks for AI messages (code visible in Preview Panel) */}
-              {parts.map((part, index) => {
-                // Skip code blocks for AI messages - code is visible in Code Preview Panel
-                if (part.type === 'code' && !isUser) return null;
+              {/* For AI messages with only code (no text), show default message */}
+              {!isUser && hasCodeContent && !hasTextContent && (
+                <div
+                  className="chat-bubble--ai"
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '16px 16px 16px 4px',
+                  }}
+                >
+                  <s-text>Here's your section code. You can preview it in the panel on the right.</s-text>
+                </div>
+              )}
 
+              {/* Message content parts */}
+              {parts.map((part, index) => {
+                // For AI messages: skip code blocks (code is displayed in Code Preview Panel)
+                // For user messages: render code blocks inline
                 if (part.type === 'code') {
-                  // User message with code - render normally
+                  if (!isUser) return null; // AI code shown in preview panel
                   return (
                     <CodeBlock
                       key={index}
@@ -200,6 +275,16 @@ export const MessageItem = memo(function MessageItem({
                 />
               )}
 
+              {/* Suggestion Chips (Phase 05) */}
+              {suggestions.length > 0 && (
+                <SuggestionChips
+                  suggestions={suggestions}
+                  onChipClick={onSuggestionClick || (() => {})}
+                  onCopy={onCopyCode}
+                  onApply={onApplyCode}
+                />
+              )}
+
               {/* Error display */}
               {message.isError && (
                 <s-banner tone="critical" dismissible={false}>
@@ -223,7 +308,7 @@ export const MessageItem = memo(function MessageItem({
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Re-render if content, streaming, or version state changes
+  // Re-render if content, streaming, version state, or suggestion state changes
   return (
     prevProps.message.id === nextProps.message.id &&
     prevProps.message.content === nextProps.message.content &&
@@ -231,6 +316,9 @@ export const MessageItem = memo(function MessageItem({
     prevProps.versionNumber === nextProps.versionNumber &&
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.isLatest === nextProps.isLatest &&
-    prevProps.isActive === nextProps.isActive
+    prevProps.isActive === nextProps.isActive &&
+    // Phase 05: suggestion chips state
+    prevProps.messageCount === nextProps.messageCount &&
+    prevProps.isLatestMessage === nextProps.isLatestMessage
   );
 });

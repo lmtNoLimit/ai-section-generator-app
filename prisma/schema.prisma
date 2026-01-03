@@ -272,3 +272,16 @@ model Message {
   @@index([conversationId])
   @@index([createdAt])
 }
+
+// Section feedback for post-publish quality tracking
+model SectionFeedback {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  sectionId String   @db.ObjectId // Link to Section
+  shop      String
+  positive  Boolean // true = thumbs up, false = thumbs down
+  createdAt DateTime @default(now())
+
+  @@index([sectionId])
+  @@index([shop])
+  @@index([createdAt])
+}

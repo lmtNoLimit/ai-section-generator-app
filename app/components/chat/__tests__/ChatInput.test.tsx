@@ -4,7 +4,20 @@
  * Note: Polaris Web Components require special handling in tests
  */
 import { render, screen } from '@testing-library/react';
+import { createMemoryRouter, RouterProvider } from 'react-router';
 import { ChatInput } from '../ChatInput';
+
+/**
+ * Helper to render ChatInput with Router context
+ * PromptEnhancer uses useFetcher which requires Router
+ */
+function renderWithRouter(ui: React.ReactElement) {
+  const router = createMemoryRouter(
+    [{ path: '/', element: ui }],
+    { initialEntries: ['/'] }
+  );
+  return render(<RouterProvider router={router} />);
+}
 
 describe('ChatInput', () => {
   const mockOnSend = jest.fn();
@@ -17,7 +30,7 @@ describe('ChatInput', () => {
 
   describe('rendering', () => {
     it('renders s-text-area element', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
@@ -28,7 +41,7 @@ describe('ChatInput', () => {
     });
 
     it('renders s-button element', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
@@ -39,7 +52,7 @@ describe('ChatInput', () => {
     });
 
     it('renders with default placeholder', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
@@ -51,7 +64,7 @@ describe('ChatInput', () => {
     });
 
     it('renders with custom placeholder', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
@@ -64,7 +77,7 @@ describe('ChatInput', () => {
     });
 
     it('renders hint text', () => {
-      render(
+      renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
@@ -77,7 +90,7 @@ describe('ChatInput', () => {
 
   describe('disabled state', () => {
     it('disables textarea when disabled prop is true', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
@@ -90,7 +103,7 @@ describe('ChatInput', () => {
     });
 
     it('disables button when disabled prop is true and not streaming', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
@@ -98,78 +111,86 @@ describe('ChatInput', () => {
         />
       );
 
-      const button = container.querySelector('s-button');
-      expect(button).toHaveAttribute('disabled');
+      // Find button with send icon
+      const sendButton = container.querySelector('s-button[icon="send"]');
+      expect(sendButton).toHaveAttribute('disabled');
     });
   });
 
   describe('streaming state', () => {
     it('shows stop-circle icon when streaming', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={true}
         />
       );
 
-      const button = container.querySelector('s-button');
-      expect(button).toHaveAttribute('icon', 'stop-circle');
+      // Find button with stop-circle icon (send/stop button)
+      const sendButton = container.querySelector('s-button[icon="stop-circle"]');
+      expect(sendButton).toBeInTheDocument();
     });
 
     it('shows send icon when not streaming', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
         />
       );
 
-      const button = container.querySelector('s-button');
-      expect(button).toHaveAttribute('icon', 'send');
+      // Find button with send icon
+      const sendButton = container.querySelector('s-button[icon="send"]');
+      expect(sendButton).toBeInTheDocument();
     });
 
     it('shows critical tone when streaming', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={true}
         />
       );
 
-      const button = container.querySelector('s-button');
-      expect(button).toHaveAttribute('tone', 'critical');
+      // Find button with critical tone (stop button when streaming)
+      const sendButton = container.querySelector('s-button[tone="critical"]');
+      expect(sendButton).toBeInTheDocument();
     });
   });
 
   describe('accessibility', () => {
     it('has accessibility label for send button', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
         />
       );
 
-      const button = container.querySelector('s-button');
-      expect(button).toHaveAttribute('accessibilityLabel', 'Send message');
+      // Find button with send icon
+      const sendButton = container.querySelector('s-button[icon="send"]');
+      expect(sendButton).toBeInTheDocument();
+      expect(sendButton).toHaveAttribute('accessibilityLabel', 'Send message');
     });
 
     it('has accessibility label for stop button when streaming', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={true}
         />
       );
 
-      const button = container.querySelector('s-button');
-      expect(button).toHaveAttribute('accessibilityLabel', 'Stop generation');
+      // Find button with stop-circle icon
+      const sendButton = container.querySelector('s-button[icon="stop-circle"]');
+      expect(sendButton).toBeInTheDocument();
+      expect(sendButton).toHaveAttribute('accessibilityLabel', 'Stop generation');
     });
   });
 
   describe('container structure', () => {
     it('renders with input container wrapper', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
@@ -180,7 +201,7 @@ describe('ChatInput', () => {
     });
 
     it('renders with s-box wrapper', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
@@ -191,7 +212,7 @@ describe('ChatInput', () => {
     });
 
     it('renders with nested s-box for text area container', () => {
-      const { container } = render(
+      const { container } = renderWithRouter(
         <ChatInput
           onSend={mockOnSend}
           isStreaming={false}
@@ -201,6 +222,19 @@ describe('ChatInput', () => {
       // ChatInput uses nested s-box elements for layout
       const boxes = container.querySelectorAll('s-box');
       expect(boxes.length).toBeGreaterThan(1);
+    });
+  });
+
+  describe('template buttons', () => {
+    it('renders quick templates button', () => {
+      renderWithRouter(
+        <ChatInput
+          onSend={mockOnSend}
+          isStreaming={false}
+        />
+      );
+
+      expect(screen.getByText(/Quick templates/)).toBeInTheDocument();
     });
   });
 });
