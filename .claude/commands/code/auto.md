@@ -1,5 +1,5 @@
 ---
-description: ⚡⚡⚡ [AUTO] Start coding & testing an existing plan ("trust me bro")
+description: 💡💡💡 [AUTO] Start coding & testing an existing plan ("trust me bro")
 argument-hint: [plan] [all-phases-yes-or-no] (default: yes)
 ---
 

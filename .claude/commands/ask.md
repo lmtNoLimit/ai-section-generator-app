@@ -1,5 +1,5 @@
 ---
-description: ⚡ Answer technical and architectural questions.
+description: 💡 Answer technical and architectural questions.
 argument-hint: [technical-question]
 ---
 

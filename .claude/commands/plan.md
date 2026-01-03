@@ -1,5 +1,5 @@
 ---
-description: ⚡⚡⚡ Intelligent plan creation with prompt enhancement
+description: 💡💡💡 Intelligent plan creation with prompt enhancement
 argument-hint: [task]
 ---
 

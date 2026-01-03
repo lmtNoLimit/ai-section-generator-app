@@ -1,5 +1,5 @@
 ---
-description: ⚡⚡⚡ Plan parallel phases & execute with fullstack-developer agents
+description: 💡💡💡 Plan parallel phases & execute with fullstack-developer agents
 argument-hint: [tasks]
 ---
 

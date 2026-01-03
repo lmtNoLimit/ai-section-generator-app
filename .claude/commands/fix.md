@@ -1,5 +1,5 @@
 ---
-description: ⚡⚡ Analyze and fix issues [INTELLIGENT ROUTING]
+description: 💡💡 Analyze and fix issues [INTELLIGENT ROUTING]
 argument-hint: [issues]
 ---
 

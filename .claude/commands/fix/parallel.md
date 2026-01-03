@@ -1,5 +1,5 @@
 ---
-description: ⚡⚡ Analyze & fix issues with parallel fullstack-developer agents
+description: 💡💡 Analyze & fix issues with parallel fullstack-developer agents
 argument-hint: [issues]
 ---
 

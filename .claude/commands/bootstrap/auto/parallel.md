@@ -1,5 +1,5 @@
 ---
-description: ⚡⚡⚡⚡⚡ Bootstrap project with parallel execution
+description: 💡💡💡💡💡 Bootstrap project with parallel execution
 argument-hint: [user-requirements]
 ---
 

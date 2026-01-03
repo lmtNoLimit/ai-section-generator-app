@@ -1,5 +1,5 @@
 ---
-description: ⚡ No research. Only scout, plan & implement ["trust me bro"]
+description: 💡 No research. Only scout, plan & implement ["trust me bro"]
 argument-hint: [tasks-or-prompt]
 ---
 

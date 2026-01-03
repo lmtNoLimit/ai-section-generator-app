@@ -1,5 +1,5 @@
 ---
-description: ⚡⚡⚡ Create detailed plan with parallel-executable phases
+description: 💡💡💡 Create detailed plan with parallel-executable phases
 argument-hint: [task]
 ---
 

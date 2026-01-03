@@ -1,5 +1,5 @@
 ---
-description: ⚡ Analyze and fix small issues [FAST]
+description: 💡 Analyze and fix small issues [FAST]
 argument-hint: [issues]
 ---
 

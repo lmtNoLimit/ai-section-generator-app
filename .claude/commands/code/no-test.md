@@ -1,5 +1,5 @@
 ---
-description: ⚡⚡ Start coding an existing plan (no testing)
+description: 💡💡 Start coding an existing plan (no testing)
 argument-hint: [plan]
 ---
 

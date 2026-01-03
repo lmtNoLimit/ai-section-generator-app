@@ -1,5 +1,5 @@
 ---
-description: ⚡ Execute parallel or sequential phases based on plan structure
+description: 💡 Execute parallel or sequential phases based on plan structure
 argument-hint: [plan-path]
 ---
 
