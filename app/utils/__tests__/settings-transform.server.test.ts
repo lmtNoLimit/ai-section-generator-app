@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
 import {
   generateSettingsAssigns,
   generateBlocksAssigns,
   rewriteSectionSettings,
   rewriteBlocksIteration,
+  stripImageUrlFilters,
 } from "../settings-transform.server";
 
 describe("generateSettingsAssigns", () => {
@@ -83,7 +83,7 @@ describe("generateSettingsAssigns", () => {
     });
   });
 
-  describe("null/undefined settings", () => {
+  describe("null/undefined/empty settings", () => {
     it("should generate nil for null value", () => {
       const assigns = generateSettingsAssigns({ empty: null as unknown as string });
 
@@ -94,6 +94,20 @@ describe("generateSettingsAssigns", () => {
       const assigns = generateSettingsAssigns({ missing: undefined as unknown as string });
 
       expect(assigns).toContain("{% assign settings_missing = nil %}");
+    });
+
+    it("should generate nil for empty string value", () => {
+      const assigns = generateSettingsAssigns({ image: '' });
+
+      expect(assigns).toContain("{% assign settings_image = nil %}");
+    });
+
+    it("should generate nil for empty string (image_picker placeholder test)", () => {
+      // Empty image_picker settings should be nil so {% if settings_image %} works
+      const assigns = generateSettingsAssigns({ hero_image: '', title: 'Hello' });
+
+      expect(assigns).toContain("{% assign settings_hero_image = nil %}");
+      expect(assigns).toContain("{% assign settings_title = 'Hello' %}");
     });
   });
 
@@ -185,6 +199,17 @@ describe("generateBlocksAssigns", () => {
       expect(assigns).toContain("{% assign block_2_type = 'button' %}");
       expect(assigns).toContain("{% assign block_2_label = 'Click' %}");
       expect(assigns).toContain("{% assign blocks_count = 3 %}");
+    });
+  });
+
+  describe("block empty string settings", () => {
+    it("should generate nil for empty string in block settings", () => {
+      const assigns = generateBlocksAssigns([
+        { id: "b1", type: "image", settings: { image_url: '', alt_text: 'My Image' } },
+      ]);
+
+      expect(assigns).toContain("{% assign block_0_image_url = nil %}");
+      expect(assigns).toContain("{% assign block_0_alt_text = 'My Image' %}");
     });
   });
 
@@ -479,6 +504,177 @@ describe("rewriteBlocksIteration", () => {
 
       // Should return original code unchanged due to nested loop
       expect(result).toBe(code);
+    });
+  });
+});
+
+describe("stripImageUrlFilters", () => {
+  describe("image_url filter removal", () => {
+    it("should strip image_url with width parameter from settings", () => {
+      const code = "{{ settings_background_image | image_url: width: 1920 }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toContain("settings_background_image");
+      expect(result).not.toContain("image_url");
+    });
+
+    it("should strip image_url with size string from settings", () => {
+      const code = "{{ settings_image | image_url: 'large' }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toContain("settings_image");
+      expect(result).not.toContain("image_url");
+    });
+
+    it("should strip image_url without parameters", () => {
+      const code = "{{ settings_hero_image | image_url }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toContain("settings_hero_image");
+      expect(result).not.toContain("image_url");
+    });
+
+    it("should strip img_url filter", () => {
+      const code = "{{ settings_product_image | img_url: 'medium' }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toContain("settings_product_image");
+      expect(result).not.toContain("img_url");
+    });
+
+    it("should strip image_url with multiple parameters", () => {
+      const code = "{{ settings_bg | image_url: width: 1920, height: 1080 }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toContain("settings_bg");
+      expect(result).not.toContain("image_url");
+    });
+  });
+
+  describe("block settings image_url removal", () => {
+    it("should strip image_url from block settings", () => {
+      const code = "{{ block_0_image | image_url: width: 800 }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toContain("block_0_image");
+      expect(result).not.toContain("image_url");
+    });
+
+    it("should strip image_url from multiple block indices", () => {
+      const code = `
+        {{ block_0_icon | image_url: 'small' }}
+        {{ block_1_background | image_url: width: 1200 }}
+        {{ block_2_thumb | img_url }}
+      `;
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toContain("block_0_icon");
+      expect(result).toContain("block_1_background");
+      expect(result).toContain("block_2_thumb");
+      expect(result).not.toContain("image_url");
+      expect(result).not.toContain("img_url");
+    });
+  });
+
+  describe("image_tag filter chain generates img element", () => {
+    it("should convert image_url | image_tag to img element", () => {
+      const code = "{{ settings_image | image_url: width: 1200 | image_tag }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toBe('<img src="{{ settings_image }}" alt="" loading="lazy">');
+    });
+
+    it("should convert image_url | image_tag with args to img element", () => {
+      const code = "{{ settings_hero | image_url | image_tag: class: 'hero-image', loading: 'lazy' }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toBe('<img src="{{ settings_hero }}" alt="" loading="lazy">');
+    });
+
+    it("should convert full chain with both filter args to img element", () => {
+      const code = "{{ settings_bg | image_url: width: 1920, height: 1080 | image_tag: alt: 'Background' }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toBe('<img src="{{ settings_bg }}" alt="" loading="lazy">');
+    });
+
+    it("should convert img_url | image_tag chain from blocks to img element", () => {
+      const code = "{{ block_0_banner | img_url: 'large' | image_tag }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toBe('<img src="{{ block_0_banner }}" alt="" loading="lazy">');
+    });
+  });
+
+  describe("preserves other filters", () => {
+    it("should not affect non-image_url filters", () => {
+      const code = "{{ settings_title | upcase | truncate: 20 }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toBe(code);
+    });
+
+    it("should not affect product.image usage", () => {
+      const code = "{{ product.featured_image | image_url: width: 400 }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toBe(code);
+    });
+
+    it("should not affect collection.image usage", () => {
+      const code = "{{ collection.image | img_url: 'medium' }}";
+      const result = stripImageUrlFilters(code);
+
+      expect(result).toBe(code);
+    });
+  });
+
+  describe("integration with rewriteSectionSettings", () => {
+    it("should strip image_url after settings transformation", () => {
+      const code = "{{ section.settings.background_image | image_url: width: 1920 }}";
+      const result = rewriteSectionSettings(code);
+
+      // After rewrite: settings_background_image, then image_url is stripped
+      // Note: Trailing space before }} may not be preserved (cosmetic only)
+      expect(result).toContain("settings_background_image");
+      expect(result).not.toContain("image_url");
+    });
+
+    it("should handle full template with image_url", () => {
+      const code = `
+{% if section.settings.background_image %}
+  <section style="background-image: url('{{ section.settings.background_image | image_url: width: 1920 }}');">
+{% else %}
+  <section class="placeholder">
+{% endif %}`;
+      const result = rewriteSectionSettings(code);
+
+      expect(result).toContain("{% if settings_background_image %}");
+      expect(result).toContain("settings_background_image}}')");
+      expect(result).not.toContain("image_url");
+    });
+
+    it("should convert image_url | image_tag chain to img element after settings transformation", () => {
+      const code = "{{ section.settings.image | image_url: width: 1200 | image_tag }}";
+      const result = rewriteSectionSettings(code);
+
+      expect(result).toBe('<img src="{{ settings_image }}" alt="" loading="lazy">');
+    });
+
+    it("should handle full template with image_url | image_tag chain", () => {
+      const code = `
+{% if section.settings.image %}
+  {{ section.settings.image | image_url: width: 1200 | image_tag }}
+{% else %}
+  {{ 'image' | placeholder_svg_tag: 'ai-placeholder-image' }}
+{% endif %}`;
+      const result = rewriteSectionSettings(code);
+
+      expect(result).toContain("{% if settings_image %}");
+      expect(result).toContain('<img src="{{ settings_image }}" alt="" loading="lazy">');
+      expect(result).not.toContain("image_url");
+      // Placeholder should remain unchanged
+      expect(result).toContain("placeholder_svg_tag");
     });
   });
 });

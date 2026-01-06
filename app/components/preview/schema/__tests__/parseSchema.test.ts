@@ -242,10 +242,10 @@ describe('buildInitialState - expanded defaults', () => {
     expect(state.link).toBe('/products');
   });
 
-  it('sets image_picker default to placeholder', () => {
+  it('sets image_picker default to empty string (Shopify nil behavior)', () => {
     const settings: SchemaSetting[] = [{ type: 'image_picker', id: 'image', label: 'Image' }];
     const state = buildInitialState(settings);
-    expect(state.image).toBe('placeholder');
+    expect(state.image).toBe('');
   });
 
   it('sets checkbox default to false', () => {

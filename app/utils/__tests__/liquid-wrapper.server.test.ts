@@ -106,13 +106,14 @@ describe("wrapLiquidForProxy", () => {
       expect(result).toContain("{% assign settings_show_title = true %}");
     });
 
-    it("should escape single quotes in string settings", () => {
+    it("should use double quotes for strings with single quotes", () => {
       const result = wrapLiquidForProxy({
         liquidCode: "{{ settings_text }}",
         settings: { text: "It's a test" },
       });
 
-      expect(result).toContain("{% assign settings_text = 'It\\'s a test' %}");
+      // Uses double quotes when string contains single quotes
+      expect(result).toContain('{% assign settings_text = "It\'s a test" %}');
     });
 
     it("should reject settings with invalid variable names", () => {

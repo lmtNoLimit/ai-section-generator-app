@@ -47,7 +47,7 @@ COLORS:
 - color_background: CSS background (gradients allowed)
 
 MEDIA:
-- image_picker: Returns image object. NO default supported
+- image_picker: Returns image object. NO default supported. MUST use conditional rendering (see IMAGE PLACEHOLDER PATTERN)
 - video: Returns video object. NO default supported
 - video_url: REQUIRES: accept ["youtube", "vimeo"]. Props: placeholder
 - font_picker: REQUIRES: default specified. Format: "helvetica_n4"
@@ -67,6 +67,20 @@ METAOBJECTS:
 DISPLAY-ONLY (no storage):
 - header: Heading text in editor
 - paragraph: Info text in editor
+
+=== IMAGE PLACEHOLDER PATTERN (REQUIRED) ===
+All image_picker settings MUST use conditional rendering:
+
+{% if section.settings.image %}
+  {{ section.settings.image | image_url: width: 1200 | image_tag }}
+{% else %}
+  {{ 'image' | placeholder_svg_tag: 'ai-placeholder-image' }}
+{% endif %}
+
+- NEVER assume image exists - always check first
+- Use placeholder_svg_tag for empty state (inline SVG, no network request)
+- Add CSS class to placeholder for styling consistency
+- Container should have aspect-ratio or min-height for placeholder
 
 === VALIDATION RULES ===
 1. range MUST have min, max, step properties (all required)
@@ -109,6 +123,7 @@ Block Title Precedence (auto-display in editor):
 - Prefix custom classes with "ai-"
 - Mobile-first responsive design
 - Never use global CSS resets
+- Style .ai-placeholder-image with aspect-ratio and background-color for image placeholders
 
 === MARKUP RULES ===
 - Use semantic HTML (section, article, nav, header, footer)
@@ -159,7 +174,8 @@ Video URL (accept required):
 7. Duplicate setting IDs -> All IDs must be unique
 8. Schema inside {% if %} -> Schema must be root level
 9. JS-style comments in JSON -> No comments allowed
-10. Missing preset -> Always include presets array`;
+10. Missing preset -> Always include presets array
+11. Image without conditional check -> Always use {% if section.settings.image %} pattern`;
 
 export class AIService implements AIServiceInterface {
   private genAI: GoogleGenerativeAI | null = null;

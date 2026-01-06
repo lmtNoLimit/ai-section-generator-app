@@ -113,6 +113,10 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     background-position: center;
   }
 
+  .hero-bg-section--placeholder {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
   .hero-bg-overlay {
     position: absolute;
     top: 0;
@@ -161,10 +165,14 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   }
 </style>
 
-<section
-  class="hero-bg-section"
-  style="background-image: url('{{ section.settings.background_image | image_url: width: 1920 }}');"
->
+{% if section.settings.background_image %}
+  <section
+    class="hero-bg-section"
+    style="background-image: url('{{ section.settings.background_image | image_url: width: 1920 }}');"
+  >
+{% else %}
+  <section class="hero-bg-section hero-bg-section--placeholder">
+{% endif %}
   <div class="hero-bg-overlay"></div>
   <div class="hero-bg-content">
     <h1 class="hero-bg-heading">{{ section.settings.heading }}</h1>

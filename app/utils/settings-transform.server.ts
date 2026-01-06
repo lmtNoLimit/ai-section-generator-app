@@ -96,7 +96,13 @@ export function generateSettingsAssigns(settings: SettingsState): string[] {
     if (value === null || value === undefined) {
       assigns.push(`{% assign settings_${safeKey} = nil %}`);
     } else if (typeof value === 'string') {
-      assigns.push(generateStringAssign(`settings_${safeKey}`, value));
+      // Empty strings should be nil so Liquid conditionals work correctly
+      // This is especially important for image_picker where empty = no image
+      if (value === '') {
+        assigns.push(`{% assign settings_${safeKey} = nil %}`);
+      } else {
+        assigns.push(generateStringAssign(`settings_${safeKey}`, value));
+      }
     } else if (typeof value === 'number') {
       assigns.push(`{% assign settings_${safeKey} = ${value} %}`);
     } else if (typeof value === 'boolean') {
@@ -137,7 +143,12 @@ export function generateBlocksAssigns(blocks: BlockInstance[]): string[] {
         if (!safeKey || !VALID_VAR_REGEX.test(safeKey)) continue;
 
         if (typeof value === 'string') {
-          assigns.push(generateStringAssign(`${prefix}_${safeKey}`, value));
+          // Empty strings should be nil for proper Liquid conditionals
+          if (value === '') {
+            assigns.push(`{% assign ${prefix}_${safeKey} = nil %}`);
+          } else {
+            assigns.push(generateStringAssign(`${prefix}_${safeKey}`, value));
+          }
         } else if (typeof value === 'number' || typeof value === 'boolean') {
           assigns.push(`{% assign ${prefix}_${safeKey} = ${value} %}`);
         }
@@ -176,6 +187,42 @@ export function rewriteSectionSettings(code: string): string {
     /section\.settings\[['"]([a-zA-Z_][a-zA-Z0-9_]*)['"]\]/g,
     'settings_$1'
   );
+
+  // Strip image_url/img_url filters from settings variables
+  // Our image picker stores raw CDN URLs, but Shopify's image_url filter
+  // expects image objects (MediaImage). This causes "invalid url input" errors.
+  // Solution: Remove the filter since settings values are already URLs.
+  result = stripImageUrlFilters(result);
+
+  return result;
+}
+
+/**
+ * Transform image filters for settings variables.
+ * Our app stores raw CDN URLs from image picker, but Shopify's native
+ * image_url filter expects MediaImage objects, not URL strings.
+ *
+ * Two transformation modes:
+ * 1. When image_tag is present: Generate <img> tag with the URL
+ *    {{ settings_X | image_url | image_tag }} → <img src="{{ settings_X }}" alt="" loading="lazy">
+ *
+ * 2. When only image_url/img_url (used in CSS): Just output the URL
+ *    {{ settings_X | image_url: width: 1920 }} → {{ settings_X }}
+ */
+export function stripImageUrlFilters(code: string): string {
+  // First pass: Handle chains with image_tag - convert to <img> element
+  // Match: {{ var | image_url... | image_tag... }}
+  // Output: <img src="{{ var }}" alt="" loading="lazy">
+  const imageTagChainRegex = /\{\{\s*(settings_[a-zA-Z0-9_]+|block_\d+_[a-zA-Z0-9_]+)\s*\|\s*(?:image_url|img_url)(?:\s*:\s*[^|}]+)?\s*\|\s*image_tag(?:\s*:\s*[^|}]+)?\s*\}\}/g;
+
+  let result = code.replace(imageTagChainRegex, '<img src="{{ $1 }}" alt="" loading="lazy">');
+
+  // Second pass: Handle chains without image_tag (used in CSS background-image, etc.)
+  // Match: {{ var | image_url... }} (no image_tag)
+  // Output: {{ var }}
+  const imageUrlOnlyRegex = /(settings_[a-zA-Z0-9_]+|block_\d+_[a-zA-Z0-9_]+)\s*\|\s*(?:image_url|img_url)(?:\s*:\s*[^|}]+)?(?!\s*\|\s*image_tag)/g;
+
+  result = result.replace(imageUrlOnlyRegex, '$1');
 
   return result;
 }

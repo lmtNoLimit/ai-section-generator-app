@@ -192,7 +192,7 @@ export function buildInitialState(settings: SchemaSetting[]): SettingsState {
 
       // Media pickers
       case 'image_picker':
-        state[setting.id] = 'placeholder';
+        state[setting.id] = '';
         break;
 
       case 'video':
