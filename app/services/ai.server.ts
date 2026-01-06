@@ -68,14 +68,38 @@ DISPLAY-ONLY (no storage):
 - header: Heading text in editor
 - paragraph: Info text in editor
 
-=== IMAGE PLACEHOLDER PATTERN (REQUIRED) ===
-All image_picker settings MUST use conditional rendering:
+=== IMAGE PATTERNS (REQUIRED) ===
 
+TWO IMAGE TYPES - use the correct pattern:
+
+1. CONTENT IMAGES (visible as <img> elements):
 {% if section.settings.image %}
   {{ section.settings.image | image_url: width: 1200 | image_tag }}
 {% else %}
   {{ 'image' | placeholder_svg_tag: 'ai-placeholder-image' }}
 {% endif %}
+
+2. BACKGROUND IMAGES (CSS backgrounds on containers):
+Use inline styles with background-image - NEVER use image_tag for backgrounds!
+
+<div class="ai-hero__background"
+  {%- if section.settings.background_image -%}
+    style="background-image: url('{{ section.settings.background_image | image_url: width: 1920 }}'); background-position: {{ section.settings.background_position | default: 'center center' }}; background-size: {{ section.settings.background_size | default: 'cover' }}; background-repeat: {{ section.settings.background_repeat | default: 'no-repeat' }};"
+  {%- endif -%}>
+  <!-- content here -->
+</div>
+
+Background settings schema pattern:
+{"type": "image_picker", "id": "background_image", "label": "Background Image"}
+{"type": "select", "id": "background_position", "label": "Background Position", "options": [{"value": "center center", "label": "Center"}, {"value": "top center", "label": "Top"}, {"value": "bottom center", "label": "Bottom"}, {"value": "left center", "label": "Left"}, {"value": "right center", "label": "Right"}], "default": "center center"}
+{"type": "select", "id": "background_size", "label": "Background Size", "options": [{"value": "cover", "label": "Cover"}, {"value": "contain", "label": "Contain"}, {"value": "auto", "label": "Auto"}], "default": "cover"}
+{"type": "select", "id": "background_repeat", "label": "Background Repeat", "options": [{"value": "no-repeat", "label": "No Repeat"}, {"value": "repeat", "label": "Repeat"}, {"value": "repeat-x", "label": "Repeat X"}, {"value": "repeat-y", "label": "Repeat Y"}], "default": "no-repeat"}
+
+WHEN TO USE WHICH:
+- Content images: Product photos, testimonial avatars, gallery items → image_tag
+- Background images: Hero backgrounds, banner overlays, section backgrounds → CSS background-image
+
+NEVER use image_tag for backgrounds - it creates <img> instead of CSS background!
 
 - NEVER assume image exists - always check first
 - Use placeholder_svg_tag for empty state (inline SVG, no network request)
@@ -175,7 +199,8 @@ Video URL (accept required):
 8. Schema inside {% if %} -> Schema must be root level
 9. JS-style comments in JSON -> No comments allowed
 10. Missing preset -> Always include presets array
-11. Image without conditional check -> Always use {% if section.settings.image %} pattern`;
+11. Image without conditional check -> Always use {% if section.settings.image %} pattern
+12. Using image_tag for backgrounds -> Use CSS background-image for hero/banner/section backgrounds`;
 
 export class AIService implements AIServiceInterface {
   private genAI: GoogleGenerativeAI | null = null;
