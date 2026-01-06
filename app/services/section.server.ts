@@ -8,6 +8,29 @@ import {
 } from "../types/section-status";
 
 /**
+ * Sanitize Liquid code to fix invalid forms
+ * Safety net for AI hallucinations (e.g., new_comment forms, missing product arg)
+ */
+function sanitizeLiquidCode(code: string): string {
+  // ALWAYS remove new_comment forms - we never generate article sections
+  const newCommentFormRegex = /\{%[-\s]*form\s+['"]new_comment['"][^%]*%\}[\s\S]*?\{%[-\s]*endform[-\s]*%\}/gi;
+  code = code.replace(newCommentFormRegex, '<!-- new_comment form removed: not supported -->');
+
+  // Check if section has product picker
+  const hasProductPicker = /"type"\s*:\s*"product"/.test(code);
+
+  // Fix product forms missing product argument
+  if (hasProductPicker) {
+    code = code.replace(
+      /(\{%[-\s]*form\s+['"]product['"])(\s*%\})/gi,
+      '$1, section.settings.product$2'
+    );
+  }
+
+  return code;
+}
+
+/**
  * Extract the "name" field from Liquid schema block
  * Returns null if unable to parse
  */
@@ -90,8 +113,11 @@ export const sectionService = {
    * Uses schema name from generated code if user doesn't provide a name
    */
   async create(input: CreateSectionInput): Promise<Section> {
+    // Sanitize code before saving (defense against AI hallucinations)
+    const sanitizedCode = sanitizeLiquidCode(input.code);
+
     // Priority: user-provided name > schema name > prompt-based fallback
-    const schemaName = extractSchemaName(input.code);
+    const schemaName = extractSchemaName(sanitizedCode);
     const defaultName = input.name || schemaName || generateDefaultName(input.prompt);
 
     return prisma.section.create({
@@ -99,7 +125,7 @@ export const sectionService = {
         shop: input.shop,
         name: defaultName,
         prompt: input.prompt,
-        code: input.code,
+        code: sanitizedCode,
         tone: input.tone,
         style: input.style,
         status: SECTION_STATUS.DRAFT, // Always start as draft
@@ -130,9 +156,14 @@ export const sectionService = {
       }
     }
 
+    // Sanitize code if being updated
+    const updateData = input.code
+      ? { ...input, code: sanitizeLiquidCode(input.code) }
+      : input;
+
     return prisma.section.update({
       where: { id },
-      data: input,
+      data: updateData,
     });
   },
 

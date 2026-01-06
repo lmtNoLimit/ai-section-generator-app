@@ -4,7 +4,7 @@
  * for native Shopify Liquid rendering via App Proxy.
  */
 
-import type { SettingsState, BlockInstance } from '../components/preview/schema/SchemaTypes';
+import type { SettingsState, BlockInstance, SchemaDefinition } from '../components/preview/schema/SchemaTypes';
 import {
   generateSettingsAssigns,
   generateBlocksAssigns,
@@ -22,6 +22,8 @@ export interface WrapperOptions {
   blocks?: BlockInstance[];
   transformSectionSettings?: boolean;
   transformBlocksIteration?: boolean;
+  /** Parsed schema for schema-aware resource picker detection */
+  schema?: SchemaDefinition | null;
 }
 
 // Types for parsed proxy parameters
@@ -71,6 +73,7 @@ export function wrapLiquidForProxy({
   blocks = [],
   transformSectionSettings = false,
   transformBlocksIteration = false,
+  schema,
 }: WrapperOptions): string {
   const assigns: string[] = [];
 
@@ -101,8 +104,9 @@ export function wrapLiquidForProxy({
   );
 
   // Optionally transform section.settings.X to settings_X for compatibility
+  // Pass schema for schema-aware resource picker detection
   if (transformSectionSettings) {
-    cleanedCode = rewriteSectionSettings(cleanedCode);
+    cleanedCode = rewriteSectionSettings(cleanedCode, schema);
   }
 
   // Optionally transform for block in section.blocks loops

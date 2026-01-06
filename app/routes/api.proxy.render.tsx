@@ -19,6 +19,8 @@ import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { parseProxyParams, wrapLiquidForProxy } from "../utils/liquid-wrapper.server";
 import { getPreviewData, deletePreviewToken } from "../services/preview-token-store.server";
+import { sanitizeLiquidCode } from "../utils/input-sanitizer";
+import { parseSchema } from "../components/preview/schema/parseSchema";
 import type { SettingsState, BlockInstance } from "../components/preview/schema/SchemaTypes";
 
 // Max base64 code length (~75KB decoded) to prevent DoS attacks
@@ -100,16 +102,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
+  // DEBUG: Log if incoming code contains new_comment (helps trace phantom errors)
+  if (code.includes('new_comment')) {
+    console.warn('[ProxyRender] WARNING: Incoming code contains new_comment form!');
+    console.warn('[ProxyRender] First 500 chars:', code.substring(0, 500));
+  }
+
+  // CRITICAL: Sanitize code to remove invalid Liquid forms (new_comment, etc.)
+  // This is the last line of defense before Shopify renders the Liquid
+  const sanitizedCode = sanitizeLiquidCode(code);
+
+  // DEBUG: Verify sanitization removed new_comment
+  if (sanitizedCode.includes('new_comment')) {
+    console.error('[ProxyRender] CRITICAL: new_comment still present after sanitization!');
+  }
+
   try {
+    // Parse schema for schema-aware resource picker detection
+    // This allows custom setting IDs like 'selected_collection' to work correctly
+    const parsedSchema = parseSchema(sanitizedCode);
+
     // Wrap code with context injection and CSS isolation
     const wrappedCode = wrapLiquidForProxy({
-      liquidCode: code,
+      liquidCode: sanitizedCode,
       sectionId: sectionId ?? undefined,
       productHandle: productHandle ?? undefined,
       collectionHandle: collectionHandle ?? undefined,
       settings: settings ?? undefined,
       blocks: blocks ?? undefined,
       transformSectionSettings: true,
+      schema: parsedSchema,
     });
 
     return liquid(wrappedCode, { layout: false });

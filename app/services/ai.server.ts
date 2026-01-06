@@ -171,6 +171,134 @@ When to use:
 - Section displays featured resource without merchant selection
 - Default empty state would break layout
 
+=== RESOURCE PICKER PATTERNS ===
+
+SINGLE RESOURCE (conditional required - like images):
+
+Product picker:
+{% if section.settings.product %}
+  <h2>{{ section.settings.product.title }}</h2>
+  <p>{{ section.settings.product.price | money }}</p>
+  {% if section.settings.product.featured_image %}
+    {{ section.settings.product.featured_image | image_url: width: 600 | image_tag }}
+  {% endif %}
+{% else %}
+  <div class="ai-resource-placeholder">Select a product</div>
+{% endif %}
+
+Collection picker (preferred for product grids):
+{% if section.settings.collection %}
+  <h2>{{ section.settings.collection.title }}</h2>
+  <p>{{ section.settings.collection.products_count }} products</p>
+{% else %}
+  <div class="ai-resource-placeholder">Select a collection</div>
+{% endif %}
+
+Article picker:
+{% if section.settings.article %}
+  <h2>{{ section.settings.article.title }}</h2>
+  <p>{{ section.settings.article.excerpt }}</p>
+  <span>{{ section.settings.article.published_at | date: "%B %d, %Y" }}</span>
+{% else %}
+  <div class="ai-resource-placeholder">Select an article</div>
+{% endif %}
+
+Blog picker:
+{% if section.settings.blog %}
+  <h2>{{ section.settings.blog.title }}</h2>
+  <p>{{ section.settings.blog.articles_count }} articles</p>
+{% else %}
+  <div class="ai-resource-placeholder">Select a blog</div>
+{% endif %}
+
+Page picker:
+{% if section.settings.page %}
+  <div>{{ section.settings.page.content }}</div>
+{% else %}
+  <div class="ai-resource-placeholder">Select a page</div>
+{% endif %}
+
+Key properties available:
+- product: title, handle, price, compare_at_price, available, featured_image, variants, tags
+- collection: title, handle, description, image, products, products_count
+- article: title, excerpt, content, author, published_at, image, url, blog
+- blog: title, handle, articles, articles_count, url
+- page: title, handle, content, url
+
+Empty state styling (add to {% style %}):
+.ai-resource-placeholder {
+  padding: 40px 20px;
+  text-align: center;
+  background: #f5f5f5;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  color: #666;
+}
+
+RESOURCE LISTS (iteration required):
+
+Product list (direct selection):
+{% if section.settings.product_list.size > 0 %}
+  <div class="ai-products">
+    {% for product in section.settings.product_list %}
+      <div class="ai-product-card">
+        <h3>{{ product.title }}</h3>
+        <p>{{ product.price | money }}</p>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>Select products</p>
+{% endif %}
+
+Collection list:
+{% if section.settings.collection_list.size > 0 %}
+  {% for collection in section.settings.collection_list %}
+    <a href="{{ collection.url }}">{{ collection.title }}</a>
+  {% endfor %}
+{% endif %}
+
+RELATIONSHIP PATTERNS:
+
+Collection → Products (most common for grids/carousels):
+{% if section.settings.collection %}
+  {% for product in section.settings.collection.products limit: 12 %}
+    <div class="ai-product-card">
+      <h3>{{ product.title }}</h3>
+    </div>
+  {% endfor %}
+{% else %}
+  <p>Select a collection</p>
+{% endif %}
+
+Blog → Articles (for article feeds):
+{% if section.settings.blog %}
+  {% for article in section.settings.blog.articles limit: 6 %}
+    <article>
+      <h3>{{ article.title }}</h3>
+      <p>{{ article.excerpt }}</p>
+    </article>
+  {% endfor %}
+{% else %}
+  <p>Select a blog</p>
+{% endif %}
+
+PAGINATION (for large lists):
+{% if section.settings.collection %}
+  {% paginate section.settings.collection.products by 50 %}
+    {% for product in section.settings.collection.products %}
+      <!-- render product -->
+    {% endfor %}
+    {{ paginate | default_pagination }}
+  {% endpaginate %}
+{% endif %}
+
+Limits:
+- collection.products: 50 per page without pagination
+- blog.articles: 50 per page without pagination
+- product_list/collection_list: max 50 items
+- Use limit filter for performance: {% for item in list limit: 12 %}
+
 === CSS RULES ===
 - Wrap in {% style %}...{% endstyle %}
 - Root selector: #shopify-section-{{ section.id }}
@@ -230,7 +358,31 @@ Video URL (accept required):
 9. JS-style comments in JSON -> No comments allowed
 10. Missing preset -> Always include presets array
 11. Image without conditional check -> Always use {% if section.settings.image %} pattern
-12. Using image_tag for backgrounds -> Use CSS background-image for hero/banner/section backgrounds`;
+12. Using image_tag for backgrounds -> Use CSS background-image for hero/banner/section backgrounds
+13. Resource picker without conditional -> Always wrap in {% if section.settings.resource %}
+14. Resource list without size check -> Use {% if list.size > 0 %} before iteration
+15. Missing limit on relationship loops -> Add limit: N to {% for product in collection.products limit: 12 %}
+16. Using new_comment form outside article sections -> {% form 'new_comment', article %} REQUIRES article object, never use in product/collection sections
+17. Mixing resource types -> Product sections use product picker, article sections use article picker. Never generate comment forms for products
+
+=== FORM RULES ===
+CRITICAL: Forms require correct object argument!
+
+Product form (Add to Cart):
+- With product picker: {% form 'product', section.settings.product %}
+- WRONG: {% form 'product' %} -> ERROR: "product form must be given a product"
+- Must be inside {% if section.settings.product %} conditional
+
+Contact form: {% form 'contact' %} (no object needed)
+Customer login: {% form 'customer_login' %} (no object needed)
+
+ABSOLUTELY FORBIDDEN - NEVER GENERATE THESE:
+- {% form 'new_comment' %} -> NEVER USE. Causes fatal Liquid error.
+- {% form 'new_comment', article %} -> NEVER USE. Not supported.
+- Any comment/review forms -> NEVER USE. Handled by external apps.
+
+18. Product form without product argument -> ALWAYS use {% form 'product', section.settings.product %}
+19. NEVER generate new_comment forms -> They cause "must be given an article" errors`;
 
 export class AIService implements AIServiceInterface {
   private genAI: GoogleGenerativeAI | null = null;
@@ -261,7 +413,10 @@ export class AIService implements AIServiceInterface {
 
       // Strip markdown code block wrappers if present
       // AI sometimes returns ```liquid ... ``` despite instructions
-      return this.stripMarkdownFences(text.trim());
+      let cleanedCode = this.stripMarkdownFences(text.trim());
+      // Sanitize invalid forms (defense against AI hallucinations)
+      cleanedCode = this.sanitizeLiquidForms(cleanedCode);
+      return cleanedCode;
     } catch (error) {
       console.error("Gemini API error:", error);
       // Fallback to mock on error
@@ -280,6 +435,31 @@ export class AIService implements AIServiceInterface {
       return codeBlockMatch[1].trim();
     }
     return text;
+  }
+
+  /**
+   * Sanitize Liquid code to fix invalid form syntax
+   * Fixes AI hallucination issues like missing product argument
+   */
+  private sanitizeLiquidForms(code: string): string {
+    // ALWAYS remove new_comment forms - we never generate article sections
+    const newCommentFormRegex = /\{%[-\s]*form\s+['"]new_comment['"][^%]*%\}[\s\S]*?\{%[-\s]*endform[-\s]*%\}/gi;
+    code = code.replace(newCommentFormRegex, '<!-- new_comment form removed: not supported -->');
+
+    // Check if section has product picker (type: "product")
+    const hasProductPicker = /"type"\s*:\s*"product"/.test(code);
+
+    // Fix product forms missing the product argument
+    // {% form 'product' %} -> {% form 'product', section.settings.product %}
+    if (hasProductPicker) {
+      // Match {% form 'product' %} or {% form "product" %} WITHOUT a second argument
+      code = code.replace(
+        /(\{%[-\s]*form\s+['"]product['"])(\s*%\})/gi,
+        '$1, section.settings.product$2'
+      );
+    }
+
+    return code;
   }
 
   /**

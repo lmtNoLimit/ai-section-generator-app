@@ -304,6 +304,114 @@ describe("rewriteSectionSettings", () => {
 
     expect(result).toBe("{{ settings_title | upcase | truncate: 20 }}");
   });
+
+  // Legacy ID-based resource picker detection (backward compatibility)
+  it("should preserve resource picker with exact ID 'collection'", () => {
+    const code = "{% if section.settings.collection %}{{ section.settings.collection.title }}{% endif %}";
+    const result = rewriteSectionSettings(code);
+
+    expect(result).toBe("{% if collection %}{{ collection.title }}{% endif %}");
+  });
+
+  it("should preserve resource picker with exact ID 'product'", () => {
+    const code = "{{ section.settings.product.title }}";
+    const result = rewriteSectionSettings(code);
+
+    expect(result).toBe("{{ product.title }}");
+  });
+
+  // Schema-aware resource picker detection (new feature)
+  describe("schema-aware resource picker detection", () => {
+    it("should map custom collection ID to 'collection' when schema provided", () => {
+      const code = "{% if section.settings.selected_collection %}{{ section.settings.selected_collection.products }}{% endif %}";
+      const schema = {
+        name: "Product Grid",
+        settings: [
+          { type: "collection" as const, id: "selected_collection", label: "Collection" },
+        ],
+      };
+      const result = rewriteSectionSettings(code, schema);
+
+      expect(result).toBe("{% if collection %}{{ collection.products }}{% endif %}");
+    });
+
+    it("should map custom product ID to 'product' when schema provided", () => {
+      const code = "{{ section.settings.featured_product.title }}";
+      const schema = {
+        name: "Featured Product",
+        settings: [
+          { type: "product" as const, id: "featured_product", label: "Product" },
+        ],
+      };
+      const result = rewriteSectionSettings(code, schema);
+
+      expect(result).toBe("{{ product.title }}");
+    });
+
+    it("should handle multiple custom resource IDs in same schema", () => {
+      const code = `{% if section.settings.main_collection %}
+  {% for product in section.settings.main_collection.products %}
+    {{ product.title }}
+  {% endfor %}
+{% endif %}
+{% if section.settings.hero_product %}
+  {{ section.settings.hero_product.price | money }}
+{% endif %}`;
+
+      const schema = {
+        name: "Multi Resource",
+        settings: [
+          { type: "collection" as const, id: "main_collection", label: "Main Collection" },
+          { type: "product" as const, id: "hero_product", label: "Hero Product" },
+        ],
+      };
+      const result = rewriteSectionSettings(code, schema);
+
+      expect(result).toContain("{% if collection %}");
+      expect(result).toContain("{% for product in collection.products %}");
+      expect(result).toContain("{% if product %}");
+      expect(result).toContain("{{ product.price | money }}");
+    });
+
+    it("should handle article, blog, page pickers with custom IDs", () => {
+      const code = "{{ section.settings.featured_article.title }} {{ section.settings.source_blog.title }} {{ section.settings.about_page.content }}";
+      const schema = {
+        name: "Content Section",
+        settings: [
+          { type: "article" as const, id: "featured_article", label: "Article" },
+          { type: "blog" as const, id: "source_blog", label: "Blog" },
+          { type: "page" as const, id: "about_page", label: "Page" },
+        ],
+      };
+      const result = rewriteSectionSettings(code, schema);
+
+      expect(result).toBe("{{ article.title }} {{ blog.title }} {{ page.content }}");
+    });
+
+    it("should fallback to legacy detection when schema not provided", () => {
+      const code = "{{ section.settings.selected_collection.title }}";
+      // No schema provided - custom ID doesn't match legacy list
+      const result = rewriteSectionSettings(code);
+
+      // Falls back to settings_X format (legacy behavior)
+      expect(result).toBe("{{ settings_selected_collection.title }}");
+    });
+
+    it("should not affect non-resource settings when schema provided", () => {
+      const code = "{{ section.settings.heading }} {{ section.settings.columns }}";
+      const schema = {
+        name: "Grid",
+        settings: [
+          { type: "text" as const, id: "heading", label: "Heading" },
+          { type: "number" as const, id: "columns", label: "Columns" },
+          { type: "collection" as const, id: "source", label: "Collection" },
+        ],
+      };
+      const result = rewriteSectionSettings(code, schema);
+
+      expect(result).toBe("{{ settings_heading }} {{ settings_columns }}");
+    });
+  });
 });
 
 describe("rewriteBlocksIteration", () => {
