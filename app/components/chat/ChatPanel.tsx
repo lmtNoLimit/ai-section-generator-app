@@ -8,11 +8,13 @@
  * - MessageList scrolls, ChatInput stays at bottom
  */
 import { useEffect, useCallback, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { useChat } from "./hooks/useChat";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { ChatStyles } from "./ChatStyles";
 import { VersionTimeline } from "./VersionTimeline";
+import { ErrorType } from "../../utils/error-handler";
 import type { UIMessage, CodeVersion } from "../../types";
 import type { Suggestion } from "./utils/suggestion-engine";
 
@@ -43,6 +45,7 @@ export function ChatPanel({
   onVersionSelect,
   onVersionApply,
 }: ChatPanelProps) {
+  const navigate = useNavigate();
   const {
     messages,
     isStreaming,
@@ -62,6 +65,10 @@ export function ChatPanel({
     currentCode,
     onCodeUpdate,
   });
+
+  // Check if error is upgrade-required
+  const isUpgradeRequired = failedMessage?.error?.type === ErrorType.UPGRADE_REQUIRED;
+  const requiredPlan = failedMessage?.error?.upgradeRequired;
 
   // Track if we've already triggered auto-generation and loaded initial messages
   const hasTriggeredAutoGenRef = useRef(false);
@@ -219,9 +226,17 @@ export function ChatPanel({
 
       {/* Error banner */}
       {error && (
-        <s-banner tone="critical" onDismiss={clearError}>
+        <s-banner tone={isUpgradeRequired ? "info" : "critical"} onDismiss={clearError}>
           <s-text>{error}</s-text>
-          {failedMessage?.error.retryable && (
+          {isUpgradeRequired ? (
+            <s-button
+              slot="primary-action"
+              variant="primary"
+              onClick={() => navigate("/app/billing")}
+            >
+              Upgrade to {requiredPlan === "agency" ? "Agency" : "Pro"}
+            </s-button>
+          ) : failedMessage?.error.retryable ? (
             <s-button
               slot="primary-action"
               variant="primary"
@@ -229,7 +244,7 @@ export function ChatPanel({
             >
               Retry
             </s-button>
-          )}
+          ) : null}
         </s-banner>
       )}
 

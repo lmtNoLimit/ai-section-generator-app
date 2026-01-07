@@ -5,7 +5,7 @@
  */
 import { useReducer, useCallback, useRef, useEffect, useState } from 'react';
 import type { UIMessage, StreamEvent } from '../../../types';
-import { parseError, formatErrorMessage, type ChatError } from '../../../utils/error-handler';
+import { parseError, formatErrorMessage, createUpgradeError, type ChatError, type ApiErrorResponse } from '../../../utils/error-handler';
 import { useStreamingProgress, type StreamingProgress } from './useStreamingProgress';
 
 interface FailedMessage {
@@ -180,7 +180,27 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        // Try to parse error response body for upgrade-required errors
+        try {
+          const errorData: ApiErrorResponse = await response.json();
+          if (errorData.upgradeRequired) {
+            const upgradeError = createUpgradeError(errorData);
+            dispatch({
+              type: 'SET_ERROR',
+              error: formatErrorMessage(upgradeError),
+            });
+            setFailedMessage({ content: content.trim(), error: upgradeError });
+            return; // Exit early, don't throw
+          }
+          // Re-throw with server message if available
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        } catch (parseErr) {
+          // If JSON parsing fails, throw generic HTTP error
+          if (parseErr instanceof SyntaxError) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          throw parseErr; // Re-throw if it's our error from above
+        }
       }
 
       const reader = response.body?.getReader();

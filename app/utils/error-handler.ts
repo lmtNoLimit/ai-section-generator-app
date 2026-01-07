@@ -8,6 +8,7 @@ export enum ErrorType {
   AI_ERROR = 'ai_error',
   RATE_LIMIT = 'rate_limit',
   AUTH = 'auth',
+  UPGRADE_REQUIRED = 'upgrade_required',
   UNKNOWN = 'unknown',
 }
 
@@ -16,6 +17,31 @@ export interface ChatError {
   message: string;
   retryable: boolean;
   suggestion?: string;
+  /** Required plan tier for upgrade-required errors */
+  upgradeRequired?: 'pro' | 'agency';
+}
+
+/**
+ * API error response with upgrade requirement
+ */
+export interface ApiErrorResponse {
+  error: string;
+  upgradeRequired?: 'pro' | 'agency';
+  used?: number;
+  limit?: number;
+}
+
+/**
+ * Create upgrade-required error from API response
+ */
+export function createUpgradeError(response: ApiErrorResponse): ChatError {
+  return {
+    type: ErrorType.UPGRADE_REQUIRED,
+    message: response.error,
+    retryable: false,
+    upgradeRequired: response.upgradeRequired,
+    suggestion: 'Upgrade your plan to access this feature.',
+  };
 }
 
 /**
