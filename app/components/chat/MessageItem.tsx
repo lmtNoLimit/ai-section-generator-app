@@ -1,6 +1,6 @@
 /**
  * MessageItem component - Individual chat message display
- * Uses Polaris components for layout and styling
+ * Uses pure Polaris Web Components for all styling
  * Supports both user and assistant messages with code block rendering
  * Shows version badge for AI messages with codeSnapshot
  * Phase 05: Added suggestion chips for context-aware follow-ups
@@ -11,6 +11,24 @@ import { CodeBlock } from './CodeBlock';
 import { VersionCard } from './VersionCard';
 import { SuggestionChips } from './SuggestionChips';
 import { getSuggestions, type Suggestion } from './utils/suggestion-engine';
+
+// Minimal inline styles only for CSS features not available in Polaris s-box
+const bubbleStyles = {
+  user: {
+    borderRadius: '16px 16px 4px 16px', // Custom radius not in Polaris scale
+  },
+  ai: {
+    borderRadius: '16px 16px 16px 4px',
+  },
+  cursor: {
+    display: 'inline-block',
+    width: '2px',
+    height: '1em',
+    background: 'currentColor',
+    marginLeft: '2px',
+    animation: 'cursor-blink 1s ease-in-out infinite',
+  },
+} as const;
 
 export interface MessageItemProps {
   message: UIMessage;
@@ -186,126 +204,114 @@ export const MessageItem = memo(function MessageItem({
   }, [isUser, isStreaming, effectiveCode, messageCount, isLatestMessage]);
 
   return (
-    <div className="chat-message-enter">
-      <s-box
-        padding="small"
-        borderRadius="base"
-        accessibilityRole="generic"
-        accessibilityLabel={`${isUser ? 'You' : 'AI Assistant'} said`}
+    <s-box
+      padding="small"
+      accessibilityRole="generic"
+      accessibilityLabel={`${isUser ? 'You' : 'AI Assistant'} said`}
+    >
+      <s-stack
+        direction="inline"
+        gap="small"
+        alignItems="start"
+        justifyContent={isUser ? 'end' : 'start'}
       >
-        <s-stack
-          direction="inline"
-          gap="small"
-          alignItems="start"
-          justifyContent={isUser ? 'end' : 'start'}
-        >
-          {/* Avatar - show on left for assistant */}
-          {!isUser && (
-            <div className="chat-avatar--ai">
-              <s-avatar
-                initials="AI"
-                size="small"
-              />
-            </div>
-          )}
+        {/* Avatar - show on left for assistant */}
+        {!isUser && (
+          <s-avatar initials="AI" size="small" />
+        )}
 
-          {/* Message content */}
-          <s-box maxInlineSize="85%">
-            <s-stack direction="block" gap="small">
-              {/* For AI messages with only code (no text), show default message */}
-              {!isUser && hasCodeContent && !hasTextContent && (
-                <div
-                  className="chat-bubble--ai"
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '16px 16px 16px 4px',
-                  }}
+        {/* Message content */}
+        <s-box maxInlineSize="85%">
+          <s-stack direction="block" gap="small">
+            {/* For AI messages with only code (no text), show default message */}
+            {!isUser && hasCodeContent && !hasTextContent && (
+              <div style={bubbleStyles.ai}>
+                <s-box
+                  background="subdued"
+                  border="small"
+                  borderColor="subdued"
+                  padding="small base"
                 >
                   <s-text>Here's your section code. You can preview it in the panel on the right.</s-text>
-                </div>
-              )}
+                </s-box>
+              </div>
+            )}
 
-              {/* Message content parts */}
-              {parts.map((part, index) => {
-                // For AI messages: skip code blocks (code is displayed in Code Preview Panel)
-                // For user messages: render code blocks inline
-                if (part.type === 'code') {
-                  if (!isUser) return null; // AI code shown in preview panel
-                  return (
-                    <CodeBlock
-                      key={index}
-                      code={part.content}
-                      language={part.language || 'liquid'}
-                    />
-                  );
-                }
-
-                // Text content - show streaming cursor on last text part only
-                const textParts = parts.filter(p => p.type === 'text');
-                const isLastTextPart = part === textParts[textParts.length - 1];
-
+            {/* Message content parts */}
+            {parts.map((part, index) => {
+              // For AI messages: skip code blocks (code is displayed in Code Preview Panel)
+              // For user messages: render code blocks inline
+              if (part.type === 'code') {
+                if (!isUser) return null; // AI code shown in preview panel
                 return (
-                  <div
+                  <CodeBlock
                     key={index}
-                    className={isUser ? 'chat-bubble--user' : 'chat-bubble--ai'}
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                    }}
+                    code={part.content}
+                    language={part.language || 'liquid'}
+                  />
+                );
+              }
+
+              // Text content - show streaming cursor on last text part only
+              const textParts = parts.filter(p => p.type === 'text');
+              const isLastTextPart = part === textParts[textParts.length - 1];
+
+              return (
+                <div key={index} style={isUser ? bubbleStyles.user : bubbleStyles.ai}>
+                  <s-box
+                    background={isUser ? 'strong' : 'subdued'}
+                    border={isUser ? undefined : 'small'}
+                    borderColor={isUser ? undefined : 'subdued'}
+                    padding="small base"
                   >
                     <s-text>
                       {part.content}
                       {isStreaming && isLastTextPart && (
-                        <span className="chat-cursor" aria-hidden="true" />
+                        <span style={bubbleStyles.cursor} aria-hidden="true" />
                       )}
                     </s-text>
-                  </div>
-                );
-              })}
+                  </s-box>
+                </div>
+              );
+            })}
 
-              {/* Version Card for AI messages with code */}
-              {showVersionBadge && (
-                <VersionCard
-                  versionNumber={versionNumber}
-                  createdAt={message.createdAt}
-                  isActive={isActive}
-                  isSelected={isSelected}
-                  onPreview={onVersionSelect || (() => {})}
-                  onRestore={onVersionApply || (() => {})}
-                />
-              )}
-
-              {/* Suggestion Chips (Phase 05) */}
-              {suggestions.length > 0 && (
-                <SuggestionChips
-                  suggestions={suggestions}
-                  onChipClick={onSuggestionClick || (() => {})}
-                  onCopy={onCopyCode}
-                  onApply={onApplyCode}
-                />
-              )}
-
-              {/* Error display */}
-              {message.isError && (
-                <s-banner tone="critical" dismissible={false}>
-                  <s-text>{message.errorMessage || 'An error occurred'}</s-text>
-                </s-banner>
-              )}
-            </s-stack>
-          </s-box>
-
-          {/* Avatar - show on right for user */}
-          {isUser && (
-            <div className="chat-avatar--user">
-              <s-avatar
-                initials="U"
-                size="small"
+            {/* Version Card for AI messages with code */}
+            {showVersionBadge && (
+              <VersionCard
+                versionNumber={versionNumber}
+                createdAt={message.createdAt}
+                isActive={isActive}
+                isSelected={isSelected}
+                onPreview={onVersionSelect || (() => {})}
+                onRestore={onVersionApply || (() => {})}
               />
-            </div>
-          )}
-        </s-stack>
-      </s-box>
-    </div>
+            )}
+
+            {/* Suggestion Chips (Phase 05) */}
+            {suggestions.length > 0 && (
+              <SuggestionChips
+                suggestions={suggestions}
+                onChipClick={onSuggestionClick || (() => {})}
+                onCopy={onCopyCode}
+                onApply={onApplyCode}
+              />
+            )}
+
+            {/* Error display */}
+            {message.isError && (
+              <s-banner tone="critical" dismissible={false}>
+                <s-text>{message.errorMessage || 'An error occurred'}</s-text>
+              </s-banner>
+            )}
+          </s-stack>
+        </s-box>
+
+        {/* Avatar - show on right for user */}
+        {isUser && (
+          <s-avatar initials="U" size="small" />
+        )}
+      </s-stack>
+    </s-box>
   );
 }, (prevProps, nextProps) => {
   // Re-render if content, streaming, version state, or suggestion state changes

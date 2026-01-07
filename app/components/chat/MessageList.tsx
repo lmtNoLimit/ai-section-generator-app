@@ -1,6 +1,6 @@
 /**
  * MessageList component - Scrollable message container
- * Uses Polaris components for layout and empty state
+ * Uses pure Polaris Web Components for all styling
  * Handles auto-scroll, version display, build progress, and suggestion chips
  *
  * Note: Parent container handles scroll - this renders message content
@@ -13,6 +13,27 @@ import { StreamingCodeBlock } from './StreamingCodeBlock';
 import type { UIMessage, CodeVersion } from '../../types';
 import type { StreamingProgress } from './hooks/useStreamingProgress';
 import type { Suggestion } from './utils/suggestion-engine';
+
+// Minimal inline styles for non-Polaris features
+const styles = {
+  scrollContainer: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto' as const,
+    scrollBehavior: 'smooth' as const,
+  },
+  bubbleRadius: {
+    borderRadius: '16px 16px 16px 4px',
+  },
+  cursor: {
+    display: 'inline-block',
+    width: '2px',
+    height: '1em',
+    background: 'currentColor',
+    marginLeft: '2px',
+    animation: 'cursor-blink 1s ease-in-out infinite',
+  },
+};
 
 /**
  * Extract code from markdown code block in streaming content
@@ -76,7 +97,7 @@ export function MessageList({
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="chat-scroll chat-message-list"
+      style={styles.scrollContainer}
       role="log"
       aria-live="polite"
       aria-label="Chat messages"
@@ -85,10 +106,14 @@ export function MessageList({
         {messages.length === 0 ? (
           <s-box padding="large-500" minBlockSize="250px">
             <s-stack direction="block" gap="large" alignItems="center">
-              {/* Icon with gradient background */}
-              <div className="chat-empty-icon">
+              {/* Icon with Polaris styling */}
+              <s-box
+                background="subdued"
+                padding="base"
+                borderRadius="large"
+              >
                 <s-icon type="chat" />
-              </div>
+              </s-box>
 
               {/* Title and description */}
               <s-stack direction="block" gap="small" alignItems="center">
@@ -100,17 +125,11 @@ export function MessageList({
                 </s-text>
               </s-stack>
 
-              {/* Suggestion chips */}
+              {/* Suggestion chips using Polaris s-badge */}
               <s-stack direction="inline" gap="small">
-                <span className="chat-suggestion" role="button" tabIndex={0}>
-                  Make the heading larger
-                </span>
-                <span className="chat-suggestion" role="button" tabIndex={0}>
-                  Add a CTA button
-                </span>
-                <span className="chat-suggestion" role="button" tabIndex={0}>
-                  Change colors
-                </span>
+                <s-badge>Make the heading larger</s-badge>
+                <s-badge>Add a CTA button</s-badge>
+                <s-badge>Change colors</s-badge>
               </s-stack>
             </s-stack>
           </s-box>
@@ -149,7 +168,7 @@ export function MessageList({
 
             {/* Streaming message with build progress */}
             {isStreaming && (
-              <div className="streaming-message-container">
+              <s-stack direction="block" gap="small">
                 {/* Build progress indicator */}
                 {progress && (
                   <BuildProgressIndicator
@@ -175,29 +194,26 @@ export function MessageList({
                   <TypingIndicator />
                 ) : (
                   /* Simple "Generating..." message while streaming */
-                  <div className="chat-message-enter">
-                    <s-box padding="small" borderRadius="base">
-                      <s-stack direction="inline" gap="small" alignItems="center">
-                        <div className="chat-avatar--ai">
-                          <s-avatar initials="AI" size="small" />
-                        </div>
-                        <div
-                          className="chat-bubble--ai"
-                          style={{
-                            padding: '10px 14px',
-                            borderRadius: '16px 16px 16px 4px',
-                          }}
+                  <s-box padding="small">
+                    <s-stack direction="inline" gap="small" alignItems="center">
+                      <s-avatar initials="AI" size="small" />
+                      <div style={styles.bubbleRadius}>
+                        <s-box
+                          background="subdued"
+                          border="small"
+                          borderColor="subdued"
+                          padding="small base"
                         >
                           <s-text>
                             Generating your section
-                            <span className="chat-cursor" aria-hidden="true" />
+                            <span style={styles.cursor} aria-hidden="true" />
                           </s-text>
-                        </div>
-                      </s-stack>
-                    </s-box>
-                  </div>
+                        </s-box>
+                      </div>
+                    </s-stack>
+                  </s-box>
                 )}
-              </div>
+              </s-stack>
             )}
           </s-stack>
         )}

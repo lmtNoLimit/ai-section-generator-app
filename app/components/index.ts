@@ -52,7 +52,6 @@ export { CodeBlock } from './chat/CodeBlock';
 export { TypingIndicator } from './chat/TypingIndicator';
 export { useChat } from './chat/hooks/useChat';
 export { useAutoScroll } from './chat/hooks/useAutoScroll';
-export { ChatStyles } from './chat/ChatStyles';
 
 // Chat types
 export type { ChatPanelProps } from './chat/ChatPanel';

@@ -59,6 +59,3 @@ export type { Suggestion, GetSuggestionsOptions } from './utils/suggestion-engin
 
 export { detectSectionType } from './utils/section-type-detector';
 export type { SectionType } from './utils/section-type-detector';
-
-// Style utilities
-export { ChatStyles } from './ChatStyles';

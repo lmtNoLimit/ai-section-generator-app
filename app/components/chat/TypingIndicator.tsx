@@ -1,31 +1,49 @@
 /**
  * TypingIndicator component - Shows AI is thinking animation
- * Uses Polaris components with minimal CSS for dot animation
+ * Uses pure Polaris Web Components with minimal inline CSS for dot animation
  */
+
+// Inline styles for typing dots animation
+const typingStyles = {
+  container: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px 0',
+  },
+  dot: (delay: number) => ({
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    backgroundColor: 'var(--p-color-text-secondary)',
+    animation: 'typing-bounce 1.4s infinite ease-in-out',
+    animationDelay: `${delay}s`,
+  }),
+  bubbleRadius: {
+    borderRadius: '16px 16px 16px 4px',
+  },
+} as const;
 
 export function TypingIndicator() {
   return (
-    <div className="chat-message-enter">
-      <s-box padding="small" accessibilityRole="status" accessibilityLabel="AI is thinking">
-        <s-stack direction="inline" gap="small" alignItems="center">
-          <div className="chat-avatar--ai">
-            <s-avatar initials="AI" size="small" />
-          </div>
-          <div
-            className="chat-bubble--ai"
-            style={{
-              padding: '12px 16px',
-              borderRadius: '16px 16px 16px 4px',
-            }}
+    <s-box padding="small" accessibilityRole="status" accessibilityLabel="AI is thinking">
+      <s-stack direction="inline" gap="small" alignItems="center">
+        <s-avatar initials="AI" size="small" />
+        <div style={{ ...typingStyles.bubbleRadius }}>
+          <s-box
+            background="subdued"
+            border="small"
+            borderColor="subdued"
+            padding="small base"
           >
-            <div className="chat-typing">
-              <span className="chat-typing__dot" />
-              <span className="chat-typing__dot" />
-              <span className="chat-typing__dot" />
+            <div style={typingStyles.container}>
+            <span style={typingStyles.dot(0)} />
+            <span style={typingStyles.dot(0.16)} />
+            <span style={typingStyles.dot(0.32)} />
             </div>
-          </div>
-        </s-stack>
-      </s-box>
-    </div>
+          </s-box>
+        </div>
+      </s-stack>
+    </s-box>
   );
 }

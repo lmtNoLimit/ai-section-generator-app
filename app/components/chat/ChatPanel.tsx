@@ -1,6 +1,6 @@
 /**
  * ChatPanel component - Main chat container
- * Uses Polaris Web Components for structure with minimal CSS for flex layout
+ * Uses pure Polaris Web Components for all styling
  * Supports version display, selection, and suggestion chips
  *
  * Layout: Header | Scrollable Messages | Fixed Input
@@ -12,11 +12,30 @@ import { useNavigate } from "react-router";
 import { useChat } from "./hooks/useChat";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
-import { ChatStyles } from "./ChatStyles";
 import { VersionTimeline } from "./VersionTimeline";
 import { ErrorType } from "../../utils/error-handler";
 import type { UIMessage, CodeVersion } from "../../types";
 import type { Suggestion } from "./utils/suggestion-engine";
+
+// Minimal CSS for keyframe animations (cursor blink, typing bounce)
+import "./chat-animations.css";
+
+// Minimal inline styles for flex layout (not available in Polaris s-box)
+const containerStyles = {
+  panel: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    height: '100%',
+    minHeight: 0,
+  },
+  messages: {
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column' as const,
+  },
+};
 
 export interface ChatPanelProps {
   conversationId: string;
@@ -184,10 +203,7 @@ export function ChatPanel({
   }, [retryFailedMessage]);
 
   return (
-    <div className="chat-panel-container">
-      {/* Minimal CSS for animations + layout */}
-      <ChatStyles />
-
+    <div style={containerStyles.panel}>
       {/* Header - fixed at top */}
       <s-box
         padding="small base"
@@ -249,7 +265,7 @@ export function ChatPanel({
       )}
 
       {/* Message list - scrollable, takes remaining space */}
-      <div className="chat-messages-container">
+      <div style={containerStyles.messages}>
         <MessageList
           messages={messages}
           isStreaming={isStreaming}
