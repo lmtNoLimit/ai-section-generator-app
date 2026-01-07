@@ -35,13 +35,20 @@ export async function canGenerate(shop: string): Promise<{ allowed: boolean; quo
 
 /**
  * Record generation usage after successful AI generation
+ * @param subscription - Pass from caller to avoid duplicate DB fetch
  */
-export async function trackGeneration(admin: AdminApiContext, shop: string, sectionId: string, prompt: string) {
+export async function trackGeneration(
+  admin: AdminApiContext,
+  shop: string,
+  sectionId: string,
+  prompt: string,
+  subscription: Awaited<ReturnType<typeof getSubscription>> | null = null
+) {
   try {
-    // Check if this is an overage generation
-    const subscription = await getSubscription(shop);
+    // Use passed subscription or fetch (backward compatibility)
+    const sub = subscription ?? await getSubscription(shop);
 
-    if (!subscription) {
+    if (!sub) {
       // Free tier - no billing
       console.log(`[Usage] Free tier generation for ${shop}`);
       return;

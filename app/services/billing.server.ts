@@ -17,7 +17,6 @@ import type {
   PlanTier,
   SubscriptionStatus,
 } from "../types/billing";
-import { getTrialStatus, convertTrial } from "./trial.server";
 
 /**
  * Get plan configuration by tier
@@ -149,9 +148,6 @@ export async function createSubscription(
       overagesThisCycle: 0,
     },
   });
-
-  // Convert trial if active (mark as converted to this plan)
-  await convertTrial(shop, planName);
 
   return {
     confirmationUrl: result.confirmationUrl,
@@ -422,26 +418,9 @@ export async function recordUsage(
 
 /**
  * Check quota before generation
- * Trial users get quota from trial, not free tier
  */
 export async function checkQuota(shop: string): Promise<QuotaCheck> {
   const subscription = await getSubscription(shop);
-  const trial = await getTrialStatus(shop);
-
-  // Trial users - check trial quota first
-  if (trial.isInTrial && trial.usageRemaining > 0) {
-    return {
-      hasQuota: true,
-      subscription: null,
-      usageThisCycle: trial.usageCount,
-      includedQuota: trial.maxUsage,
-      overagesThisCycle: 0,
-      overagesRemaining: 0,
-      percentUsed: (trial.usageCount / trial.maxUsage) * 100,
-      isInTrial: true,
-      trialEndsAt: trial.endsAt,
-    };
-  }
 
   // No subscription = free tier with limits from database
   if (!subscription) {
@@ -450,17 +429,40 @@ export async function checkQuota(shop: string): Promise<QuotaCheck> {
     });
     const freeQuota = freePlan?.includedQuota ?? 5;
 
-    // Count free tier usage (sections created this calendar month)
+    // Count from GenerationLog (immutable, survives section deletion)
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const freeUsageCount = await prisma.section.count({
+    // Primary: Count GenerationLog
+    let freeUsageCount = await prisma.generationLog.count({
       where: {
         shop,
-        createdAt: { gte: startOfMonth },
+        generatedAt: { gte: startOfMonth },
       },
     });
+
+    // Fallback: If no GenerationLog exists yet (migration period),
+    // use Section.count as before
+    if (freeUsageCount === 0) {
+      // Check if shop has ANY GenerationLog records (not just this month)
+      // Only fall back to Section.count if truly in migration mode
+      const hasAnyLogs = await prisma.generationLog.count({
+        where: { shop },
+      });
+      if (hasAnyLogs === 0) {
+        // Legacy shop - no GenerationLog ever, use Section.count
+        const legacyCount = await prisma.section.count({
+          where: {
+            shop,
+            createdAt: { gte: startOfMonth },
+          },
+        });
+        freeUsageCount = legacyCount;
+      }
+      // If hasAnyLogs > 0 but freeUsageCount is 0, shop has history
+      // from previous months but zero this month - don't fall back
+    }
 
     return {
       hasQuota: freeUsageCount < freeQuota,
@@ -470,12 +472,9 @@ export async function checkQuota(shop: string): Promise<QuotaCheck> {
       overagesThisCycle: 0,
       overagesRemaining: 0,
       percentUsed: Math.min((freeUsageCount / freeQuota) * 100, 100),
-      isInTrial: false,
-      trialEndsAt: null,
     };
   }
 
-  const isInTrial = subscription.trialEndsAt ? new Date() < subscription.trialEndsAt : false;
   const maxOverages = Math.floor(subscription.cappedAmount / subscription.overagePrice);
   const overagesRemaining = maxOverages - subscription.overagesThisCycle;
   const hasQuota = subscription.usageThisCycle < subscription.includedQuota || overagesRemaining > 0;
@@ -489,8 +488,6 @@ export async function checkQuota(shop: string): Promise<QuotaCheck> {
     overagesThisCycle: subscription.overagesThisCycle,
     overagesRemaining,
     percentUsed: Math.min(percentUsed, 100),
-    isInTrial,
-    trialEndsAt: subscription.trialEndsAt,
   };
 }
 

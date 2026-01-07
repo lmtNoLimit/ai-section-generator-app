@@ -19,9 +19,6 @@ jest.mock('../../db.server', () => ({
     message: {
       count: jest.fn(),
     },
-    trial: {
-      findUnique: jest.fn(),
-    },
   },
 }));
 
@@ -47,10 +44,6 @@ const mockedPrismaPlanConfig = prisma.planConfiguration as {
 
 const mockedPrismaMessage = prisma.message as {
   count: MockedFunction<typeof prisma.message.count>;
-};
-
-const mockedPrismaTrial = prisma.trial as {
-  findUnique: MockedFunction<typeof prisma.trial.findUnique>;
 };
 
 // ============================================================================
@@ -120,8 +113,6 @@ const AGENCY_PLAN = createMockPlanConfig({
 describe('FeatureGateService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default: no trial (returns null)
-    mockedPrismaTrial.findUnique.mockResolvedValue(null);
   });
 
   // ============================================================================
@@ -327,11 +318,6 @@ describe('FeatureGateService', () => {
         refinementUsed: 0,
         teamSeatLimit: 1,
         planName: 'free',
-        // Trial info (no trial)
-        isInTrial: false,
-        trialDaysRemaining: 0,
-        trialUsageRemaining: 0,
-        trialMaxUsage: 0,
       });
     });
 

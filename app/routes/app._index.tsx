@@ -9,10 +9,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import prisma from "../db.server";
 import { settingsService } from "../services/settings.server";
 import { newsService } from "../services/news.server";
-import { getSubscription } from "../services/billing.server";
-import { getTrialStatus, startTrial, type TrialStatus } from "../services/trial.server";
 import { SetupGuide, Analytics, News } from "../components/home";
-import { TrialBanner } from "../components/billing";
 
 // Helper to get start of current week (Monday)
 function getStartOfWeek(): Date {
@@ -38,17 +35,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const startOfWeek = getStartOfWeek();
   const startOfLastWeek = getStartOfLastWeek();
-
-  // Check/start trial for new users (before parallel fetches)
-  let trialStatus = await getTrialStatus(shop);
-
-  // Auto-start trial if no trial and no subscription
-  if (trialStatus.status === "none") {
-    const subscription = await getSubscription(shop);
-    if (!subscription) {
-      trialStatus = await startTrial(shop);
-    }
-  }
 
   // Fetch stats, trend data, onboarding state, CTA state, and news in parallel
   const [historyCount, templateCount, weeklyCount, lastWeekCount, shopSettings, ctaState, newsItems] =
@@ -110,7 +96,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
     cta: ctaState,
     news: newsItems,
-    trialStatus,
   };
 };
 
@@ -148,12 +133,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Homepage() {
-  const { stats, onboarding, news, trialStatus } = useLoaderData<typeof loader>();
+  const { stats, onboarding, news } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
-
-  const handleUpgrade = () => {
-    navigate("/app/billing");
-  };
 
   return (
     <s-page heading="Dashboard" inlineSize="base">
@@ -166,16 +147,6 @@ export default function Homepage() {
       </s-button>
 
       <s-stack gap="large" direction="block">
-        {/* Trial banner - show when in active trial */}
-        {trialStatus.isInTrial && (
-          <TrialBanner
-            daysRemaining={trialStatus.daysRemaining}
-            usageRemaining={trialStatus.usageRemaining}
-            maxUsage={trialStatus.maxUsage}
-            onUpgrade={handleUpgrade}
-          />
-        )}
-
         <SetupGuide onboarding={onboarding} />
         <Analytics stats={stats} />
         <News items={news} />

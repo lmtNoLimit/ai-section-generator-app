@@ -6,7 +6,9 @@ import { extractCodeFromResponse } from "../utils/code-extractor";
 import { summarizeOldMessages } from "../utils/context-builder";
 import { sanitizeUserInput, sanitizeLiquidCode } from "../utils/input-sanitizer";
 import { checkRefinementAccess } from "../services/feature-gate.server";
-import { getTrialStatus, incrementTrialUsage } from "../services/trial.server";
+import { logGeneration } from "../services/generation-log.server";
+import { trackGeneration } from "../services/usage-tracking.server";
+import { getSubscription } from "../services/billing.server";
 import type { ConversationContext } from "../types/ai.types";
 
 // Constants for input validation
@@ -21,7 +23,7 @@ const MAX_CODE_LENGTH = 100000; // 100K chars max for Liquid code
  * Response: Server-Sent Events stream with real Gemini streaming
  */
 export async function action({ request }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
 
   const formData = await request.formData();
@@ -51,22 +53,6 @@ export async function action({ request }: ActionFunctionArgs) {
   const conversation = await chatService.getConversation(conversationId);
   if (!conversation || conversation.shop !== shop) {
     return new Response("Conversation not found", { status: 404 });
-  }
-
-  // Trial gate: Check if trial user has remaining generations
-  const trialStatus = await getTrialStatus(shop);
-  if (trialStatus.isInTrial && trialStatus.usageRemaining <= 0) {
-    return new Response(
-      JSON.stringify({
-        error: "Trial limit reached. Upgrade to continue generating.",
-        trialExpired: true,
-        upgradeRequired: "pro",
-      }),
-      {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
   }
 
   // Feature gate: Check refinement access (skip for initial generation)
@@ -165,9 +151,43 @@ export async function action({ request }: ActionFunctionArgs) {
           'gemini-2.5-flash'
         );
 
-        // Increment trial usage if code was generated (shop captured from outer scope)
-        if (extraction.hasCode && trialStatus.isInTrial) {
-          await incrementTrialUsage(shop);
+        // Track generation for ALL tiers when code is generated
+        if (extraction.hasCode) {
+          try {
+            const subscription = await getSubscription(shop);
+            const userTier = subscription?.planName ?? "free";
+
+            // Determine if this is an overage charge
+            const isOverage = subscription
+              ? subscription.usageThisCycle >= subscription.includedQuota
+              : false;
+
+            // 1. Create immutable log (all tiers)
+            await logGeneration({
+              shop,
+              sectionId: conversation.sectionId,
+              messageId: assistantMessage.id,
+              prompt: sanitizedContent,
+              tokenCount,
+              userTier: userTier as "free" | "pro" | "agency",
+              wasCharged: isOverage,
+              subscription, // Pass for correct billing cycle calculation
+            });
+
+            // 2. Track usage for PAID users only (BUG FIX)
+            if (subscription) {
+              await trackGeneration(
+                admin,
+                shop,
+                conversation.sectionId,
+                sanitizedContent,
+                subscription // Pass to avoid duplicate DB fetch
+              );
+            }
+          } catch (error) {
+            // Log error but don't block generation
+            console.error("[api.chat.stream] Failed to track generation:", error);
+          }
         }
 
         // Send completion event

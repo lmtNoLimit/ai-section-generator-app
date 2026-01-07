@@ -99,8 +99,6 @@ export interface QuotaCheck {
   overagesThisCycle: number;
   overagesRemaining: number; // How many overages left before cap
   percentUsed: number; // 0-100
-  isInTrial: boolean;
-  trialEndsAt: Date | null;
 }
 
 /**

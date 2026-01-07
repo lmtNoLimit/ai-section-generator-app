@@ -287,7 +287,27 @@ model SectionFeedback {
   @@index([createdAt])
 }
 
-// Free trial for new merchants (7 days, 10 generations, Pro features)
+/// Immutable log of all AI generations - for quota tracking & audit trail
+/// Never update or delete these records
+model GenerationLog {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  shop         String
+  sectionId    String?  @db.ObjectId // Nullable - section may be deleted
+  messageId    String?  @db.ObjectId // Links to Message
+  prompt       String   // Truncated to 500 chars
+  tokenCount   Int?
+  modelId      String   @default("gemini-2.5-flash")
+  userTier     String   // "free", "pro", "agency"
+  billingCycle DateTime // Start of billing cycle (for grouping)
+  wasCharged   Boolean  @default(false)
+  generatedAt  DateTime @default(now())
+
+  @@index([shop, billingCycle])
+  @@index([shop, generatedAt])
+}
+
+/// @deprecated - Trial system removed. Keep for historical data.
+/// New users go directly to Free tier.
 model Trial {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   shop        String    @unique

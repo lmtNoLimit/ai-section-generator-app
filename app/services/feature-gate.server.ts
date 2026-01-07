@@ -3,11 +3,9 @@
  *
  * Centralized feature gating logic for plan-based access control.
  * Gates features by checking subscription plan's featureFlags array.
- * Trial users get Pro-tier feature access.
  */
 
 import { getPlanConfig, getSubscription } from "./billing.server";
-import { getTrialStatus } from "./trial.server";
 import prisma from "../db.server";
 import type { FeatureFlag, PlanTier } from "../types/billing";
 
@@ -31,26 +29,12 @@ export interface FeaturesSummary {
   refinementUsed: number;
   teamSeatLimit: number;
   planName: PlanTier;
-  // Trial info
-  isInTrial: boolean;
-  trialDaysRemaining: number;
-  trialUsageRemaining: number;
-  trialMaxUsage: number;
 }
 
 /**
  * Check if shop has access to a specific feature
- * Trial users get Pro-tier features
  */
 export async function hasFeature(shop: string, feature: FeatureFlag): Promise<boolean> {
-  // Check trial status first - trial users get Pro-tier features
-  const trial = await getTrialStatus(shop);
-  if (trial.isInTrial && trial.usageRemaining > 0) {
-    const proPlan = await getPlanConfig("pro");
-    return proPlan.featureFlags.includes(feature);
-  }
-
-  // Normal subscription check
   const subscription = await getSubscription(shop);
   const planName: PlanTier = (subscription?.planName as PlanTier) ?? "free";
   const plan = await getPlanConfig(planName);
@@ -59,15 +43,9 @@ export async function hasFeature(shop: string, feature: FeatureFlag): Promise<bo
 
 /**
  * Get refinement limit for shop based on plan
- * Free: 0, Pro/Trial: 5, Agency: Infinity
+ * Free: 0, Pro: 5, Agency: Infinity
  */
 export async function getRefinementLimit(shop: string): Promise<number> {
-  // Trial users get Pro-tier limits
-  const trial = await getTrialStatus(shop);
-  if (trial.isInTrial && trial.usageRemaining > 0) {
-    return 5; // Pro-tier limit
-  }
-
   const subscription = await getSubscription(shop);
   if (!subscription) return 0;
   if (subscription.planName === "agency") return Infinity;
@@ -121,21 +99,16 @@ export async function checkFeatureAccess(
 
 /**
  * Check refinement access with limit tracking
- * Trial users get Pro-tier refinement access
  */
 export async function checkRefinementAccess(
   shop: string,
   conversationId: string
 ): Promise<FeatureGateResult & { used: number; limit: number }> {
-  // Check trial first
-  const trial = await getTrialStatus(shop);
-  const isInActiveTrial = trial.isInTrial && trial.usageRemaining > 0;
-
   const subscription = await getSubscription(shop);
   const planName = (subscription?.planName as PlanTier) ?? "free";
 
-  // Free tier (and not in trial): no refinement
-  if (planName === "free" && !isInActiveTrial) {
+  // Free tier: no refinement
+  if (planName === "free") {
     return {
       allowed: false,
       reason: "Chat refinement requires Pro plan",
@@ -153,7 +126,7 @@ export async function checkRefinementAccess(
     return { allowed: true, used, limit: Infinity };
   }
 
-  // Pro or Trial: 5 turns per conversation
+  // Pro: 5 turns per conversation
   if (used >= limit) {
     return {
       allowed: false,
@@ -169,27 +142,20 @@ export async function checkRefinementAccess(
 
 /**
  * Get features summary for UI display
- * Includes trial status for UI banners
  */
 export async function getFeaturesSummary(
   shop: string,
   conversationId?: string
 ): Promise<FeaturesSummary> {
-  // Get trial status first
-  const trial = await getTrialStatus(shop);
-  const isInActiveTrial = trial.isInTrial && trial.usageRemaining > 0;
-
   const subscription = await getSubscription(shop);
   const planName = (subscription?.planName as PlanTier) ?? "free";
+  const plan = await getPlanConfig(planName);
 
-  // Use Pro plan for feature checks if in trial
-  const effectivePlan = isInActiveTrial ? await getPlanConfig("pro") : await getPlanConfig(planName);
-
-  const canPublish = effectivePlan.featureFlags.includes("publish_theme");
+  const canPublish = plan.featureFlags.includes("publish_theme");
   // Live preview is available for ALL plans to showcase app value
   // The conversion trigger is publishing (gated to Pro+), not previewing
   const canLivePreview = true;
-  const canChatRefine = effectivePlan.featureFlags.includes("chat_refinement");
+  const canChatRefine = plan.featureFlags.includes("chat_refinement");
 
   const refinementLimit = await getRefinementLimit(shop);
   const refinementUsed = conversationId
@@ -204,12 +170,7 @@ export async function getFeaturesSummary(
     refinementLimit,
     refinementUsed,
     teamSeatLimit,
-    planName: isInActiveTrial ? "pro" : planName, // Show "pro" during trial for UI
-    // Trial info
-    isInTrial: trial.isInTrial,
-    trialDaysRemaining: trial.daysRemaining,
-    trialUsageRemaining: trial.usageRemaining,
-    trialMaxUsage: trial.maxUsage,
+    planName,
   };
 }
 
