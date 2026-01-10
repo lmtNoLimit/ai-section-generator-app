@@ -347,6 +347,68 @@ Liquid Preview → Populated with default values
 
 ---
 
+### Phase 2: Password-Protected Store Integration
+
+**Purpose**: Handle preview rendering for password-protected Shopify stores by providing in-context password configuration without requiring redirect to settings.
+
+**Key Changes**:
+
+1. **Error Detection** (`app/components/preview/AppProxyPreviewFrame.tsx`)
+   - `isPasswordError()` helper detects password-related errors via pattern matching
+   - Patterns: "password-protected", "password expired", "storefront password"
+   - Triggered when App Proxy render fails due to missing/invalid auth
+
+2. **Password Modal Integration** (`app/components/preview/PasswordConfigModal.tsx`)
+   - Appears automatically on password error detection
+   - User enters storefront password (from Online Store → Preferences)
+   - Submits to `/api/preview/configure-password` endpoint
+   - Success triggers preview refetch with new auth context
+   - Toast notification on successful save
+
+3. **Error Banner Split** (`app/components/preview/AppProxyPreviewFrame.tsx`)
+   - **Password errors**: Non-dismissible banner with "Configure Password" button
+   - **Non-password errors**: Dismissible banner with "Retry" button
+   - Prevents accidental dismissal of critical auth failures
+
+4. **API Endpoint** (`app/routes/api.preview.configure-password.tsx`)
+   - `POST /api/preview/configure-password`
+   - Validates password against Shopify storefront API
+   - Stores encrypted in session context for shop isolation
+   - Returns success/error response
+
+**Data Flow**:
+```
+Preview Render Error
+    ↓
+isPasswordError() check
+    ↓
+YES → Auto-show PasswordConfigModal
+    ↓
+User enters password
+    ↓
+POST /api/preview/configure-password
+    ↓
+Validate against Shopify
+    ↓
+SUCCESS → Toast notification + refetch preview
+    FAILED → Error banner in modal
+```
+
+**Security**:
+- Nonce-based postMessage validation for iframe communication
+- Session context ensures shop isolation
+- Password validated server-side before storage
+- No password exposure in client-side state
+- Encrypted storage in session context
+
+**Benefits**:
+- Enables preview on password-protected stores without admin redirect
+- Seamless UX - password configured in-context
+- Automatic retry after auth succeeds
+- Error handling prevents user confusion
+
+---
+
 ### 2. Business Logic Layer
 
 **Location**: `app/services/`

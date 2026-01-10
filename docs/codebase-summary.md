@@ -59,6 +59,19 @@ ai-section-generator/
 │   │   │   ├── SaveTemplateModal.tsx
 │   │   │   └── 8+ more components
 │   │   ├── preview/              # Preview system (schema, settings, utilities)
+│   │   │   ├── AppProxyPreviewFrame.tsx # Main preview renderer with password integration (Phase 2)
+│   │   │   │   - isPasswordError() helper - Detects password-protected store errors
+│   │   │   │   - Auto-show PasswordConfigModal on auth failures
+│   │   │   │   - Split error banners: password (Configure button) vs non-password (Retry)
+│   │   │   │   - Nonce-based postMessage security
+│   │   │   ├── PasswordConfigModal.tsx # Password configuration modal (Phase 2 NEW)
+│   │   │   │   - In-context password entry for preview access
+│   │   │   │   - onSuccess callback triggers preview refetch
+│   │   │   │   - Toast notification on successful save
+│   │   │   ├── hooks/            # Custom preview hooks
+│   │   │   │   └── useNativePreviewRenderer.ts # Server-side fetch wrapper for preview rendering
+│   │   │   ├── targeting/        # Element targeting system (Phase 3)
+│   │   │   │   └── iframe-injection-script.ts # Click-to-select targeting script
 │   │   │   ├── schema/           # Schema parsing & defaults (Phase 02 EXPANDED)
 │   │   │   │   ├── parseSchema.ts     # Schema parser with all 31 Shopify types (293 lines, expanded Phase 02)
 │   │   │   │   │   - buildInitialState() - Covers all 31 Shopify setting types with type-specific defaults
@@ -961,6 +974,67 @@ event: done
 data: {"type":"done", "final_message":"..."}
 ```
 
+#### Password Configuration Endpoint (`app/routes/api.preview.configure-password.tsx` - Phase 01 NEW)
+
+**Endpoint**: `POST /api/preview/configure-password`
+**Purpose**: Validates and securely stores storefront password for preview access on password-protected stores
+
+**Security**:
+- Requires authenticated admin session (via `authenticate.admin`)
+- Password validated against Shopify storefront API before storage
+- Stored encrypted with AES-256-GCM
+- Only accepts POST method (GET/other methods return 405)
+
+**Request** (FormData):
+- `password` (required): Storefront password string (from Online Store → Preferences)
+- Session context used for shop isolation
+
+**Input Validation**:
+- `password` must be non-empty string
+- Returns 400 if missing or invalid type
+- Returns 401 if not authenticated
+- Returns 405 if not POST method
+
+**Response**:
+```typescript
+// Success (200)
+{ success: true }
+
+// Validation failed - Invalid password (400)
+{ success: false, error: "Invalid password" }
+
+// Validation failed - Password error (400)
+{ success: false, error: result.error || "Invalid password" }
+
+// Server error (500)
+{ success: false, error: "Failed to save password" }
+
+// Unauthorized (401)
+{ success: false, error: "Unauthorized" }
+
+// Method not allowed (405)
+{ success: false, error: "Method not allowed" }
+```
+
+**Flow**:
+1. PasswordConfigModal submits password via `useFetcher`
+2. API calls `validateAndSaveStorefrontPassword(shop, password)`
+3. Service validates password with Shopify storefront (checks if page accessible)
+4. On success: password encrypted and stored in database
+5. Component shows toast notification and triggers preview refresh
+6. On error: banner displays error reason (invalid password, network timeout, etc.)
+
+**Dependencies**:
+- `authenticate.admin`: Session validation
+- `validateAndSaveStorefrontPassword`: Service for validation & encryption
+
+**Test Coverage**:
+- Authorization checks (401 on missing session)
+- Method validation (405 on non-POST)
+- Input validation (400 on empty/missing password)
+- Successful password save (200 with success response)
+- Error handling (4xx/5xx responses with descriptive errors)
+
 #### Chat Hook (`app/components/chat/hooks/useChat.ts` - Phase 01)
 
 **State Management**:
@@ -1529,6 +1603,67 @@ subpath = "blocksmith-preview"
 - Strip: Schema blocks removed (regex: `/{%-?\s*schema\s*-?%}[\s\S]*?{%-?\s*endschema\s*-?%}/gi`)
 - Wrap: `<div class="blocksmith-preview" id="shopify-section-{sectionId}">{code}</div>`
 - Style: Baseline CSS (font-family, img max-width)
+
+#### `/app/routes/api.preview.configure-password.tsx` (86 lines - Phase 03 NEW)
+
+**Purpose**: Validates and stores storefront password for password-protected store preview access
+
+**Endpoint**: `POST /api/preview/configure-password`
+
+**Request Method**: POST only (loader returns 405 for GET/other methods)
+
+**Input** (FormData):
+- `password` (required): Storefront password string (min 1 char)
+
+**Security**:
+- Admin authentication required: `authenticate.admin(request)` validates session
+- Unauthorized access returns 401
+- Password encrypted with AES-256-GCM before storage
+- Validated against Shopify storefront before saving
+
+**Response** (JSON):
+```typescript
+interface ActionResponse {
+  success: boolean;
+  error?: string;
+}
+```
+
+**Success Case** (200):
+```json
+{ "success": true }
+```
+
+**Error Cases**:
+- **401 Unauthorized**: `{ "success": false, "error": "Unauthorized" }` (missing session)
+- **405 Method Not Allowed**: `{ "success": false, "error": "Method not allowed" }` (GET or other)
+- **400 Bad Request**: `{ "success": false, "error": "Password is required" }` (missing/empty password)
+- **400 Invalid Password**: `{ "success": false, "error": "Invalid password" }` (validation failed against storefront)
+- **500 Server Error**: `{ "success": false, "error": "Failed to save password" }` (storage error)
+
+**Flow**:
+1. User enters password in `PasswordConfigModal` component
+2. FormData submitted to `/api/preview/configure-password`
+3. Route validates authentication + password presence
+4. Calls `validateAndSaveStorefrontPassword(shop, password)` service
+5. Service validates password against Shopify storefront
+6. On success: encrypts + stores password in database
+7. Returns success response
+8. Component shows toast notification + closes modal
+9. On error: displays error banner with specific reason
+
+**Related Components**:
+- `app/components/preview/PasswordConfigModal.tsx`: UI component (Form submission via `useFetcher`)
+- `app/services/storefront-auth.server.ts`: Service layer (validates + encrypts password)
+- `app/routes/__tests__/api.preview.configure-password.test.tsx`: 22 test cases covering auth, validation, success/error paths
+
+**Test Coverage** (22 tests):
+- Loader: 405 Method Not Allowed
+- Authentication: Session validation, 401 on missing session
+- Input Validation: Empty password, non-string values
+- Service Integration: Successful password save, validation failures
+- Error Handling: Network errors, storage errors
+- Security: Proper error messages (no password leakage)
 
 ### Business Logic Services
 
@@ -2606,15 +2741,64 @@ interface NativeSectionPreviewProps {
 - Retry button triggers manual `refetch()`
 - Non-blocking error (frame still visible)
 
+#### `app/components/preview/PasswordConfigModal.tsx` (130 lines, Phase 01 NEW)
+
+**Purpose**: Modal dialog for in-context password configuration when preview detects password-protected store
+
+**Props**:
+```typescript
+interface PasswordConfigModalProps {
+  isOpen: boolean;              // Controls modal visibility
+  onClose: () => void;          // Callback when modal closes
+  onSuccess: () => void;        // Callback on successful password save
+}
+```
+
+**Key Features**:
+- **Polaris Web Components**: Uses `s-modal`, `s-password-field`, `s-button`, `s-banner`, `s-stack`, `s-text`
+- **Form submission**: Uses `useFetcher` to submit to `/api/preview/configure-password` endpoint
+- **State management**: Tracks password input via `useState`, modal ref via `useRef`
+- **Loading state**: Disables button and shows loading indicator during submission
+- **Error handling**: Displays critical banner with error message if API validation fails
+- **Toast notification**: Shows success toast via `useAppBridge()` on password save
+- **Modal control**: Uses ref to manage overlay visibility via `showOverlay()` / `hideOverlay()`
+
+**Flow**:
+1. User enters storefront password (found at Online Store → Preferences)
+2. Clicks "Save & Retry Preview" button
+3. Form submits to `/api/preview/configure-password` with encrypted transport
+4. API validates password against Shopify storefront
+5. On success: shows toast → clears form → calls `onSuccess()` → closes modal
+6. On error: displays banner with reason (invalid password, network error, etc.)
+
+**Exported Constant**:
+- `PASSWORD_MODAL_ID = "preview-password-modal"` - For programmatic modal targeting
+
+**Dependencies**:
+- `react-router`: `useFetcher` for form submission
+- `@shopify/app-bridge-react`: `useAppBridge` for toast notifications
+- Polaris Web Components (native custom elements)
+
+**Test Coverage** (29 tests):
+- Rendering: modal element, heading, password field, buttons
+- User interactions: password input, cancel button, save button
+- Form submission: POST to correct endpoint with password
+- State management: loading/disabled states during submission
+- Error handling: error banner display, error message text
+- Success flow: toast notification, form reset, callback execution
+- Modal visibility: overlay show/hide on isOpen prop changes
+- Edge cases: empty password validation, XSS prevention
+
 ### Updated Components
 
 #### `app/components/preview/index.ts` (exports added)
 
-Added exports for new native preview components:
+Added exports for preview components:
 ```typescript
 export { NativeSectionPreview } from './NativeSectionPreview';
 export { NativePreviewFrame } from './NativePreviewFrame';
 export { useNativePreviewRenderer } from './hooks/useNativePreviewRenderer';
+export { PasswordConfigModal, PASSWORD_MODAL_ID } from './PasswordConfigModal';
 ```
 
 #### `app/routes/app.sections.$id.tsx` (loader updated)
