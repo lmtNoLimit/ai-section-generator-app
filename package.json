@@ -27,7 +27,9 @@
     "generate:templates:dry": "npx tsx scripts/batch-generate-templates.ts --dry-run",
     "generate:templates:hero": "npx tsx scripts/batch-generate-templates.ts --category=hero",
     "generate:templates:features": "npx tsx scripts/batch-generate-templates.ts --category=features",
-    "generate:templates:cta": "npx tsx scripts/batch-generate-templates.ts --category=cta"
+    "generate:templates:cta": "npx tsx scripts/batch-generate-templates.ts --category=cta",
+    "validate:templates": "npx tsx scripts/validate-templates.ts",
+    "validate:templates:latest": "npx tsx scripts/validate-templates.ts"
   },
   "type": "module",
   "engines": {

@@ -122,8 +122,9 @@ ai-section-generator/
 │   ├── root.tsx                  # HTML root component
 │   ├── routes.ts                 # Route configuration
 │   └── globals.d.ts              # TypeScript global declarations
-├── scripts/                      # Build and generation scripts (Phase 1)
-│   ├── batch-generate-templates.ts # Batch template generation with AI
+├── scripts/                      # Build and generation scripts (Phase 1-2)
+│   ├── batch-generate-templates.ts # Batch template generation with AI (Phase 1)
+│   ├── validate-templates.ts     # Template validation with 16 rules (Phase 2)
 │   └── migrations/               # Database migration scripts
 ├── prisma/                       # Database schema & migrations
 │   ├── schema.prisma             # Prisma schema
@@ -2160,6 +2161,50 @@ Generated Liquid code is validated for:
 - Failed templates logged with error reason
 - Process continues even if individual templates fail
 - Exit code 1 if any failures, 0 if all success
+
+## Template Validation Script (Phase 2)
+
+`scripts/validate-templates.ts` validates generated Liquid templates against 16 rules (9 existing app validation rules + 7 AI-specific checks).
+
+### Features
+
+**Validation Rules** (16 total):
+- 9 existing rules: schema structure, JSON validity, required fields, syntax
+- 7 AI-specific checks:
+  - Prevent `new_comment` form hallucinations
+  - Flag contact forms in non-form sections
+  - Ensure image picker conditionals
+  - Verify CSS `ai-` prefix usage
+  - Detect hardcoded display text
+  - Check proper section scoping
+  - Validate schema name (prevent generic names)
+
+**Capabilities**:
+- Validates batch-generated templates from `scripts/output/generated-templates-*.json`
+- Auto-finds latest generation file if no input specified
+- Outputs JSON report with summary, errors, warnings per template
+- Groups results by category with pass rates
+- Detailed error messages with suggestions
+
+**NPM Scripts**:
+```json
+{
+  "validate:templates": "npx tsx scripts/validate-templates.ts",
+  "validate:templates:latest": "npx tsx scripts/validate-templates.ts"
+}
+```
+
+**Usage**:
+```bash
+npm run validate:templates                      # Validate latest generated file
+npm run validate:templates scripts/output/file.json  # Validate specific file
+npx tsx scripts/validate-templates.ts           # Direct execution
+```
+
+**Report Output**:
+- File: `scripts/output/validation-report-{timestamp}.json`
+- Contains: Summary metrics, category breakdown, error/warning lists, full details
+- Exit code: 1 if any invalid templates, 0 if all valid
 
 ## Data Flow
 
