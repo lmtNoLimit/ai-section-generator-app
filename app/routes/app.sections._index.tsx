@@ -552,11 +552,11 @@ export default function SectionsPage() {
   return (
     <>
       <s-page heading="Sections" inlineSize="large">
-        {/* Primary action button - uses navigate() to preserve session context */}
+        {/* Primary action button - uses href for Shopify navigation */}
         <s-button
           slot="primary-action"
           variant="primary"
-          onClick={() => navigate("/app/sections/new")}
+          href="/app/sections/new"
         >
           Create Section
         </s-button>

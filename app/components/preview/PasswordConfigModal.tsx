@@ -27,6 +27,8 @@ export function PasswordConfigModal({
   /* eslint-enable @typescript-eslint/no-explicit-any */
   const fetcher = useFetcher();
   const shopify = useAppBridge();
+  // Track if success was already handled to prevent infinite loops
+  const successHandledRef = useRef(false);
 
   const isSubmitting = fetcher.state === "submitting";
   const actionData = fetcher.data as
@@ -42,13 +44,23 @@ export function PasswordConfigModal({
     }
   }, [isOpen]);
 
-  // Handle API response with toast notification
+  // Reset success handled flag when submitting new request
+  useEffect(() => {
+    if (fetcher.state === "submitting") {
+      successHandledRef.current = false;
+    }
+  }, [fetcher.state]);
+
+  // Handle API response with toast notification (once per submission)
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data) return;
+    // Prevent handling the same success response multiple times
+    if (successHandledRef.current) return;
 
     const data = fetcher.data as { success: boolean; error?: string };
 
     if (data.success) {
+      successHandledRef.current = true;
       shopify.toast.show("Password saved - reloading preview...");
       setPassword("");
       onSuccess();

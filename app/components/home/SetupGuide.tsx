@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { useFetcher, useNavigate } from "react-router";
+import { useFetcher } from "react-router";
 
 interface OnboardingState {
   hasGeneratedSection: boolean;
@@ -50,7 +50,6 @@ const SETUP_STEPS = [
 
 export function SetupGuide({ onboarding }: SetupGuideProps) {
   const fetcher = useFetcher();
-  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(true);
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({
     generate: true,
@@ -185,7 +184,7 @@ export function SetupGuide({ onboarding }: SetupGuideProps) {
                             <s-button
                               variant={completed ? "tertiary" : "primary"}
                               accessibilityLabel={`${completed ? "Revisit" : "Start"}: ${step.title}`}
-                              onClick={() => navigate(step.href)}
+                              href={step.href}
                             >
                               {completed ? "Revisit" : step.actionLabel}
                             </s-button>

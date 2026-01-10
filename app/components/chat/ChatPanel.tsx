@@ -8,7 +8,6 @@
  * - MessageList scrolls, ChatInput stays at bottom
  */
 import { useEffect, useCallback, useRef, useState } from "react";
-import { useNavigate } from "react-router";
 import { useChat } from "./hooks/useChat";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
@@ -64,7 +63,6 @@ export function ChatPanel({
   onVersionSelect,
   onVersionApply,
 }: ChatPanelProps) {
-  const navigate = useNavigate();
   const {
     messages,
     isStreaming,
@@ -248,7 +246,7 @@ export function ChatPanel({
             <s-button
               slot="primary-action"
               variant="primary"
-              onClick={() => navigate("/app/billing")}
+              href="/app/billing"
             >
               Upgrade to {requiredPlan === "agency" ? "Agency" : "Pro"}
             </s-button>

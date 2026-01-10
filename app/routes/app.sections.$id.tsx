@@ -3,7 +3,6 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import {
   useActionData,
   useLoaderData,
-  useNavigate,
   useNavigation,
   useSubmit,
   data,
@@ -229,7 +228,6 @@ export default function UnifiedEditorPage() {
   const navigation = useNavigation();
   const submit = useSubmit();
   const shopify = useAppBridge();
-  const navigate = useNavigate();
 
   // Auto-apply callback - shows toast when AI version auto-applied
   const handleAutoApply = useMemo(() => {
@@ -504,7 +502,7 @@ export default function UnifiedEditorPage() {
           <s-button
             slot="primary-action"
             variant="primary"
-            onClick={() => navigate('/app/billing')}
+            href="/app/billing"
           >
             Upgrade Now
           </s-button>

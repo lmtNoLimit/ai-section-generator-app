@@ -141,7 +141,7 @@ export default function Homepage() {
       <s-button
         slot="primary-action"
         variant="primary"
-        onClick={() => navigate("/app/sections/new")}
+        href="/app/sections/new"
       >
         Generate Section
       </s-button>
