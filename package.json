@@ -22,7 +22,12 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
-    "migrate:status": "npx tsx scripts/migrations/251223-normalize-section-status.ts"
+    "migrate:status": "npx tsx scripts/migrations/251223-normalize-section-status.ts",
+    "generate:templates": "npx tsx scripts/batch-generate-templates.ts",
+    "generate:templates:dry": "npx tsx scripts/batch-generate-templates.ts --dry-run",
+    "generate:templates:hero": "npx tsx scripts/batch-generate-templates.ts --category=hero",
+    "generate:templates:features": "npx tsx scripts/batch-generate-templates.ts --category=features",
+    "generate:templates:cta": "npx tsx scripts/batch-generate-templates.ts --category=cta"
   },
   "type": "module",
   "engines": {

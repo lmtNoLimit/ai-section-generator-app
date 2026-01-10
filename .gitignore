@@ -27,3 +27,6 @@ database.sqlite
 .react-router/
 .gemini/
 coverage/
+
+# Script outputs
+scripts/output/

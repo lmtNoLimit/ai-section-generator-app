@@ -122,6 +122,9 @@ ai-section-generator/
 │   ├── root.tsx                  # HTML root component
 │   ├── routes.ts                 # Route configuration
 │   └── globals.d.ts              # TypeScript global declarations
+├── scripts/                      # Build and generation scripts (Phase 1)
+│   ├── batch-generate-templates.ts # Batch template generation with AI
+│   └── migrations/               # Database migration scripts
 ├── prisma/                       # Database schema & migrations
 │   ├── schema.prisma             # Prisma schema
 │   └── migrations/               # Database migrations
@@ -2078,6 +2081,85 @@ Types provided by `@shopify/polaris-types` in devDependencies.
 - `<ui-nav-menu>`: App navigation menu
 
 These are Shopify's custom web components that match Polaris design system.
+
+## Phase 1: Batch Template Generation Script (NEW)
+
+### Overview
+
+`scripts/batch-generate-templates.ts` is a CLI-based batch generation tool that uses the AIService to generate Liquid code for templates missing the `code` property. This enables populating the entire template library (110+ templates) with production-ready Liquid code.
+
+### Features
+
+**Generation Capabilities**:
+- Generates Liquid code for templates without code property
+- Uses AIService with enhanced prompts (context injection)
+- Automatic Liquid code validation (schema, structure checks)
+- Configurable retry logic with exponential backoff
+- Rate limiting (1.5s between requests for API safety)
+
+**CLI Flags**:
+- `--category=<name>` - Filter by category (hero, features, cta, etc.)
+- `--limit=<n>` - Limit templates to process (e.g., --limit=5)
+- `--dry-run` - Preview without making API calls
+- No flags - Process all missing templates
+
+**NPM Scripts** (package.json):
+```json
+{
+  "generate:templates": "npx tsx scripts/batch-generate-templates.ts",
+  "generate:templates:dry": "npx tsx scripts/batch-generate-templates.ts --dry-run",
+  "generate:templates:hero": "npx tsx scripts/batch-generate-templates.ts --category=hero",
+  "generate:templates:features": "npx tsx scripts/batch-generate-templates.ts --category=features",
+  "generate:templates:cta": "npx tsx scripts/batch-generate-templates.ts --category=cta"
+}
+```
+
+### Architecture
+
+**BatchConfig Interface**:
+```typescript
+interface BatchConfig {
+  retryAttempts: number;      // 2 attempts max
+  retryDelayMs: number;       // 2000ms initial (exponential)
+  rateLimitDelayMs: number;   // 1500ms between requests
+  categories?: string[];      // Filter by category
+  limit?: number;             // Limit template count
+  dryRun: boolean;           // Preview mode
+}
+```
+
+**Generation Process**:
+1. Filter DEFAULT_TEMPLATES for templates missing code property
+2. Apply category filter if specified
+3. Apply limit if specified
+4. For each template:
+   - Enhance prompt with requirements context
+   - Call AIService.generateSection()
+   - Validate generated Liquid code (schema, structure)
+   - Retry on validation failure with exponential backoff
+   - Rate limit between requests (1.5s)
+
+**Output**:
+- JSON file: `scripts/output/generated-templates-{timestamp}.json`
+- Contains summary (total, success, failed, avg duration)
+- Full results with code/error for each template
+- Console output with progress indicators
+
+### Validation Logic
+
+Generated Liquid code is validated for:
+- Schema block presence: `{% schema %}...{% endschema %}`
+- Valid JSON in schema block
+- Required schema fields: `name`, `presets` array
+- Structure integrity
+
+### Error Handling
+
+- Validation errors trigger retry with exponential backoff
+- Max 2 retry attempts (configurable)
+- Failed templates logged with error reason
+- Process continues even if individual templates fail
+- Exit code 1 if any failures, 0 if all success
 
 ## Data Flow
 
