@@ -2859,8 +2859,8 @@ Phase 04 will integrate native preview into `CodePreviewPanel`, replacing or aug
 
 ---
 
-**Document Version**: 2.3
-**Last Updated**: 2026-01-04
+**Document Version**: 2.4
+**Last Updated**: 2026-01-10
 **Codebase Size**: 235 app files in app/ directory
 **Primary Language**: TypeScript (TSX)
 **Recent Changes** (December 2025):
@@ -2918,6 +2918,22 @@ Phase 04 will integrate native preview into `CodePreviewPanel`, replacing or aug
   - Enables property access: `{{ section.settings.heading_font.family }}`
   - Outputs CSS-ready stacks: `"Georgia, serif"` instead of `"georgia"`
   - 1,200+ lines added (includes test coverage)
+- **Phase 03 API Password Configuration (260110 - NEW)**:
+  - `app/routes/api.preview.configure-password.tsx` (86 lines - NEW): POST endpoint for storefront password validation + storage
+    - Admin authentication required via `authenticate.admin(request)`
+    - Input validation: FormData password field (min 1 char)
+    - Service integration: Calls `validateAndSaveStorefrontPassword(shop, password)`
+    - Response: JSON with success flag + error messages on failure
+    - Error cases: 401 Unauthorized, 405 Method Not Allowed, 400 Bad Request, 400 Invalid password, 500 Server error
+  - `app/routes/__tests__/api.preview.configure-password.test.tsx` (22 tests - NEW): Comprehensive test coverage
+    - Loader tests: 405 response for GET requests
+    - Authentication tests: Session validation, 401 on missing session
+    - Input validation: Empty password, non-string values, required field checks
+    - Service integration: Successful password save, validation failures
+    - Error handling: Network errors, storage errors
+    - Security: Error message clarity (no password leakage), FormData processing
+  - Integration: Called from `app/components/preview/PasswordConfigModal.tsx` via `useFetcher()`
+  - Use case: Password-protected store preview - user enters storefront password, API validates + stores encrypted
 - **Phase 4 Advanced Filters**: 25+ new Shopify Liquid filters for media, fonts, metafields, utilities
   - 70+ total filter support (11 array + 16 string + 8 math + 12 color + 6 media + 3 font + 4 metafield + 12 utility)
 - **Phase 04**: Component-based architecture (9 reusable UI components)
