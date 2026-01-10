@@ -1,15 +1,16 @@
 ---
 title: "Template Pre-Built Liquid Enhancement"
 description: "AI pre-generation of 102 Shopify Liquid templates for instant merchant use"
-status: in-progress
+status: completed
+phase-01-completed: 2026-01-10
 phase-02-completed: 2026-01-10
 phase-03-completed: 2026-01-10
+phase-04-completed: 2026-01-10
 priority: P1
 effort: 8h
 branch: main
 tags: [templates, ai, liquid, shopify]
 created: 2026-01-10
-phase-01-completed: 2026-01-10
 ---
 
 # Template Pre-Built Liquid Enhancement

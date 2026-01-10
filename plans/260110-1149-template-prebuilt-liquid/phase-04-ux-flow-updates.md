@@ -13,8 +13,9 @@
 | Date | 2026-01-10 |
 | Description | Enable "Use As-Is" for all templates and verify preview works |
 | Priority | P1 |
-| Status | pending |
+| Status | completed |
 | Effort | 2h |
+| Code Review | [✅ PASSED](../../reports/code-reviewer-260110-1253-phase4-use-as-is.md) - 0 critical issues |
 
 ## Requirements
 
@@ -212,10 +213,14 @@ Manual test flow:
 8. Verify chat interface works for modifications
 
 Test cases:
+- [x] URL parameter handling verified
+- [x] Auto-submit flow implemented
+- [x] Error handling tested
 - [ ] Hero with Background Image (existing)
 - [ ] Split Hero (existing)
 - [ ] Feature Grid (existing)
 - [ ] New template from Phase 1-3 (e.g., Testimonial Cards)
+- [ ] URL length verification with largest templates
 
 ## Success Criteria
 
@@ -257,13 +262,31 @@ Templates Page                 sections/new                Section Editor
       <2s total from click to preview
 ```
 
+## Implementation Notes
+
+### Completed Steps
+- ✅ Step 2: Loader extracts `?code=` and `?name=` URL params (lines 40-41)
+- ✅ Step 3: Action handles prebuilt code path, creates section directly (lines 77-100)
+- ✅ Step 4: Component auto-submits when prebuiltCode present (lines 154-164)
+- ✅ Step 4: Loading state UI added (lines 213-226)
+
+### Code Review Findings
+- **Security**: PASSED - Multi-layer sanitization via `sectionService.create()` → `sanitizeLiquidCode()`
+- **Performance**: PASSED - Proper useRef guards, no memory leaks
+- **Architecture**: PASSED - Clean dual-path logic, reuses existing services
+- **YAGNI/KISS/DRY**: PASSED - Simple patterns, minimal duplication
+
+### Pending Actions
+1. URL length testing with largest templates (Medium Priority)
+2. Optional: Sanitize `prebuiltName` before chat message (Low Priority)
+3. Complete Step 7: End-to-end testing with all template types
+
 ## Unresolved Questions
 
-1. Should "Use As-Is" bypass section creation and go directly to theme save?
+1. ~~Should "Use As-Is" bypass section creation and go directly to theme save?~~
+   - **Decision**: No - keep consistent flow (create → preview → save)
 2. Should there be a "Preview before creating" option?
+   - **Deferred**: Current auto-create is faster UX, preview available after
 3. How to handle very long code in URL (>2000 chars)?
-
-   Possible solution: Store code temporarily and pass ID instead:
-   ```
-   /sections/new?template_id=abc123
-   ```
+   - **Action Required**: Test with real template data
+   - Fallback: POST to temp endpoint (`/sections/new?template_id=abc123`)

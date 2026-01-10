@@ -796,13 +796,21 @@ With Phase 4 completion, the preview system now supports:
 - All components fully typed with TypeScript interfaces
 - Components are now testable in isolation
 
-#### `/app/routes/app.sections.new.tsx` (Simplified - Phase 01)
-**Purpose**: Simplified ChatGPT-style section creation with minimal prompt UI
+#### `/app/routes/app.sections.new.tsx` (Simplified - Phase 01, UX Flow Updated - Phase 04)
+**Purpose**: Simplified ChatGPT-style section creation with minimal prompt UI + prebuilt template "Use As-Is" flow
 **Phase 01 Changes**:
 - Rewritten from complex form (427 lines) to minimal prompt-only interface
 - Single centered textarea + template suggestion chips
 - No inline code preview (moved to edit flow)
 - Form submission creates empty draft section → redirects to edit page for AI conversation
+
+**Phase 04 UX Flow Changes (NEW)**:
+- Added URL parameter handling for `?code=` (prebuilt Liquid code) and `?name=` (template name)
+- Dual-flow design: traditional prompt-based OR prebuilt template direct creation
+- Prebuilt code action path bypasses AI generation, creates section directly with provided code
+- Auto-submit form via useRef guard when prebuilt params detected (prevents duplicate submissions)
+- Loading spinner UI displays during prebuilt template processing with user-friendly messaging
+- Input sanitization applied to template names to prevent XSS
 
 **Key Features**:
 - Centered prompt textarea (100px min height, 2000 char max)
@@ -811,16 +819,31 @@ With Phase 4 completion, the preview system now supports:
 - Keyboard hint (Cmd+Enter to submit)
 - Auto-redirect to section edit page (/app/sections/{id}) after creation
 - Async section creation with minimal metadata
+- Prebuilt template flow: `?code=<liquid_code>&name=<template_name>`
 
-**Flow**:
+**Flow - Prompt-Based Path**:
 1. User enters prompt description
 2. Form submit creates empty section in DB (status="draft", code="")
 3. Server returns sectionId
 4. Client redirects to /app/sections/{sectionId}
 5. Edit page loads with conversation ready for AI generation
 
+**Flow - Prebuilt Template Path (Phase 04)**:
+1. Template library passes URL params: `?code=<liquid_code>&name=<template_name>`
+2. Loader extracts params, page shows loading spinner
+3. useEffect detects prebuiltCode param, auto-submits form with formData
+4. Server creates section directly from provided code (skips AI)
+5. Creates empty conversation with metadata message: "Created from template: {name}"
+6. Redirects to /app/sections/{sectionId} for preview/editing
+
 **Data Structures**:
 ```typescript
+interface LoaderData {
+  templates: FeaturedTemplate[];
+  prebuiltCode: string | null;       // From ?code= param
+  prebuiltName: string | null;       // From ?name= param
+}
+
 interface ActionData {
   sectionId?: string;
   error?: string;
@@ -833,6 +856,7 @@ interface ActionData {
 - Polaris color variables (--p-text-*, --p-surface-*, --p-border-*)
 - Focus states for accessibility
 - Smooth transitions on interactive elements
+- Loading state spinner centered on page during prebuilt processing
 
 #### `/app/routes/app.sections.$id.tsx`
 **Purpose**: Unified AI-first editor with conversational iteration
@@ -3151,5 +3175,16 @@ Phase 04 will integrate native preview into `CodePreviewPanel`, replacing or aug
   - Use case: Password-protected store preview - user enters storefront password, API validates + stores encrypted
 - **Phase 4 Advanced Filters**: 25+ new Shopify Liquid filters for media, fonts, metafields, utilities
   - 70+ total filter support (11 array + 16 string + 8 math + 12 color + 6 media + 3 font + 4 metafield + 12 utility)
+- **Phase 04 UX Flow - Prebuilt Template "Use As-Is" (260110 - NEW)**:
+  - `app/routes/app.sections.new.tsx` (UPDATED): Dual-flow section creation page
+    - URL parameter handling: `?code=<liquid>` and `?name=<template_name>` for prebuilt templates
+    - Traditional path: User prompt → AI generation → chat
+    - Prebuilt path: Direct template code → section created immediately, skips AI
+    - Auto-submit form via useRef guard (prevents duplicate submissions on re-render)
+    - Loading spinner UI with messaging during prebuilt processing
+    - Input sanitization applied to template names (XSS prevention)
+  - **Flow**: `?code=` params → Loader extracts → useEffect detects → auto-submit FormData → creates section → redirects to preview
+  - **Use Case**: Template library integration - direct "Use As-Is" button on templates
+  - **Data Flow**: Prebuilt code bypasses AI service, creates section with provided Liquid directly
 - **Phase 04**: Component-based architecture (9 reusable UI components)
 - **Phase 03**: Feature flag system, adapter pattern, mock services, dual-action save flow

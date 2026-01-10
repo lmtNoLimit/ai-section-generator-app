@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import {
   useActionData,
@@ -26,20 +26,35 @@ const MAX_PROMPT_LENGTH = 2000;
 
 interface LoaderData {
   templates: FeaturedTemplate[];
+  prebuiltCode: string | null;
+  prebuiltName: string | null;
 }
 
 export async function loader({
   request,
 }: LoaderFunctionArgs): Promise<LoaderData> {
   const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+
+  // Handle pre-built code from "Use As-Is" template flow
+  const prebuiltCode = url.searchParams.get("code");
+  const prebuiltName = url.searchParams.get("name");
 
   // Fetch featured templates (shop-specific + defaults fallback)
   try {
     const templates = await templateService.getFeatured(session.shop, 6);
-    return { templates };
+    return {
+      templates,
+      prebuiltCode,
+      prebuiltName,
+    };
   } catch (error) {
     console.error("Failed to fetch featured templates:", error);
-    return { templates: [] };
+    return {
+      templates: [],
+      prebuiltCode,
+      prebuiltName,
+    };
   }
 }
 
@@ -53,6 +68,41 @@ export async function action({
 }: ActionFunctionArgs): Promise<ActionData> {
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
+
+  // Check for pre-built code path (from "Use As-Is" template flow)
+  const prebuiltCode = formData.get("prebuiltCode") as string | null;
+  const prebuiltName = formData.get("prebuiltName") as string | null;
+
+  // Pre-built code path: create section directly without AI
+  if (prebuiltCode) {
+    try {
+      const section = await sectionService.create({
+        shop: session.shop,
+        prompt: prebuiltName || "Pre-built template",
+        code: prebuiltCode,
+      });
+
+      // Create conversation for potential future modifications
+      const conversation = await chatService.getOrCreateConversation(
+        section.id,
+        session.shop,
+      );
+      const { sanitized: safeName } = sanitizeUserInput(
+        prebuiltName || "Pre-built template",
+      );
+      await chatService.addUserMessage(
+        conversation.id,
+        `Created from template: ${safeName}`,
+      );
+
+      return { sectionId: section.id };
+    } catch (error) {
+      console.error("Failed to create section from template:", error);
+      return { error: "Failed to create section. Please try again." };
+    }
+  }
+
+  // Standard prompt-based path
   const rawPrompt = formData.get("prompt") as string;
 
   if (!rawPrompt?.trim()) {
@@ -92,14 +142,29 @@ export async function action({
 }
 
 export default function NewSectionPage() {
-  const { templates } = useLoaderData<typeof loader>();
+  const { templates, prebuiltCode, prebuiltName } =
+    useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const navigate = useNavigate();
   const submit = useSubmit();
   const [prompt, setPrompt] = useState("");
+  const hasSubmittedPrebuilt = useRef(false);
 
   const isSubmitting = navigation.state === "submitting";
+
+  // Auto-submit when prebuilt code is provided (from "Use As-Is" flow)
+  useEffect(() => {
+    if (prebuiltCode && !hasSubmittedPrebuilt.current && !isSubmitting) {
+      hasSubmittedPrebuilt.current = true;
+      const formData = new FormData();
+      formData.append("prebuiltCode", prebuiltCode);
+      if (prebuiltName) {
+        formData.append("prebuiltName", prebuiltName);
+      }
+      submit(formData, { method: "post" });
+    }
+  }, [prebuiltCode, prebuiltName, isSubmitting, submit]);
 
   // Redirect on success
   useEffect(() => {
@@ -108,13 +173,15 @@ export default function NewSectionPage() {
     }
   }, [actionData, navigate]);
 
-  // Focus textarea on mount
+  // Focus textarea on mount (only if not prebuilt flow)
   useEffect(() => {
-    const textarea = document.getElementById(
-      "prompt-textarea",
-    ) as HTMLElement | null;
-    textarea?.focus();
-  }, []);
+    if (!prebuiltCode) {
+      const textarea = document.getElementById(
+        "prompt-textarea",
+      ) as HTMLElement | null;
+      textarea?.focus();
+    }
+  }, [prebuiltCode]);
 
   const handleSubmit = useCallback(() => {
     if (!prompt.trim() || isSubmitting) return;
@@ -144,6 +211,22 @@ export default function NewSectionPage() {
     ) as HTMLElement | null;
     textarea?.focus();
   };
+
+  // Show loading state when processing prebuilt code
+  if (prebuiltCode && (isSubmitting || hasSubmittedPrebuilt.current)) {
+    return (
+      <s-page heading="Creating section..." inlineSize="base">
+        <s-section>
+          <s-stack gap="large" alignItems="center">
+            <s-spinner />
+            <s-text>
+              Setting up your {prebuiltName || "section"}...
+            </s-text>
+          </s-stack>
+        </s-section>
+      </s-page>
+    );
+  }
 
   return (
     <s-page heading="Create section" inlineSize="base">
