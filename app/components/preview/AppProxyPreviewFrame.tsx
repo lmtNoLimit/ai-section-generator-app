@@ -22,9 +22,31 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNativePreviewRenderer } from "./hooks/useNativePreviewRenderer";
 import { generateTargetingScript } from "./targeting/iframe-injection-script";
+import { PasswordConfigModal } from "./PasswordConfigModal";
 import type { DeviceSize } from "./types";
 import type { SettingsState, BlockInstance } from "./schema/SchemaTypes";
 import type { MockProduct, MockCollection } from "./mockData/types";
+
+/**
+ * Password error detection patterns matching api.preview.render.tsx error messages:
+ * - "Storefront password expired or invalid"
+ * - "Store is password-protected - configure password in settings"
+ * - "Store is password-protected"
+ */
+const PASSWORD_ERROR_PATTERNS = [
+  "password-protected",
+  "password expired",
+  "storefront password",
+];
+
+/**
+ * Checks if error message indicates a password-related issue
+ */
+function isPasswordError(error: string | null): boolean {
+  if (!error) return false;
+  const lowerError = error.toLowerCase();
+  return PASSWORD_ERROR_PATTERNS.some((p) => lowerError.includes(p));
+}
 
 // Fixed widths for each device mode
 const DEVICE_WIDTHS: Record<DeviceSize, number> = {
@@ -67,6 +89,7 @@ export function AppProxyPreviewFrame({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const [iframeHeight, setIframeHeight] = useState<number>(400);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   // Nonce for postMessage authentication (prevents message spoofing)
   const [messageNonce] = useState(generateNonce);
   // Use provided targeting nonce or generate one
@@ -93,6 +116,16 @@ export function AppProxyPreviewFrame({
       onRefreshRef.current = refetch;
     }
   }, [onRefreshRef, refetch]);
+
+  // Detect password errors for modal display
+  const passwordError = isPasswordError(error);
+
+  // Auto-show modal on password error (first occurrence only)
+  useEffect(() => {
+    if (passwordError && !showPasswordModal) {
+      setShowPasswordModal(true);
+    }
+  }, [passwordError, showPasswordModal]);
 
   // Measure container width for scaling
   useEffect(() => {
@@ -193,13 +226,29 @@ export function AppProxyPreviewFrame({
           width: "100%",
         }}
       >
-        {/* Error display */}
-        {error && (
+        {/* Non-password errors - show dismissible banner with retry */}
+        {error && !passwordError && (
           <s-box padding="base">
             <s-banner tone="warning" dismissible>
               {error}
               <s-button slot="secondary-actions" variant="tertiary" onClick={refetch}>
                 Retry
+              </s-button>
+            </s-banner>
+          </s-box>
+        )}
+
+        {/* Password error - show configure option */}
+        {error && passwordError && (
+          <s-box padding="base">
+            <s-banner tone="warning">
+              {error}
+              <s-button
+                slot="secondary-actions"
+                variant="tertiary"
+                onClick={() => setShowPasswordModal(true)}
+              >
+                Configure Password
               </s-button>
             </s-banner>
           </s-box>
@@ -275,6 +324,17 @@ export function AppProxyPreviewFrame({
           </div>
         )}
       </div>
+
+      {/* Password Configuration Modal */}
+      <PasswordConfigModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSuccess={() => {
+          setShowPasswordModal(false);
+          // Auto-reload preview after password configured
+          refetch();
+        }}
+      />
     </s-box>
   );
 }

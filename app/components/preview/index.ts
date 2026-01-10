@@ -8,6 +8,7 @@ export { PreviewErrorBoundary } from './PreviewErrorBoundary';
 export { PreviewSkeleton } from './PreviewSkeleton';
 export { EmptyPreviewState } from './EmptyPreviewState';
 export { ElementInfoPanel } from './ElementInfoPanel';
+export { PasswordConfigModal, PASSWORD_MODAL_ID } from './PasswordConfigModal';
 
 // Hooks
 export { usePreviewMessaging } from './hooks/usePreviewMessaging';
