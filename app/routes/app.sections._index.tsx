@@ -552,7 +552,7 @@ export default function SectionsPage() {
   return (
     <>
       <s-page heading="Sections" inlineSize="large">
-        {/* Primary action button - uses href for Shopify navigation */}
+        {/* Primary action button */}
         <s-button
           slot="primary-action"
           variant="primary"
