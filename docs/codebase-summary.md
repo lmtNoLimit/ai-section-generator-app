@@ -9,12 +9,12 @@
 **AI Section Generator** (Blocksmith) is a production-ready Shopify embedded app enabling merchants to create custom Liquid theme sections using Google Gemini 2.5 Flash AI without coding. The system features a modern React Router 7 server-side rendering architecture with comprehensive AI chat, live preview via App Proxy native Shopify Liquid, multi-tenant billing, and complete TypeScript strict mode throughout.
 
 **Codebase Stats**:
-- **Application Files**: 235 (TypeScript/TSX, Prisma, CSS, JSON)
-- **React Components**: 111 organized in 8 feature domains
+- **Application Files**: 240 (TypeScript/TSX, Prisma, CSS, JSON)
+- **React Components**: 115 organized in 8 feature domains
 - **Service Modules**: 19 server-only files (`.server.ts`)
 - **Routes**: 29 file-based (protected/public/webhooks/API)
 - **Database Models**: 11 Prisma models with relationships
-- **Test Suites**: 30+ Jest test files
+- **Test Suites**: 32+ Jest test files
 
 ## Directory Structure
 
@@ -67,24 +67,43 @@ ai-section-generator-app/
 │   │   │   │   └── useAutoSave.ts       # Silent draft persistence
 │   │   │   └── __tests__/               # 7 test suites
 │   │   │
-│   │   ├── chat/                        # AI chat interface (23 files)
+│   │   ├── chat/                        # AI chat interface (27 files)
 │   │   │   ├── ChatPanel.tsx            # Main chat container
 │   │   │   ├── ChatInput.tsx            # Message input with file support
 │   │   │   ├── MessageList.tsx          # Scrollable message history
+│   │   │   ├── MessageItem.tsx          # Individual message styling
 │   │   │   ├── CodeBlock.tsx            # Code block rendering in chat
+│   │   │   ├── AIResponseCard.tsx       # Unified streaming + completed AI responses (NEW Phase 1)
+│   │   │   │   - Phase indicators: Analyzing → Schema → Styling → Finalizing
+│   │   │   │   - Change bullets: Extracted from AI response text
+│   │   │   │   - Collapsible code accordion (collapsed by default)
+│   │   │   │   - CSS transitions for smooth state changes
+│   │   │   │   - Memoized for performance
 │   │   │   ├── VersionCard.tsx          # AI version suggestion cards
-│   │   │   ├── MessageBubble.tsx        # Individual message styling
+│   │   │   ├── VersionBadge.tsx         # Version number badge display
+│   │   │   ├── VersionTimeline.tsx      # Version history timeline
+│   │   │   ├── BuildProgressIndicator.tsx # Generation progress display
+│   │   │   ├── StreamingCodeBlock.tsx   # Code rendering during streaming
+│   │   │   ├── SuggestionChips.tsx      # Quick action suggestion chips
 │   │   │   ├── LoadingIndicator.tsx     # Streaming state indicator
+│   │   │   ├── TypingIndicator.tsx      # Typing animation
 │   │   │   ├── hooks/
 │   │   │   │   ├── useChat.ts           # Chat message management
 │   │   │   │   ├── useAutoScroll.ts     # Auto-scroll on new messages
 │   │   │   │   ├── useStreamingMessage.ts # SSE stream handling
+│   │   │   │   ├── useStreamingProgress.ts # Streaming phase tracking
 │   │   │   │   └── useChatSuggestions.ts # Quick action suggestions
 │   │   │   ├── utils/
 │   │   │   │   ├── parseStreamedResponse.ts # Response parsing
 │   │   │   │   ├── formatChatMessage.ts     # Message formatting
-│   │   │   │   └── extractCodeBlocks.ts     # Code extraction from chat
-│   │   │   └── __tests__/               # 5 test suites
+│   │   │   │   ├── extractCodeBlocks.ts     # Code extraction from chat
+│   │   │   │   ├── changes-extractor.ts     # Extract changes from AI response (NEW Phase 1)
+│   │   │   │   │   - Pattern detection: bullets, numbered lists, action verbs
+│   │   │   │   │   - Max 5 most important changes returned
+│   │   │   │   │   - DoS protection: 50KB input limit
+│   │   │   │   ├── section-type-detector.ts # Detect section category from prompt
+│   │   │   │   └── suggestion-engine.ts     # Generate quick action suggestions
+│   │   │   └── __tests__/               # 6 test suites (added AIResponseCard + changes-extractor)
 │   │   │
 │   │   ├── generate/                    # Generation workflow (14 files)
 │   │   │   ├── GenerateLayout.tsx       # Two-column layout (input | preview)
@@ -371,10 +390,13 @@ ai-section-generator-app/
 - SectionNameInput - Title input
 - StatusBadge - Status indicator
 
-### Chat (23 components)
+### Chat (24 components)
 - ChatPanel, ChatInput, MessageList, CodeBlock, VersionCard
-- MessageBubble, LoadingIndicator, EmptyChatState
-- Custom hooks: useChat, useAutoScroll, useStreamingMessage, useChatSuggestions
+- AIResponseCard, MessageItem, LoadingIndicator, TypingIndicator
+- BuildProgressIndicator, StreamingCodeBlock, VersionBadge, VersionTimeline
+- SuggestionChips, EmptyChatState
+- Custom hooks: useChat, useAutoScroll, useStreamingMessage, useStreamingProgress, useChatSuggestions
+- Utilities: extractChanges, hasChanges, detectSectionType, getSuggestions
 
 ### Generate (14 components)
 - GenerateLayout, GenerateInputColumn, GeneratePreviewColumn
@@ -649,6 +671,6 @@ SectionFeedback {
 
 ---
 
-**Document Version**: 1.4
-**Last Updated**: 2026-01-20
+**Document Version**: 1.5
+**Last Updated**: 2026-01-26
 **Maintainer**: Documentation Manager

@@ -20,3 +20,67 @@
     opacity: 1;
   }
 }
+
+/* AIResponseCard phase/changes transitions */
+.ai-response-phases,
+.ai-response-changes {
+  transition: opacity 300ms ease-out, max-height 300ms ease-out;
+  overflow: hidden;
+}
+
+.ai-response-phases--visible,
+.ai-response-changes--visible {
+  opacity: 1;
+  max-height: 500px;
+}
+
+.ai-response-phases--hidden,
+.ai-response-changes--hidden {
+  opacity: 0;
+  max-height: 0;
+  padding: 0;
+  margin: 0;
+}
+
+/* AIResponseCard code accordion */
+.ai-response-code {
+  transition: max-height 250ms ease-out, opacity 200ms ease-out;
+  overflow: hidden;
+}
+
+.ai-response-code--expanded {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+.ai-response-code--collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* Indeterminate progress bar animation */
+@keyframes indeterminate-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.ai-response-progress-bar {
+  height: 4px;
+  background: var(--p-color-bg-surface-secondary);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.ai-response-progress-bar__fill {
+  position: absolute;
+  height: 100%;
+  width: 25%;
+  background: var(--p-color-bg-fill-brand);
+  border-radius: 2px;
+  animation: indeterminate-progress 1.5s ease-in-out infinite;
+}

@@ -29,6 +29,10 @@ export type { BuildProgressIndicatorProps } from './BuildProgressIndicator';
 export { StreamingCodeBlock } from './StreamingCodeBlock';
 export type { StreamingCodeBlockProps } from './StreamingCodeBlock';
 
+// AI Response Card (unified streaming + completed)
+export { AIResponseCard } from './AIResponseCard';
+export type { AIResponseCardProps, StreamingPhase } from './AIResponseCard';
+
 // Version components
 export { VersionBadge } from './VersionBadge';
 export type { VersionBadgeProps } from './VersionBadge';
@@ -59,3 +63,6 @@ export type { Suggestion, GetSuggestionsOptions } from './utils/suggestion-engin
 
 export { detectSectionType } from './utils/section-type-detector';
 export type { SectionType } from './utils/section-type-detector';
+
+// Changes extractor (AIResponseCard)
+export { extractChanges, hasChanges } from './utils/changes-extractor';
