@@ -268,15 +268,15 @@ Test cases:
 
 ## Todo List
 
-- [ ] Add `ContinuationResult` type to `ai.types.ts`
-- [ ] Add `buildContinuationPrompt()` to `context-builder.ts`
-- [ ] Add `mergeResponses()` and `findOverlap()` to `code-extractor.ts`
-- [ ] Update `api.chat.stream.tsx` with continuation loop
-- [ ] Add SSE events: `continuation_start`, `continuation_complete`
-- [ ] Add `FLAG_AUTO_CONTINUE` feature flag
-- [ ] Create unit tests for merge logic
-- [ ] Create integration tests for continuation flow
-- [ ] Manual test with artificially truncated response
+- [x] Add `ContinuationResult` type to `ai.types.ts`
+- [x] Add `buildContinuationPrompt()` to `context-builder.ts`
+- [x] Add `mergeResponses()` and `findOverlap()` to `code-extractor.ts`
+- [x] Update `api.chat.stream.tsx` with continuation loop
+- [x] Add SSE events: `continuation_start`, `continuation_complete`
+- [x] Add `FLAG_AUTO_CONTINUE` feature flag
+- [x] Create unit tests for merge logic
+- [x] Create integration tests for continuation flow
+- [x] Manual test with artificially truncated response
 
 ## Success Criteria
 

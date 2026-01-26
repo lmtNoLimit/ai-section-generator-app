@@ -1,5 +1,6 @@
 import type { ConversationContext } from '../types/ai.types';
 import type { ModelMessage } from '../types/chat.types';
+import type { LiquidValidationError } from './code-extractor';
 
 /**
  * Chat-specific system prompt extension
@@ -137,4 +138,46 @@ export function summarizeOldMessages(messages: ModelMessage[]): string {
   summary.push(`(${userMessages} refinement requests made)`);
 
   return summary.join('\n');
+}
+
+/**
+ * Build continuation prompt when AI response was truncated
+ * Provides context about what was cut off and hints for completion
+ *
+ * @param originalPrompt - The original user request
+ * @param partialResponse - The truncated AI response
+ * @param validationErrors - Errors from validateLiquidCompleteness
+ */
+export function buildContinuationPrompt(
+  originalPrompt: string,
+  partialResponse: string,
+  validationErrors: LiquidValidationError[]
+): string {
+  // Take last 500 chars for context (avoids token bloat)
+  const lastChunk = partialResponse.slice(-500);
+
+  // Extract missing tag names for hints
+  const missingTags = validationErrors
+    .filter(e => e.type === 'unclosed_liquid_tag')
+    .map(e => e.tag)
+    .filter((tag): tag is string => !!tag);
+
+  const missingTagsHint = missingTags.length > 0
+    ? `\n\nMissing closing tags: ${missingTags.map(t => `{% end${t} %}`).join(', ')}`
+    : '';
+
+  return `CONTINUE generating the Liquid section. Your previous response was truncated.
+
+IMPORTANT RULES:
+- Continue EXACTLY where you left off
+- Do NOT repeat content already generated
+- Complete all unclosed tags and sections
+- Maintain proper indentation matching previous code
+
+Last part of your response:
+"""
+${lastChunk}
+"""${missingTagsHint}
+
+Continue from here, completing all unclosed tags and the section.`;
 }

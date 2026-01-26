@@ -1,7 +1,7 @@
 # Codebase Summary - AI Section Generator (Blocksmith)
 
 **Last Updated**: 2026-01-26
-**Version**: 1.6
+**Version**: 1.7 (Phase 3 Auto-Continuation Complete)
 **Architecture**: Service-oriented, multi-tenant, React Router 7 SSR with TypeScript strict mode
 
 ## Overview
@@ -15,7 +15,7 @@
 - **Routes**: 29 file-based (protected/public/webhooks/API)
 - **Database Models**: 11 Prisma models with relationships
 - **Test Suites**: 32+ Jest test files
-- **AI Chat Features**: Streaming SSE, phase tracking, structured change extraction (Phase 3)
+- **AI Chat Features**: Streaming SSE, phase tracking, structured change extraction (Phase 3), auto-continuation for truncated responses (Phase 3)
 
 ## Directory Structure
 
@@ -34,7 +34,7 @@ ai-section-generator-app/
 │   │   │   ├── app.tsx                  # App layout wrapper (navigation, auth)
 │   │   │
 │   │   ├── API Routes (data endpoints):
-│   │   │   ├── api.chat.stream.ts       # SSE streaming for chat messages
+│   │   │   ├── api.chat.stream.tsx      # SSE streaming for chat with auto-continuation for truncated responses (Phase 3)
 │   │   │   ├── api.chat.messages.ts     # Conversation message persistence
 │   │   │   ├── api.enhance-prompt.ts    # Prompt optimization via Gemini
 │   │   │   ├── api.preview.render.ts    # App Proxy rendering (native Liquid)
@@ -220,8 +220,12 @@ ai-section-generator-app/
 │   │       └── __tests__/              # 1 test suite
 │   │
 │   ├── services/                       # 19 server-only modules (business logic)
-│   │   ├── ai.server.ts               # Gemini 2.5 Flash integration (290 LOC)
-│   │   │   - generateSection(prompt, context) → Liquid code
+│   │   ├── ai.server.ts               # Gemini 2.5 Flash integration (330 LOC, Phase 3 Auto-Continuation)
+│   │   │   - GENERATION_CONFIG: maxOutputTokens 65536 (prevents silent truncation at ~8K default)
+│   │   │   - generateWithContext(prompt, context, options) → async generator streaming tokens (Phase 3)
+│   │   │   - onFinishReason callback → reports MAX_TOKENS or STOP reason (Phase 3)
+│   │   │   - Feature flag: FLAG_MAX_OUTPUT_TOKENS for rollback
+│   │   │   - generateSection(prompt, context) → Liquid code (legacy alias)
 │   │   │   - enhancePrompt(prompt) → improved prompt
 │   │   │   - Mock fallback for development
 │   │   │
@@ -306,7 +310,7 @@ ai-section-generator-app/
 │   │   │
 │   │   └── (10+ additional services: database, auth, utils)
 │   │
-│   ├── utils/                          # Utility functions (16 files)
+│   ├── utils/                          # Utility functions (17 files, Phase 3 Auto-Continuation)
 │   │   ├── code-extractor.ts          # Extract code + changes from AI responses (Phase 3 + Phase 2)
 │   │   │   - extractCodeFromResponse() → code + changes + explanation
 │   │   │   - extractChanges() → structured comment or fallback parsing
@@ -317,10 +321,20 @@ ai-section-generator-app/
 │   │   │     * Stack-based HTML tag validation with truncation detection
 │   │   │     * Schema block and JSON validation
 │   │   │     * Feature flag: FLAG_VALIDATE_LIQUID
+│   │   │   - findOverlap(str1, str2) → detect overlapping content from continuation (Phase 3)
+│   │   │   - mergeResponses(original, continuation) → intelligent merge avoiding duplication (Phase 3)
+│   │   │     * Detects overlapping text between responses
+│   │   │     * Removes duplicated content when merging continuations
+│   │   │     * Prevents mangled Liquid output from consecutive generations
 │   │   ├── context-builder.ts         # Build conversation context + CHANGES instruction
 │   │   │   - CHAT_SYSTEM_EXTENSION → AI prompt with structured CHANGES format
 │   │   │   - buildConversationPrompt() → full context assembly
 │   │   │   - getChatSystemPrompt() → system prompt with extension
+│   │   │   - buildContinuationPrompt(originalPrompt, partialResponse, errors) → prompt for truncated response (Phase 3)
+│   │   │     * Provides context about truncated response
+│   │   │     * Hints for missing closing tags
+│   │   │     * Instructs AI to continue exactly where it left off
+│   │   │     * Feature flag: FLAG_AUTO_CONTINUE
 │   │   ├── input-sanitizer.ts         # XSS/injection prevention
 │   │   ├── liquid-wrapper.server.ts   # App Proxy context injection
 │   │   ├── settings-transform.server.ts # Liquid assigns generation
@@ -333,8 +347,13 @@ ai-section-generator-app/
 │   │   ├── formatters.ts              # Output formatting
 │   │   └── __tests__/                 # 3 test suites
 │   │
-│   ├── types/                          # TypeScript definitions (8 files)
-│   │   ├── ai.types.ts                # AI request/response types
+│   ├── types/                          # TypeScript definitions (8 files, Phase 3 Auto-Continuation)
+│   │   ├── ai.types.ts                # AI request/response types (updated Phase 3)
+│   │   │   - StreamingOptions → onToken, onComplete, onError callbacks
+│   │   │   - ExtendedStreamingOptions → extends with onFinishReason callback (Phase 3)
+│   │   │   - ContinuationResult → content, finishReason, continuationCount, wasComplete (Phase 3)
+│   │   │   - ConversationContext → currentCode, recentMessages, summarizedHistory
+│   │   │   - CodeExtractionResult → code extraction + structured changes
 │   │   ├── chat.types.ts              # Chat message types
 │   │   ├── section.types.ts           # Section model types
 │   │   ├── service.types.ts           # Service interfaces

@@ -1,8 +1,8 @@
 # System Architecture - AI Section Generator (Blocksmith)
 
-**Document Version**: 1.6
-**Last Updated**: 2026-01-25
-**Status**: Production-Ready (Phase 4 Complete + Phase 02 Bulk Delete)
+**Document Version**: 1.7
+**Last Updated**: 2026-01-26
+**Status**: Production-Ready (Phase 4 Complete + Phase 3 Auto-Continuation)
 
 ## Executive Summary
 
@@ -10,11 +10,12 @@ AI Section Generator is a **Shopify embedded app** using React Router 7 server-s
 
 **Architecture Principles**:
 - **Service-Oriented**: 19 server modules with clear separation of concerns
-- **Component-Based**: 111 React components organized by feature domain
+- **Component-Based**: 115 React components organized by feature domain
 - **Type-Safe**: Full TypeScript strict mode throughout
 - **Multi-Tenant**: Complete shop domain isolation (data + operations + billing)
 - **Adapter Pattern**: Mock/real service switching (development + testing)
-- **Streaming**: Server-Sent Events (SSE) for real-time chat updates
+- **Streaming**: Server-Sent Events (SSE) for real-time chat updates with auto-continuation
+- **Resilient AI**: Auto-continuation for truncated responses with intelligent merge (Phase 3)
 - **Immutable Logs**: Audit trail for compliance and debugging
 
 ## High-Level Data Flow
@@ -569,6 +570,56 @@ React Component:
 - Real-time feedback to user
 - Automatic reconnection on network interruption
 - Proper cleanup on component unmount
+
+### Auto-Continuation for Truncated Responses (Phase 3)
+
+When AI response is truncated (MAX_TOKENS or incomplete code), auto-continuation automatically requests continuation from Gemini:
+
+```
+Gemini API Response
+    │
+    ├─ Success: fullContent received (stream to client via SSE)
+    │
+    └─ Truncated: finishReason === "MAX_TOKENS" OR validation fails
+            │
+            ├─ Validate using validateLiquidCompleteness()
+            │   - Check: unclosed Liquid tags, HTML tags, schema block
+            │   - Return: LiquidValidationError array
+            │
+            ├─ Build continuation prompt with buildContinuationPrompt()
+            │   - Include: last 500 chars of partial response
+            │   - Hint: missing closing tags from validation
+            │   - Instruct: continue exactly where left off
+            │
+            ├─ Request continuation (max 2 attempts via MAX_CONTINUATIONS)
+            │   - Send: continuation prompt to Gemini
+            │   - Stream: continuation content via SSE (type: content_delta)
+            │   - Notify: client of continuation_start event
+            │
+            ├─ Merge responses using findOverlap() + mergeResponses()
+            │   - Detect: overlapping text between original and continuation
+            │   - Remove: duplicated content (prevents mangled output)
+            │   - Join: with newline if no overlap
+            │
+            ├─ Re-validate merged content
+            │   - If complete: stop continuation loop
+            │   - If incomplete: retry up to MAX_CONTINUATIONS=2
+            │   - Notify: client of continuation_complete event
+            │
+            └─ Stream completed full response (original + continuation merged)
+
+Feature Flags:
+- FLAG_AUTO_CONTINUE=true  → Enable auto-continuation
+- FLAG_MAX_OUTPUT_TOKENS=true  → Use 65536 token limit (prevents truncation)
+- FLAG_VALIDATE_LIQUID=true  → Validate code completeness
+
+SSE Events Sent During Continuation:
+- continuation_start: { attempt, reason, errors[] }
+- content_delta: { content } (continuation chunks)
+- continuation_complete: { attempt, isComplete, totalLength }
+
+This ensures merchants get complete, valid Liquid sections even when generation exceeds token limits.
+```
 
 ## Error Handling Strategy
 

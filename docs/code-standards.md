@@ -837,6 +837,16 @@ GEMINI_API_KEY=your_gemini_key  # optional, falls back to mock
 # Controls validateLiquidCompleteness() in code-extractor.ts
 # Checks: schema block, Liquid tag closure, HTML tag balance
 # Enable when enforcing stricter code quality requirements.
+
+# Auto-Continuation for Truncated Responses (Phase 3)
+# FLAG_AUTO_CONTINUE=false  (default, recommended to enable with FLAG_VALIDATE_LIQUID)
+#   - "true"  = Auto-continue generation when response is incomplete (max 2 attempts)
+#   - "false" = Return truncated response as-is
+# Controls auto-continuation logic in api.chat.stream.tsx (lines 144-221)
+# Works with: validateLiquidCompleteness() + buildContinuationPrompt()
+# Merges responses using: findOverlap() + mergeResponses() to avoid duplication
+# Enable for production to handle MAX_TOKENS and incomplete code robustly.
+# Best used in combination with FLAG_VALIDATE_LIQUID=true
 ```
 
 ### Accessing Environment Variables
@@ -1017,17 +1027,18 @@ async generateSection(prompt: string): Promise<string> {
 
 ---
 
-**Document Version**: 1.4
+**Document Version**: 1.5
 **Last Updated**: 2026-01-26
 **Compliance**: All code must follow these standards (strictly enforced)
-**Current Status**: Phase 4 + Phase 3 (Structured Changes) + Phase 2 (Liquid Validation) - All 235 app files pass TypeScript strict mode
+**Current Status**: Phase 4 + Phase 3 (Auto-Continuation) + Phase 3 (Structured Changes) + Phase 2 (Liquid Validation) - All 235 app files pass TypeScript strict mode
 **Key Enforcements**:
 - TypeScript strict mode throughout codebase
-- 30+ Jest test suites covering critical paths (now 33+ with Phase 2 validation tests)
-- 107 React components following feature-based organization
-- 25+ server services with clear separation of concerns
+- 33+ Jest test suites covering critical paths
+- 115 React components following feature-based organization
+- 19 server services with clear separation of concerns
 - Multi-tenant isolation via shop domain verification
 - Comprehensive error handling and input validation
 - Auto-save on AI generation with 4-layer duplicate prevention
 - Liquid code validation with truncation detection (Phase 2)
 - Structured change extraction from AI responses (Phase 3)
+- Auto-continuation for truncated responses with intelligent merge (Phase 3)

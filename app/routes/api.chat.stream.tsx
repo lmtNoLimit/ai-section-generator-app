@@ -2,8 +2,8 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { chatService } from "../services/chat.server";
 import { aiService } from "../services/ai.server";
-import { extractCodeFromResponse } from "../utils/code-extractor";
-import { summarizeOldMessages } from "../utils/context-builder";
+import { extractCodeFromResponse, validateLiquidCompleteness, mergeResponses } from "../utils/code-extractor";
+import { summarizeOldMessages, buildContinuationPrompt } from "../utils/context-builder";
 import { sanitizeUserInput, sanitizeLiquidCode } from "../utils/input-sanitizer";
 import { checkRefinementAccess } from "../services/feature-gate.server";
 import { logGeneration } from "../services/generation-log.server";
@@ -14,6 +14,9 @@ import type { ConversationContext } from "../types/ai.types";
 // Constants for input validation
 const MAX_CONTENT_LENGTH = 10000; // 10K chars max
 const MAX_CODE_LENGTH = 100000; // 100K chars max for Liquid code
+
+// Auto-continuation constants
+const MAX_CONTINUATIONS = 2; // Hard limit to prevent infinite loops
 
 /**
  * SSE streaming endpoint for chat messages
@@ -116,9 +119,13 @@ export async function action({ request }: ActionFunctionArgs) {
 
         let fullContent = '';
         let tokenCount = 0;
+        let continuationCount = 0;
+        let lastFinishReason: string | undefined;
 
         // Stream AI response using real Gemini streaming
-        const generator = aiService.generateWithContext(sanitizedContent, context);
+        const generator = aiService.generateWithContext(sanitizedContent, context, {
+          onFinishReason: (reason) => { lastFinishReason = reason; }
+        });
 
         for await (const token of generator) {
           fullContent += token;
@@ -132,6 +139,85 @@ export async function action({ request }: ActionFunctionArgs) {
               })}\n\n`
             )
           );
+        }
+
+        // Auto-continuation logic (feature flag controlled)
+        if (process.env.FLAG_AUTO_CONTINUE === 'true') {
+          let validation = validateLiquidCompleteness(fullContent);
+
+          // Continue if truncated (MAX_TOKENS) or validation fails, max 2 attempts
+          while (!validation.isComplete && continuationCount < MAX_CONTINUATIONS) {
+            continuationCount++;
+
+            // Notify client of continuation attempt
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: 'continuation_start',
+                  data: {
+                    attempt: continuationCount,
+                    reason: lastFinishReason === 'MAX_TOKENS' ? 'token_limit' : 'incomplete_code',
+                    errors: validation.errors.map(e => e.message)
+                  }
+                })}\n\n`
+              )
+            );
+
+            // Build continuation prompt with validation context
+            const continuationPrompt = buildContinuationPrompt(
+              sanitizedContent,
+              fullContent,
+              validation.errors
+            );
+
+            // Create continuation context with partial response
+            const continuationContext: ConversationContext = {
+              ...context,
+              currentCode: fullContent, // Include partial as context
+            };
+
+            // Stream continuation response
+            let continuationContent = '';
+            const continuationGen = aiService.generateWithContext(
+              continuationPrompt,
+              continuationContext,
+              { onFinishReason: (reason) => { lastFinishReason = reason; } }
+            );
+
+            for await (const token of continuationGen) {
+              continuationContent += token;
+              tokenCount += estimateTokens(token);
+
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: 'content_delta',
+                    data: { content: token },
+                  })}\n\n`
+                )
+              );
+            }
+
+            // Merge responses with overlap detection
+            fullContent = mergeResponses(fullContent, continuationContent);
+
+            // Re-validate merged content
+            validation = validateLiquidCompleteness(fullContent);
+
+            // Notify client of continuation result
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: 'continuation_complete',
+                  data: {
+                    attempt: continuationCount,
+                    isComplete: validation.isComplete,
+                    totalLength: fullContent.length
+                  }
+                })}\n\n`
+              )
+            );
+          }
         }
 
         // Extract code from completed response

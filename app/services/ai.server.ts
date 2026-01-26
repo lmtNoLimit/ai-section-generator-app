@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AIServiceInterface } from "../types";
-import type { StreamingOptions, ConversationContext } from "../types/ai.types";
+import type { StreamingOptions, ConversationContext, ExtendedStreamingOptions } from "../types/ai.types";
 import { buildConversationPrompt, getChatSystemPrompt } from "../utils/context-builder";
 
 /**
@@ -538,16 +538,18 @@ export class AIService implements AIServiceInterface {
   /**
    * Generate section with conversation context
    * Used by chat endpoint for iterative refinement
+   * Extended options allow accessing finishReason for auto-continuation
    */
   async *generateWithContext(
     userMessage: string,
     context: ConversationContext,
-    options?: StreamingOptions
+    options?: ExtendedStreamingOptions
   ): AsyncGenerator<string, void, unknown> {
     const fullPrompt = buildConversationPrompt(userMessage, context);
 
     if (!this.genAI) {
       yield* this.generateSectionStream(fullPrompt, options);
+      options?.onFinishReason?.('STOP'); // Mock always completes
       return;
     }
 
@@ -572,12 +574,17 @@ export class AIService implements AIServiceInterface {
         }
       }
 
-      // Log finish reason after stream completes
+      // Get finish reason and expose via callback for auto-continuation
       const aggregatedResponse = await result.response;
       const finishReason = aggregatedResponse.candidates?.[0]?.finishReason;
+
+      // Log non-STOP finish reasons for monitoring
       if (finishReason && finishReason !== 'STOP') {
         console.warn(`[ai.server] generateWithContext finishReason: ${finishReason}`);
       }
+
+      // Expose finish reason to caller for continuation logic
+      options?.onFinishReason?.(finishReason);
     } catch (error) {
       console.error("Gemini context streaming error:", error);
       options?.onError?.(error instanceof Error ? error : new Error(String(error)));

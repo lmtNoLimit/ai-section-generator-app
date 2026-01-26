@@ -1,5 +1,11 @@
 // @jest-environment jsdom
-import { extractCodeFromResponse, isCompleteLiquidSection } from '../code-extractor';
+import {
+  extractCodeFromResponse,
+  isCompleteLiquidSection,
+  findOverlap,
+  mergeResponses,
+  validateLiquidCompleteness
+} from '../code-extractor';
 
 describe('extractCodeFromResponse', () => {
   it('should extract full Liquid section with schema', () => {
@@ -256,5 +262,206 @@ describe('isCompleteLiquidSection', () => {
 
   it('should return false for empty string', () => {
     expect(isCompleteLiquidSection('')).toBe(false);
+  });
+});
+
+// Phase 3: Auto-continuation merge tests
+describe('findOverlap', () => {
+  it('should find exact overlap at boundary', () => {
+    const str1 = 'Hello world, this is a test';
+    const str2 = 'this is a test for overlap';
+
+    const overlap = findOverlap(str1, str2);
+
+    expect(overlap).toBe(14); // "this is a test"
+  });
+
+  it('should return 0 when no overlap exists', () => {
+    const str1 = 'First string here';
+    const str2 = 'Completely different content';
+
+    const overlap = findOverlap(str1, str2);
+
+    expect(overlap).toBe(0);
+  });
+
+  it('should not detect overlap shorter than 10 chars', () => {
+    const str1 = 'Hello world';
+    const str2 = 'world peace'; // Only 5 char overlap
+
+    const overlap = findOverlap(str1, str2);
+
+    expect(overlap).toBe(0);
+  });
+
+  it('should find overlap with Liquid code', () => {
+    const str1 = `{% if section.settings.show %}
+  <div class="ai-hero">
+    <h2>{{ section.settings.heading }}</h2>`;
+    const str2 = `{{ section.settings.heading }}</h2>
+  </div>
+{% endif %}`;
+
+    const overlap = findOverlap(str1, str2);
+
+    expect(overlap).toBeGreaterThanOrEqual(10);
+  });
+
+  it('should cap overlap at 200 chars max', () => {
+    const sharedContent = 'A'.repeat(250);
+    const str1 = 'prefix' + sharedContent;
+    const str2 = sharedContent + 'suffix';
+
+    const overlap = findOverlap(str1, str2);
+
+    expect(overlap).toBeLessThanOrEqual(200);
+  });
+});
+
+describe('mergeResponses', () => {
+  it('should merge with overlap detected', () => {
+    const original = 'Start of content... this is the ending part';
+    const continuation = 'this is the ending part and more content here';
+
+    const merged = mergeResponses(original, continuation);
+
+    expect(merged).toBe('Start of content... this is the ending part and more content here');
+    expect(merged).not.toContain('this is the ending part\nthis is the ending part');
+  });
+
+  it('should concatenate with newline when no overlap', () => {
+    const original = 'First part of the code';
+    const continuation = 'Second part continues here';
+
+    const merged = mergeResponses(original, continuation);
+
+    expect(merged).toBe('First part of the code\nSecond part continues here');
+  });
+
+  it('should handle Liquid code merge correctly', () => {
+    const original = `{% schema %}
+{"name": "Hero"}
+{% endschema %}
+
+<div class="ai-hero">
+  <h2>{{ section.settings`;
+    const continuation = `{{ section.settings.heading }}</h2>
+</div>`;
+
+    const merged = mergeResponses(original, continuation);
+
+    // Should contain both parts
+    expect(merged).toContain('{% schema %}');
+    expect(merged).toContain('</div>');
+    // Should not have duplicate opening
+    expect((merged.match(/\{% schema %\}/g) || []).length).toBe(1);
+  });
+
+  it('should preserve schema integrity after merge', () => {
+    const original = `{% schema %}
+{
+  "name": "Test",
+  "settings": [`;
+    const continuation = `[
+    {"type": "text", "id": "heading"}
+  ]
+}
+{% endschema %}
+<div>Content</div>`;
+
+    const merged = mergeResponses(original, continuation);
+
+    expect(merged).toContain('{% schema %}');
+    expect(merged).toContain('{% endschema %}');
+    expect(merged).toContain('<div>Content</div>');
+  });
+});
+
+// Phase 2/3: Liquid validation tests
+describe('validateLiquidCompleteness', () => {
+  // Note: Tests require FLAG_VALIDATE_LIQUID=true to run actual validation
+  const originalEnv = process.env.FLAG_VALIDATE_LIQUID;
+
+  beforeEach(() => {
+    process.env.FLAG_VALIDATE_LIQUID = 'true';
+  });
+
+  afterEach(() => {
+    process.env.FLAG_VALIDATE_LIQUID = originalEnv;
+  });
+
+  it('should return valid for complete section', () => {
+    const code = `{% schema %}
+{"name": "Complete", "presets": [{"name": "Complete"}]}
+{% endschema %}
+
+{% style %}
+.ai-section { padding: 20px; }
+{% endstyle %}
+
+<div class="ai-section">
+  {% if section.settings.show %}
+    <h2>{{ section.settings.heading }}</h2>
+  {% endif %}
+</div>`;
+
+    const result = validateLiquidCompleteness(code);
+
+    expect(result.isComplete).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('should detect unclosed Liquid tags', () => {
+    const code = `{% schema %}
+{"name": "Test"}
+{% endschema %}
+
+<div>
+  {% if section.settings.show %}
+    <h2>Heading</h2>
+</div>`;
+
+    const result = validateLiquidCompleteness(code);
+
+    expect(result.isComplete).toBe(false);
+    expect(result.errors.some(e => e.type === 'unclosed_liquid_tag')).toBe(true);
+    expect(result.errors.some(e => e.tag === 'if')).toBe(true);
+  });
+
+  it('should detect missing endschema', () => {
+    const code = `{% schema %}
+{"name": "Truncated"
+
+<div>Content</div>`;
+
+    const result = validateLiquidCompleteness(code);
+
+    expect(result.isComplete).toBe(false);
+    expect(result.errors.some(e => e.type === 'unclosed_liquid_tag' && e.tag === 'schema')).toBe(true);
+  });
+
+  it('should detect invalid schema JSON', () => {
+    const code = `{% schema %}
+{"name": "Invalid, missing quote}
+{% endschema %}
+
+<div>Content</div>`;
+
+    const result = validateLiquidCompleteness(code);
+
+    expect(result.isComplete).toBe(false);
+    expect(result.errors.some(e => e.type === 'invalid_schema_json')).toBe(true);
+  });
+
+  it('should skip validation when flag disabled', () => {
+    process.env.FLAG_VALIDATE_LIQUID = 'false';
+
+    const invalidCode = `{% schema %}
+{"broken`;
+
+    const result = validateLiquidCompleteness(invalidCode);
+
+    expect(result.isComplete).toBe(true);
+    expect(result.errors).toHaveLength(0);
   });
 });

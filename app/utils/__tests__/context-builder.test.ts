@@ -2,8 +2,10 @@
 import {
   buildConversationPrompt,
   getChatSystemPrompt,
-  summarizeOldMessages
+  summarizeOldMessages,
+  buildContinuationPrompt
 } from '../context-builder';
+import type { LiquidValidationError } from '../code-extractor';
 import type { ConversationContext } from '../../types/ai.types';
 import type { ModelMessage } from '../../types/chat.types';
 
@@ -161,5 +163,61 @@ describe('summarizeOldMessages', () => {
     expect(result).toContain('background styling');
     expect(result).toContain('padding adjustments');
     expect(result).toContain('margin changes');
+  });
+});
+
+// Phase 3: Continuation prompt tests
+describe('buildContinuationPrompt', () => {
+  it('should include last 500 chars of partial response', () => {
+    const originalPrompt = 'Create a hero section';
+    const partialResponse = 'A'.repeat(600) + 'END_MARKER';
+    const errors: LiquidValidationError[] = [];
+
+    const result = buildContinuationPrompt(originalPrompt, partialResponse, errors);
+
+    expect(result).toContain('END_MARKER');
+    expect(result).not.toContain('A'.repeat(600)); // First 100 chars should be trimmed
+  });
+
+  it('should include missing tag hints from validation errors', () => {
+    const originalPrompt = 'Create a section';
+    const partialResponse = '{% if condition %}<div>';
+    const errors: LiquidValidationError[] = [
+      { type: 'unclosed_liquid_tag', tag: 'if', message: 'Unclosed if tag' },
+      { type: 'unclosed_liquid_tag', tag: 'schema', message: 'Missing endschema' }
+    ];
+
+    const result = buildContinuationPrompt(originalPrompt, partialResponse, errors);
+
+    expect(result).toContain('{% endif %}');
+    expect(result).toContain('{% endschema %}');
+    expect(result).toContain('Missing closing tags');
+  });
+
+  it('should include instructions to not repeat content', () => {
+    const result = buildContinuationPrompt('Test', 'Partial', []);
+
+    expect(result).toContain('CONTINUE generating');
+    expect(result).toContain('Do NOT repeat content');
+    expect(result).toContain('EXACTLY where you left off');
+  });
+
+  it('should handle empty validation errors', () => {
+    const result = buildContinuationPrompt('Test prompt', 'Partial response', []);
+
+    expect(result).not.toContain('Missing closing tags');
+    expect(result).toContain('Last part of your response');
+  });
+
+  it('should filter non-tag errors from hints', () => {
+    const errors: LiquidValidationError[] = [
+      { type: 'invalid_schema_json', message: 'Invalid JSON' },
+      { type: 'unclosed_liquid_tag', tag: 'for', message: 'Missing endfor' }
+    ];
+
+    const result = buildContinuationPrompt('Test', 'Partial', errors);
+
+    expect(result).toContain('{% endfor %}');
+    expect(result).not.toContain('Invalid JSON');
   });
 });

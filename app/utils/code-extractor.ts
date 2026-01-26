@@ -414,3 +414,51 @@ export function validateLiquidCompleteness(code: string): LiquidValidationResult
     warnings,
   };
 }
+
+// ============================================================================
+// Response Merging for Auto-Continuation
+// ============================================================================
+
+/**
+ * Find overlap between end of str1 and start of str2
+ * Used to deduplicate when merging continuation responses
+ *
+ * @param str1 - First string (original response)
+ * @param str2 - Second string (continuation response)
+ * @returns Length of overlapping characters
+ */
+export function findOverlap(str1: string, str2: string): number {
+  const maxOverlap = Math.min(str1.length, str2.length, 200);
+
+  // Search from longest possible overlap down to minimum
+  for (let len = maxOverlap; len >= 10; len--) {
+    const end1 = str1.slice(-len);
+    const start2 = str2.slice(0, len);
+    if (end1 === start2) {
+      return len;
+    }
+  }
+
+  return 0;
+}
+
+/**
+ * Merge original response with continuation, removing duplicated content
+ * If overlap detected, removes overlapping portion from continuation
+ * Otherwise, joins with newline
+ *
+ * @param original - Original AI response (possibly truncated)
+ * @param continuation - Continuation response from follow-up request
+ * @returns Merged content without duplication
+ */
+export function mergeResponses(original: string, continuation: string): string {
+  const overlapLength = findOverlap(original, continuation);
+
+  if (overlapLength > 0) {
+    // Remove overlapping portion from continuation
+    return original + continuation.slice(overlapLength);
+  }
+
+  // No overlap detected - simple concatenation with newline
+  return original + '\n' + continuation;
+}

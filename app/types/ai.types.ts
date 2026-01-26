@@ -34,3 +34,20 @@ export interface CodeExtractionResult {
   explanation?: string;
   changes?: string[];
 }
+
+/**
+ * Extended streaming options with finish reason callback
+ */
+export interface ExtendedStreamingOptions extends StreamingOptions {
+  onFinishReason?: (reason: string | undefined) => void;
+}
+
+/**
+ * Result of auto-continuation process
+ */
+export interface ContinuationResult {
+  content: string;
+  finishReason: string | undefined;
+  continuationCount: number;
+  wasComplete: boolean;
+}
