@@ -370,6 +370,69 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
     setFailedMessage(null);
   }, []);
 
+  /**
+   * Restore a previous version as a new version (Phase 2)
+   * Calls restore API and adds new message to state
+   */
+  const restoreVersion = useCallback(async (
+    versionId: string,
+    versionNumber: number,
+    _versionCode: string // Unused - code is fetched server-side for security
+  ): Promise<UIMessage | null> => {
+    // Prevent restore during streaming
+    if (state.isStreaming || isGeneratingRef.current) {
+      console.warn('[useChat] Cannot restore during streaming');
+      return null;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('conversationId', conversationId);
+      formData.append('fromVersionId', versionId);
+      formData.append('fromVersionNumber', String(versionNumber));
+
+      const response = await fetch('/api/chat/restore', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.message) {
+        // Add restored message to state with restore metadata
+        const restoredMessage: UIMessage = {
+          ...data.message,
+          createdAt: new Date(data.message.createdAt),
+          isRestoreMessage: true,
+          restoredFromVersion: versionNumber,
+        };
+
+        dispatch({ type: 'COMPLETE_STREAMING', message: restoredMessage });
+
+        // Apply code to preview
+        if (restoredMessage.codeSnapshot && onCodeUpdate) {
+          onCodeUpdate(restoredMessage.codeSnapshot);
+        }
+
+        return restoredMessage;
+      }
+
+      return null;
+    } catch (error) {
+      const chatError = parseError(error);
+      dispatch({
+        type: 'SET_ERROR',
+        error: formatErrorMessage(chatError),
+      });
+      return null;
+    }
+  }, [conversationId, state.isStreaming, onCodeUpdate]);
+
   return {
     messages: state.messages,
     isStreaming: state.isStreaming,
@@ -384,6 +447,7 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
     clearError,
     retryFailedMessage,
     clearConversation,
+    restoreVersion, // Phase 2: Restore version functionality
   };
 }
 

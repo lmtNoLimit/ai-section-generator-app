@@ -216,4 +216,44 @@ describe('VersionCard', () => {
       expect(container2.querySelector('.chat-version-card')).toBeTruthy();
     });
   });
+
+  // Phase 2: Restore functionality tests
+  describe('Phase 2: restore features', () => {
+    it('shows restore indicator when isRestore is true', () => {
+      render(
+        <VersionCard {...defaultProps} isRestore={true} restoredFromVersion={2} />
+      );
+      expect(screen.getByText(/\(Restore\)/)).toBeInTheDocument();
+    });
+
+    it('shows source version when restored', () => {
+      render(
+        <VersionCard {...defaultProps} isRestore={true} restoredFromVersion={2} />
+      );
+      expect(screen.getByText(/from v2/)).toBeInTheDocument();
+    });
+
+    it('does not show restore indicator when isRestore is false', () => {
+      render(<VersionCard {...defaultProps} isRestore={false} />);
+      expect(screen.queryByText(/\(Restore\)/)).not.toBeInTheDocument();
+    });
+
+    it('disables restore button when streaming', () => {
+      const { container } = render(
+        <VersionCard {...defaultProps} isStreaming={true} />
+      );
+      const buttons = container.querySelectorAll('s-button');
+      // Second button is restore
+      expect(buttons[1]).toHaveAttribute('disabled');
+    });
+
+    it('enables restore button when not streaming', () => {
+      const { container } = render(
+        <VersionCard {...defaultProps} isStreaming={false} />
+      );
+      const buttons = container.querySelectorAll('s-button');
+      // Second button is restore
+      expect(buttons[1]).not.toHaveAttribute('disabled');
+    });
+  });
 });

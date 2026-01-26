@@ -218,7 +218,7 @@ export const AIResponseCard = memo(function AIResponseCard({
 
           {/* Completed: Default message if no changes */}
           {showDefaultMessage && (
-            <s-text>Here's your section code. You can preview it in the panel on the right.</s-text>
+            <s-text>Here&apos;s your section code. You can preview it in the panel on the right.</s-text>
           )}
 
           {/* Completed: Collapsible code accordion */}

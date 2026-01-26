@@ -12,6 +12,10 @@ export interface VersionCardProps {
   isSelected: boolean;    // Currently previewing this version
   onPreview: () => void;  // Eye icon - temporary preview
   onRestore: () => void;  // Return icon - apply with dirty check
+  // Restore tracking (Phase 2)
+  isRestore?: boolean;            // true if this version was restored from another
+  restoredFromVersion?: number;   // source version number if isRestore
+  isStreaming?: boolean;          // disable restore during streaming
 }
 
 /**
@@ -45,6 +49,9 @@ export const VersionCard = memo(function VersionCard({
   isSelected,
   onPreview,
   onRestore,
+  isRestore = false,
+  restoredFromVersion,
+  isStreaming = false,
 }: VersionCardProps) {
   const relativeTime = getRelativeTime(createdAt);
 
@@ -78,8 +85,11 @@ export const VersionCard = memo(function VersionCard({
           <s-stack direction="inline" gap="small" alignItems="center">
             <span className="chat-version-badge">
               <s-icon type="code" />
-              v{versionNumber}
+              {isRestore ? '(Restore) ' : ''}v{versionNumber}
             </span>
+            {isRestore && restoredFromVersion && (
+              <s-text color="subdued">from v{restoredFromVersion}</s-text>
+            )}
             <s-text color="subdued">{relativeTime}</s-text>
             {isActive && (
               <s-badge tone="success">Active</s-badge>
@@ -102,6 +112,7 @@ export const VersionCard = memo(function VersionCard({
                 icon="reset"
                 onClick={handleRestoreClick}
                 accessibilityLabel="Restore this version"
+                disabled={isStreaming || undefined}
               >
                 Restore
               </s-button>

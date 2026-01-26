@@ -195,6 +195,38 @@ export class ChatService {
   }
 
   /**
+   * Create a restore message (Phase 2)
+   * Restores code from a previous version as a new message
+   */
+  async createRestoreMessage(
+    conversationId: string,
+    code: string,
+    fromVersionNumber: number
+  ): Promise<UIMessage> {
+    const message = await prisma.message.create({
+      data: {
+        conversationId,
+        role: 'assistant',
+        content: `Restored your section to version ${fromVersionNumber}.`,
+        codeSnapshot: code,
+        // Store restore metadata as JSON in a field we'll need to add
+        // For now, we use the content to indicate it's a restore
+      }
+    });
+
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { messageCount: { increment: 1 }, updatedAt: new Date() }
+    });
+
+    return {
+      ...this.toUIMessage(message),
+      isRestoreMessage: true,
+      restoredFromVersion: fromVersionNumber,
+    };
+  }
+
+  /**
    * Extract Liquid code from AI response
    * Looks for schema blocks or fenced code blocks
    */

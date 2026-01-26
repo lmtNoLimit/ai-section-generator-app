@@ -87,6 +87,7 @@ export function ChatPanel({
     clearError,
     retryFailedMessage,
     clearConversation,
+    restoreVersion,
   } = useChat({
     conversationId,
     currentCode,
@@ -196,6 +197,25 @@ export function ChatPanel({
     onCodeUpdate?.(code);
   }, [onCodeUpdate]);
 
+  // Phase 2: Handle version restore (creates new version from old version's code)
+  const handleVersionRestore = useCallback(async (versionId: string) => {
+    // Find the version to restore
+    const version = versions.find(v => v.id === versionId);
+    if (!version) return;
+
+    // Call restore API via useChat hook
+    const restoredMessage = await restoreVersion(
+      version.id,
+      version.versionNumber,
+      version.code
+    );
+
+    if (restoredMessage) {
+      // Trigger auto-apply for the new version (handled by useVersionState)
+      onVersionApply?.(restoredMessage.id);
+    }
+  }, [versions, restoreVersion, onVersionApply]);
+
   // Phase 05: Clear prefilled input after send
   const handleSend = useCallback((message: string) => {
     // Flag user-initiated send to prevent auto-trigger race condition
@@ -283,7 +303,7 @@ export function ChatPanel({
           selectedVersionId={selectedVersionId}
           activeVersionId={activeVersionId}
           onVersionSelect={onVersionSelect}
-          onVersionApply={onVersionApply}
+          onVersionApply={handleVersionRestore}
           // Phase 05: Suggestion chips handlers
           onSuggestionClick={handleSuggestionClick}
           onCopyCode={handleCopyCode}

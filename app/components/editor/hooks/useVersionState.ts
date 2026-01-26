@@ -53,21 +53,24 @@ export function useVersionState({
   // Derive versions from messages with codeSnapshot (or extracted code as fallback)
   const versions = useMemo<CodeVersion[]>(() => {
     let versionNumber = 0;
-    return messages
-      .filter((m) => m.role === 'assistant')
-      .map((m) => {
-        // Use codeSnapshot if available, otherwise extract from content
-        const code = m.codeSnapshot || extractCodeFromContent(m.content);
-        if (!code) return null;
-        return {
-          id: m.id,
-          versionNumber: ++versionNumber,
-          code,
-          createdAt: m.createdAt,
-          messageContent: m.content.slice(0, 100),
-        };
-      })
-      .filter((v): v is CodeVersion => v !== null);
+    const result: CodeVersion[] = [];
+    for (const m of messages) {
+      if (m.role !== 'assistant') continue;
+      // Use codeSnapshot if available, otherwise extract from content
+      const code = m.codeSnapshot || extractCodeFromContent(m.content);
+      if (!code) continue;
+      result.push({
+        id: m.id,
+        versionNumber: ++versionNumber,
+        code,
+        createdAt: m.createdAt,
+        messageContent: m.content.slice(0, 100),
+        // Restore tracking (Phase 2)
+        isRestore: m.isRestoreMessage,
+        restoredFromVersion: m.restoredFromVersion,
+      });
+    }
+    return result;
   }, [messages]);
 
   // Selected version for preview (null = show active/current code)

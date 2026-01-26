@@ -43,6 +43,10 @@ export type { VersionCardProps } from './VersionCard';
 export { VersionTimeline } from './VersionTimeline';
 export type { VersionTimelineProps } from './VersionTimeline';
 
+// Restore message (Phase 2)
+export { RestoreMessage } from './RestoreMessage';
+export type { RestoreMessageProps } from './RestoreMessage';
+
 // Hooks
 export { useChat } from './hooks/useChat';
 export type { UseChatOptions, ChatState, ChatAction, StreamingProgress } from './hooks/useChat';

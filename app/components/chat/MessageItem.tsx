@@ -284,6 +284,9 @@ export const MessageItem = memo(function MessageItem({
                 isSelected={isSelected}
                 onPreview={onVersionSelect || (() => {})}
                 onRestore={onVersionApply || (() => {})}
+                isStreaming={isStreaming}
+                isRestore={message.isRestoreMessage}
+                restoredFromVersion={message.restoredFromVersion}
               />
             )}
 

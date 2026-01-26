@@ -16,6 +16,9 @@ export interface UIMessage {
   isError?: boolean;
   errorMessage?: string;
   createdAt: Date;
+  // Restore tracking (Phase 2)
+  isRestoreMessage?: boolean; // true for system restore messages
+  restoredFromVersion?: number; // source version number if isRestore
 }
 
 // ModelMessage - stripped for API calls to AI
@@ -65,6 +68,9 @@ export interface CodeVersion {
   code: string; // codeSnapshot content
   createdAt: Date;
   messageContent: string; // AI response text (truncated for display)
+  // Restore tracking (Phase 2)
+  isRestore?: boolean; // true if this version was restored from another
+  restoredFromVersion?: number; // source version number if isRestore
 }
 
 // Conversation metadata (without messages)

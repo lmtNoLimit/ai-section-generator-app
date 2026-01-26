@@ -160,6 +160,7 @@ export function MessageList({
                   isSelected={selectedVersionId === message.id}
                   isLatest={isLatestVersion || false}
                   isActive={activeVersionId === message.id}
+                  isStreaming={isStreaming}
                   onVersionSelect={() => onVersionSelect?.(message.id)}
                   onVersionApply={() => onVersionApply?.(message.id)}
                   // Phase 05: Suggestion chips props
