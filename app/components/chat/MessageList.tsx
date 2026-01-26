@@ -1,9 +1,13 @@
 /**
  * MessageList component - Scrollable message container
- * Uses pure Polaris Web Components for all styling
+ * Uses Polaris Web Components for styling, native CSS for scrolling
  * Handles auto-scroll, version display, build progress, and suggestion chips
  *
- * Note: Parent container handles scroll - this renders message content
+ * Scroll Strategy: Uses flex layout + overflow-y:auto
+ * - ChatPanelWrapper: flex container with height:100%
+ * - ChatPanel: flex:1 + minHeight:0 to allow shrinking
+ * - MessageList: height:100% + overflow-y:auto for scrolling
+ * Note: s-scroll-box is NOT available in app-home Polaris components
  */
 import { useAutoScroll } from './hooks/useAutoScroll';
 import { MessageItem } from './MessageItem';
@@ -15,12 +19,14 @@ import type { StreamingProgress } from './hooks/useStreamingProgress';
 import type { Suggestion } from './utils/suggestion-engine';
 
 // Minimal inline styles for non-Polaris features
+// Note: s-scroll-box is NOT available in app-home Polaris components
+// We must use native CSS for scrolling
 const styles = {
+  // Scroll container - fills parent and enables vertical scrolling
+  // Parent must have explicit height (flex container with minHeight:0)
   scrollContainer: {
-    flex: 1,
-    minHeight: 0,
+    height: '100%',
     overflowY: 'auto' as const,
-    scrollBehavior: 'smooth' as const,
   },
   bubbleRadius: {
     borderRadius: '16px 16px 16px 4px',

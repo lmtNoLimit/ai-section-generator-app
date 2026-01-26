@@ -1,10 +1,17 @@
 /**
  * ChatPanelWrapper - Minimal wrapper for ChatPanel
- * Uses CSS class for flex layout (defined in ChatStyles)
+ * Uses inline styles for flex layout (s-scroll-box unavailable in app-home)
  * Passes through version props for version display in messages
  */
 import { ChatPanel } from "../chat";
 import type { UIMessage, CodeVersion } from "../../types";
+
+// Flex container style - enables ChatPanel to use flex:1 for scrollable messages
+const wrapperStyle = {
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column' as const,
+};
 
 interface ChatPanelWrapperProps {
   conversationId: string;
@@ -37,7 +44,7 @@ export function ChatPanelWrapper({
   isInitialGeneration = false,
 }: ChatPanelWrapperProps) {
   return (
-    <div className="chat-panel-wrapper">
+    <div style={wrapperStyle}>
       {/* Loading indicator during initial AI generation */}
       {isInitialGeneration && (
         <div role="status" aria-live="polite">

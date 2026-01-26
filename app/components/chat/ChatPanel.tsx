@@ -19,20 +19,30 @@ import type { Suggestion } from "./utils/suggestion-engine";
 // Minimal CSS for keyframe animations (cursor blink, typing bounce)
 import "./chat-animations.css";
 
-// Minimal inline styles for flex layout (not available in Polaris s-box)
+/**
+ * Minimal inline styles for flex layout.
+ * Required because Polaris s-box doesn't support:
+ * - display: flex (only block/none)
+ * - flex: 1 for flexible sizing
+ * Note: s-scroll-box is NOT available in app-home Polaris components
+ * These styles enable the scrollable message list pattern.
+ */
 const containerStyles = {
+  // Main panel: flex column to stack header, messages, input
+  // Uses flex: 1 because parent (chat-panel-wrapper) is a flex container
   panel: {
     display: 'flex',
     flexDirection: 'column' as const,
-    height: '100%',
-    minHeight: 0,
+    flex: 1,
+    minHeight: 0, // Critical: allows flex children to shrink below content size
+    overflow: 'hidden', // Prevent content from overflowing the panel
   },
+  // Messages area: takes remaining space as flex child
+  // minHeight: 0 is critical - allows shrinking below content size for scrolling
   messages: {
     flex: 1,
     minHeight: 0,
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column' as const,
+    overflow: 'hidden', // Children handle their own scrolling
   },
 };
 
