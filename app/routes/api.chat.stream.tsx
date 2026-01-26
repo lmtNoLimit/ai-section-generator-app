@@ -283,15 +283,15 @@ export async function action({ request }: ActionFunctionArgs) {
         const wasComplete = validation.isComplete;
 
         // Send completion event with Phase 4 metadata
+        // NOTE: codeSnapshot is NOT sent via SSE - client extracts locally from
+        // streamed content to avoid SSE chunking issues with large payloads
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({
               type: 'message_complete',
               data: {
                 messageId: assistantMessage.id,
-                codeSnapshot: sanitizedCode,
                 hasCode: extraction.hasCode,
-                changes: extraction.changes,
                 wasComplete, // Phase 4: true if code complete after all continuations
                 continuationCount, // Phase 4: number of continuation attempts
               },

@@ -7,6 +7,7 @@ import { useReducer, useCallback, useRef, useEffect, useState } from 'react';
 import type { UIMessage, StreamEvent, GenerationStatus } from '../../../types';
 import { parseError, formatErrorMessage, createUpgradeError, type ChatError, type ApiErrorResponse } from '../../../utils/error-handler';
 import { useStreamingProgress, type StreamingProgress } from './useStreamingProgress';
+import { extractCodeFromContent, sanitizeLiquidCode } from '../../../utils/code-extraction.client';
 
 interface FailedMessage {
   content: string;
@@ -237,6 +238,9 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
       // Store server's real message ID from message_complete event
       let serverMessageId: string | undefined;
 
+      // Buffer for incomplete lines split across chunks
+      let lineBuffer = '';
+
       let done = false;
       while (!done) {
         const result = await reader.read();
@@ -245,7 +249,16 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
         const value = result.value;
 
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        // Prepend any incomplete line from previous chunk
+        const fullChunk = lineBuffer + chunk;
+        const lines = fullChunk.split('\n');
+
+        // If chunk doesn't end with newline, last "line" is incomplete - buffer it
+        if (!chunk.endsWith('\n')) {
+          lineBuffer = lines.pop() || '';
+        } else {
+          lineBuffer = '';
+        }
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -285,12 +298,18 @@ export function useChat({ conversationId, currentCode, onCodeUpdate }: UseChatOp
                 case 'message_complete':
                   // Capture server's real message ID to sync client state with DB
                   serverMessageId = event.data.messageId;
-                  codeSnapshot = event.data.codeSnapshot;
-                  // Phase 3: Capture changes array from extraction
-                  messageChanges = event.data.changes;
-                  // Phase 4: Capture completion metadata
+                  // Phase 4: Capture completion metadata (ignore server codeSnapshot - extract locally)
                   wasComplete = event.data.wasComplete ?? true;
                   continuationCount = event.data.continuationCount ?? 0;
+
+                  // CLIENT-SIDE CODE EXTRACTION: Extract from full accumulated content
+                  // This avoids SSE chunking issues with large codeSnapshot payloads
+                  const extraction = extractCodeFromContent(assistantContent);
+                  if (extraction.hasCode && extraction.code) {
+                    codeSnapshot = sanitizeLiquidCode(extraction.code);
+                    messageChanges = extraction.changes;
+                  }
+
                   if (codeSnapshot && onCodeUpdate) {
                     onCodeUpdate(codeSnapshot);
                   }

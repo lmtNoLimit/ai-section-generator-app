@@ -73,11 +73,11 @@ export interface ContinuationCompleteData {
 }
 
 // Message complete event data with completion metadata (Phase 4: UI Feedback)
+// NOTE: codeSnapshot and changes are NOT sent via SSE - client extracts locally
+// from streamed content to avoid SSE chunking issues with large payloads
 export interface MessageCompleteData {
   messageId?: string;
-  codeSnapshot?: string;
   hasCode?: boolean;
-  changes?: string[];
   wasComplete?: boolean; // true if code is complete (no continuation needed or successful)
   continuationCount?: number; // number of continuation attempts
 }
@@ -87,8 +87,6 @@ export interface StreamEvent {
   data: {
     messageId?: string;
     content?: string;
-    codeSnapshot?: string;
-    changes?: string[];
     error?: string;
     // Continuation fields (Phase 4)
     attempt?: number;
@@ -98,6 +96,7 @@ export interface StreamEvent {
     totalLength?: number;
     wasComplete?: boolean;
     continuationCount?: number;
+    hasCode?: boolean;
   };
 }
 

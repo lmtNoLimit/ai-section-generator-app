@@ -97,24 +97,17 @@ export function sanitizeLiquidCode(code: string): string {
   sanitized = sanitized.replace(/javascript:/gi, '');
 
   // Remove inline event handlers (but preserve Liquid syntax)
-  // Only match HTML attribute patterns, not Liquid
   sanitized = sanitized.replace(/\s(on\w+)\s*=\s*["'][^"']*["']/gi, '');
 
   // === LIQUID FORM SANITIZATION ===
-  // Fix AI hallucinations with incorrect Liquid form syntax
-
-  // ALWAYS remove new_comment forms - we never generate article sections
-  // This form type requires an article object and causes errors in product/collection sections
+  // ALWAYS remove new_comment forms - requires article object, not supported
   const newCommentFormRegex = /\{%[-\s]*form\s+['"]new_comment['"][^%]*%\}[\s\S]*?\{%[-\s]*endform[-\s]*%\}/gi;
   sanitized = sanitized.replace(newCommentFormRegex, '<!-- new_comment form removed: not supported -->');
 
-  // Check if section has product picker
-  const hasProductPicker = /"type"\s*:\s*"product"/.test(sanitized);
-
   // Fix product forms missing product argument
   // {% form 'product' %} -> {% form 'product', section.settings.product %}
+  const hasProductPicker = /"type"\s*:\s*"product"/.test(sanitized);
   if (hasProductPicker) {
-    // Match {% form 'product' %} WITHOUT a second argument (no comma after 'product')
     sanitized = sanitized.replace(
       /(\{%[-\s]*form\s+['"]product['"])(\s*%\})/gi,
       '$1, section.settings.product$2'
